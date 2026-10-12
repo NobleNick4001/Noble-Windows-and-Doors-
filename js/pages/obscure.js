@@ -146,6 +146,18 @@ function badge(p) {
   return settings.showPlaceholders && p.placeholder ? h('span', { class: 'pill ph' }, 'placeholder') : null;
 }
 
+function patternVisual(p, uid) {
+  if (p?.image) return h('img', { class: 'og-photo', src: p.image, alt: '', width: '250', height: '250', decoding: 'async', draggable: 'false' });
+  return h('div', { class: 'og-svg', html: glassSVG(p ? p.pattern : null, uid) });
+}
+
+function privacyRow(p) {
+  if (p.privacy == null || p.privacy === '') {
+    return h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), h('span', { class: 'fine' }, 'Not set'));
+  }
+  return h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), dots(p.privacy));
+}
+
 export function view() {
   const list = patterns();
   const chosen = selectedPatternId();
@@ -153,14 +165,14 @@ export function view() {
     type: 'button', class: 'og-tile' + (p.id === chosen ? ' on' : ''), 'data-pattern': p.id,
     onclick: () => openCompare(p),
   },
-    h('div', { class: 'og-pane', html: glassSVG(p.pattern, nextId()) }),
+    h('div', { class: 'og-pane' }, patternVisual(p, nextId())),
     h('div', { class: 'og-meta' },
-      h('b', {}, p.name),
-      h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), dots(p.privacy)),
+      h('div', { class: 'row wrap gap' }, h('b', {}, p.name), p.brand ? h('span', { class: 'og-brand' }, p.brand) : null),
+      privacyRow(p),
       badge(p)))));
   return h('div', { class: 'og' },
-    h('p', { class: 'og-lead' }, 'Tap a pattern to compare it with clear glass. The view behind the pane is the same in every tile, so the texture is what changes.'),
-    settings.showPlaceholders && h('p', { class: 'fine' }, 'Names and privacy ratings are placeholders. Edit them in ', h('code', {}, 'data/obscure-glass.json'), '.'),
+    h('p', { class: 'og-lead' }, 'Andersen privacy glass — Cascade, Fern, Obscure, Reed, and Satin Etch. Tap a pattern to compare the real glass with clear.'),
+    settings.showPlaceholders && h('p', { class: 'fine' }, 'Privacy ratings were not taken from the photos. Reed (3) and Satin Etch (5) are still the old generic numbers; Cascade, Fern, and Obscure have none yet. Edit them in ', h('code', {}, 'data/obscure-glass.json'), '.'),
     grid);
 }
 
@@ -195,7 +207,7 @@ function openCompare(p) {
   const prevOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
   let pos = 58;
-  const pat = h('div', { class: 'og-cmp-pat' }, h('div', { class: 'og-pane', html: glassSVG(p.pattern, nextId()) }));
+  const pat = h('div', { class: 'og-cmp-pat' }, h('div', { class: 'og-pane' }, patternVisual(p, nextId())));
   const bar = h('div', { class: 'og-cmp-bar' });
   const range = h('input', { type: 'range', min: '0', max: '100', value: String(pos), 'aria-label': `Compare clear glass with ${p.name}` });
   const setPos = (v) => {
@@ -206,7 +218,7 @@ function openCompare(p) {
   };
   range.addEventListener('input', () => setPos(Number(range.value)));
   const frame = h('div', { class: 'og-cmp-frame' },
-    h('div', { class: 'og-pane', html: glassSVG(null, nextId()) }),
+    h('div', { class: 'og-pane' }, patternVisual(null, nextId())),
     pat, bar,
     h('span', { class: 'og-tag l' }, 'Clear'),
     h('span', { class: 'og-tag r' }, p.name));
@@ -233,8 +245,8 @@ function openCompare(p) {
     h('div', { class: 'og-cmp-top' }, close),
     h('div', { class: 'og-cmp-stage' }, frame),
     h('div', { class: 'og-cmp-panel' },
-      h('div', { class: 'row between wrap' }, h('h2', {}, p.name), badge(p)),
-      h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), dots(p.privacy)),
+      h('div', { class: 'row between wrap' }, h('div', { class: 'row wrap gap' }, h('h2', {}, p.name), p.brand ? h('span', { class: 'og-brand' }, p.brand) : null), badge(p)),
+      privacyRow(p),
       h('p', {}, p.desc || ''),
       h('div', { class: 'og-scale' }, h('span', {}, 'Clear'), h('span', {}, p.name)),
       range, status, btn));

@@ -1,16 +1,10 @@
 {
-  "_readme": "PLACEHOLDER obscure-glass patterns for the customer screen. Edit name, desc, and privacy (1 = still see outlines, 5 = detail gone). placeholder:true shows the placeholder badge (hide all of them in Settings). pattern picks the glass simulation: rain, gluechip, reed, satin, cord, aquatex, pebble, flemish, narrowreed, gray, bronze. Add a row to show another tile; unknown pattern values fall back to a frosted look. Order in this list is the order on screen.",
+  "_readme": "Andersen privacy glass for the customer screen — the five patterns Andersen carries. Photos (250×250, from Noble's energy-efficient windows page) live in assets/obscure/. Edit name, desc, and privacy here (1 = outlines still visible, 5 = detail gone). Do not invent a privacy number: leave privacy null until Nick sets it. Reed (3) and Satin Etch (5) still use the previous generic ratings — confirm them before treating them as final. placeholder:true shows the placeholder badge (Settings can hide badges). image is the photo shown on the card and in the clear-vs-pattern comparison; pattern is only a drawn fallback if image is missing. brand labels the group (add a Milgard group later with brand \"Milgard\" if those patterns come back). Order in this list is the order on screen.",
   "patterns": [
-    {"id":"rain","name":"Rain","pattern":"rain","privacy":3,"placeholder":true,"desc":"Vertical ripples that break up the view, like rain on the pane. Light still comes through."},
-    {"id":"gluechip","name":"Glue Chip","pattern":"gluechip","privacy":4,"placeholder":true,"desc":"A crystalline, chipped texture. Shapes on the other side turn into sparkle and color."},
-    {"id":"reed","name":"Reed","pattern":"reed","privacy":3,"placeholder":true,"desc":"Vertical flutes. You get light and a soft sense of movement outside, not a clear view."},
-    {"id":"satin","name":"Satin Etch","pattern":"satin","privacy":5,"placeholder":true,"desc":"Even frosted etch. The strongest privacy here — light in, detail out."},
-    {"id":"cord","name":"Cord","pattern":"cord","privacy":3,"placeholder":true,"desc":"Wavy cord-like lines through the glass. People and objects soften into streaks."},
-    {"id":"aquatex","name":"Aquatex","pattern":"aquatex","privacy":4,"placeholder":true,"desc":"A fine woven texture, similar to taffeta. High privacy with a fabric-like sparkle."},
-    {"id":"pebble","name":"Pebble","pattern":"pebble","privacy":4,"placeholder":true,"desc":"Small rounded pebbles across the surface. The view becomes color and light, not shapes."},
-    {"id":"flemish","name":"Flemish","pattern":"flemish","privacy":3,"placeholder":true,"desc":"Larger hammered spots. More distortion than a tint, with some color still readable."},
-    {"id":"narrowreed","name":"Narrow Reed","pattern":"narrowreed","privacy":4,"placeholder":true,"desc":"Tighter vertical reeds than standard reed, so the view breaks up more."},
-    {"id":"obscure-gray","name":"Obscure Gray","pattern":"gray","privacy":2,"placeholder":true,"desc":"A gray privacy tint. Outlines are still visible, with less glare than clear glass."},
-    {"id":"obscure-bronze","name":"Obscure Bronze","pattern":"bronze","privacy":2,"placeholder":true,"desc":"A warm bronze privacy tint. Softens brightness and adds a brown-gold cast."}
+    {"id":"cascade","name":"Cascade","brand":"Andersen","image":"assets/obscure/cascade.png","pattern":"rain","privacy":null,"desc":"Vertical water-streak texture. Light comes through; the view breaks into ripples."},
+    {"id":"fern","name":"Fern","brand":"Andersen","image":"assets/obscure/fern.png","pattern":"gluechip","privacy":null,"desc":"Pressed fern and leaf shapes across the glass."},
+    {"id":"andersen-obscure","name":"Obscure","brand":"Andersen","image":"assets/obscure/obscure.png","pattern":"pebble","privacy":null,"desc":"A fine, even pebbled texture. The view softens into light."},
+    {"id":"reed","name":"Reed","brand":"Andersen","image":"assets/obscure/reed.png","pattern":"reed","privacy":3,"desc":"Vertical flutes. You get light and a soft sense of movement outside, not a clear view."},
+    {"id":"satin","name":"Satin Etch","brand":"Andersen","image":"assets/obscure/satin-etch.png","pattern":"satin","privacy":5,"desc":"Even frosted etch. The strongest privacy here — light in, detail out."}
   ]
 }

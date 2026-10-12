@@ -25,7 +25,7 @@ Calculator · Estimate (builder + printable/PDF page) · Saved estimates · Opti
 | `data/milgard_material_rates.csv` | Human-readable copy of the Milgard material-only rate table (avg / max / P75, quoted vs estimated, basis). |
 | `data/install.json` | Install types & prices, surcharges, job-extra presets. Only "standard = $360" is real; the rest are placeholder prices. |
 | `data/options.json` | Glass / frame options with add-on pricing (`perWindow`, `percent`, `perSqFt`, or `included`). All placeholders ($0). |
-| `data/obscure-glass.json` | Customer obscure-glass patterns (name, description, privacy 1–5). Placeholders — edit this file to rename patterns or change privacy ratings. |
+| `data/obscure-glass.json` | Andersen privacy-glass patterns (Cascade, Fern, Obscure, Reed, Satin Etch). Photos are in `assets/obscure/` (250×250; the card and the clear-vs-pattern slider show the real photo, capped near 2× so it stays sharp). Reed privacy 3 and Satin Etch privacy 5 are the old generic ratings; Cascade, Fern, and Obscure have no rating yet. Edit name, description, and privacy here — do not guess a number. |
 | `data/frame-types.json` | Customer frame-style copy (Z-bar / retrofit, block frame, nailing fin): description, best for, pros, cons, installation note. Each row’s `installType` points at a labor price in `data/install.json`. Placeholders — edit the wording here. |
 | `data/settings.default.json` | Defaults: tax %, rate set, company info, estimate terms, validity days. Settings page overrides are stored on each device (localStorage). |
 | `assets/gallery/gallery.json` | Slideshow manifest. Drop photos in `assets/gallery/` and add entries (instructions inside the file). |

@@ -92,8 +92,10 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .og-tile{display:flex;flex-direction:column;padding:0;border:2px solid var(--line);background:#fff;border-radius:16px;overflow:hidden;cursor:pointer;text-align:left;font:inherit;color:inherit;min-height:200px;box-shadow:0 1px 2px rgba(14,58,99,.05)}
 .og-tile.on{border-color:var(--orange);box-shadow:inset 0 0 0 1px var(--orange)}
 .og-tile:focus-visible{outline:3px solid rgba(242,140,40,.7);outline-offset:2px}
-.og-pane{position:relative;aspect-ratio:4/3;background:#b7dff6}
-.og-pane svg{width:100%;height:100%;display:block}
+.og-pane{position:relative;aspect-ratio:1/1;width:min(100%,500px);margin-inline:auto;background:linear-gradient(180deg,#e7f4fb,#c5e6f8);overflow:hidden}
+.og-pane svg,.og-svg,.og-svg svg{width:100%;height:100%;display:block}
+.og-photo{width:100%;height:100%;object-fit:contain;object-position:center;display:block;pointer-events:none;user-select:none}
+.og-brand{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);align-self:center}
 .og-meta{display:flex;flex-direction:column;gap:.35rem;padding:.75rem .9rem .95rem}
 .og-meta b{font-size:1.12rem;color:var(--navy)}
 .og-meta .row{gap:.5rem}
@@ -105,8 +107,8 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .og-cmp-top{display:flex;justify-content:flex-end;padding:calc(10px + env(safe-area-inset-top)) 10px 0}
 .og-cmp-x{width:48px;height:48px;border-radius:50%;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:1.3rem;cursor:pointer}
 .og-cmp-stage{flex:1;min-height:180px;display:flex;align-items:center;justify-content:center;padding:.4rem 1rem 1rem}
-.og-cmp-frame{position:relative;width:min(920px,100%);aspect-ratio:4/3;border-radius:14px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.35);touch-action:none;background:#b7dff6}
-.og-cmp-frame .og-pane{position:absolute;inset:0;aspect-ratio:auto;height:100%}
+.og-cmp-frame{position:relative;height:min(500px,100%);width:auto;max-width:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.35);touch-action:none;background:#b7dff6}
+.og-cmp-frame .og-pane{position:absolute;inset:0;width:100%;max-width:none;aspect-ratio:auto;height:100%;margin:0}
 .og-cmp-pat{position:absolute;inset:0}
 .og-cmp-bar{position:absolute;top:0;bottom:0;width:3px;background:var(--orange);transform:translateX(-1.5px);pointer-events:none}
 .og-cmp-bar::after{content:"";position:absolute;top:50%;left:50%;width:40px;height:40px;border-radius:50%;background:var(--orange);border:3px solid #fff;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.3)}
