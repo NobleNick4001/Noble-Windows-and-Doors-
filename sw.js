@@ -1,8 +1,8 @@
 // Offline support: network-first (so edited JSON/rates show up immediately), cache fallback when offline.
-const CACHE = 'nwd-sales-v6';
+const CACHE = 'nwd-sales-v8';
 const PRECACHE = ['./', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'js/app.js', 'js/core.js', 'js/frames.js',
-  'js/pages/calculator.js', 'js/pages/estimate.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/overlay.js', 'js/pages/settings.js',
-  'data/rates.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'assets/gallery/gallery.json',
+  'js/pages/calculator.js', 'js/pages/estimate.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/overlay.js', 'js/pages/settings.js', 'js/pages/obscure.js', 'js/pages/frame-types.js',
+  'data/rates.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'assets/gallery/gallery.json',
   'assets/noble-logo-trim.png', 'assets/icon-192.png', 'assets/icon-512.png',
   'assets/gallery/placeholder-1.svg', 'assets/gallery/placeholder-2.svg', 'assets/gallery/placeholder-3.svg', 'assets/gallery/placeholder-4.svg'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting())); });

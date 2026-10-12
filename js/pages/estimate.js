@@ -53,7 +53,7 @@ export function render(root) {
     }
     lines.append(row);
   });
-  function optCheck(l, o) { return h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: l.options.includes(o.id) ? 'checked' : null, onchange: (ev) => { l.options = ev.target.checked ? [...l.options, o.id] : l.options.filter((x) => x !== o.id); } }), h('span', {}, o.name)); }
+  function optCheck(l, o) { return h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: l.options.includes(o.id) ? 'checked' : null, onchange: (ev) => { l.options = ev.target.checked ? [...l.options, o.id] : l.options.filter((x) => x !== o.id); if (o.id === 'obscure' && !ev.target.checked) { const ids = new Set((data.obscureGlass?.patterns || []).map((p) => p.id)); l.options = l.options.filter((id) => !ids.has(id)); } } }), h('span', {}, o.name)); }
   lines.append(h('a', { class: 'btn', href: '#/calculator' }, '+ Add window'));
   wrap.append(lines);
 

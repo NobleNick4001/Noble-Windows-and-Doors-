@@ -1,0 +1,41 @@
+{
+  "_readme": "PLACEHOLDER copy for the customer Frame Types screen. Edit name, bestFor, desc, pros, cons, and installNote. placeholder:true shows the placeholder badge (Settings can hide badges). installType must be an id in data/install.json. Choosing this frame on an estimate line sets that install type and its per-window price. diagram is the picture key: zbar, block, or nailfin.",
+  "types": [
+    {
+      "id": "zbar",
+      "name": "Z-bar / Retrofit",
+      "diagram": "zbar",
+      "installType": "standard",
+      "bestFor": "Replacement into the existing frame. A common choice on stucco homes when the old frame stays.",
+      "desc": "The new window sits inside the frame that is already in the wall. A Z-shaped fin hooks over that old frame so the joint is covered from the outside.",
+      "pros": ["Stucco and drywall usually stay put", "No full tear-out of the old frame", "Often the quickest replacement"],
+      "cons": ["The glass opening gets a little smaller", "The old frame has to be solid and close to square"],
+      "installNote": "The old sash comes out. The new window clips into the existing frame and the Z-bar covers the outside edge. Caulk seals the fin.",
+      "placeholder": true
+    },
+    {
+      "id": "block",
+      "name": "Block Frame",
+      "diagram": "block",
+      "installType": "block",
+      "bestFor": "An opening that is already clear — the old frame is gone, or the pocket was built for a plain box frame.",
+      "desc": "A simple box with no fin. It slides into the rough opening and is screwed through the frame into the wall.",
+      "pros": ["No fin to hide or trim around", "Easy to shim until it is square", "A clean look in a prepared opening"],
+      "cons": ["The opening has to be ready — the frame will not cover a missing wall", "Outside trim or stucco is a separate step"],
+      "installNote": "Set the box in the opening, shim it square, and screw through the jamb. Close the outside edge with trim or a stucco return.",
+      "placeholder": true
+    },
+    {
+      "id": "nailfin",
+      "name": "Nailing Fin",
+      "diagram": "nailfin",
+      "installType": "stucco-fin",
+      "bestFor": "New construction, or a full tear-out where the wall face is open. Used on stucco homes that are re-finished outside.",
+      "desc": "A flat fin around the window is nailed to the wall sheathing. Stucco or siding then covers the fin.",
+      "pros": ["The fin is a built-in flange for flashing", "The usual frame when the wall is open", "New-construction standard"],
+      "cons": ["The outside skin has to be open, or the old window fully removed", "It does not mount over a frame you are keeping"],
+      "installNote": "Nail the fin to the sheathing, flash it, then let stucco or siding lap over the fin. On a replacement, the old frame comes out first.",
+      "placeholder": true
+    }
+  ]
+}
