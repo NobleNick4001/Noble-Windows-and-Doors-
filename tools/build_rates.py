@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Rebuild data/rates.json + data/milgard_material_rates.csv from tools/milgard_quote_lines.json.
+"""Rebuild Milgard rows in data/rates.json + data/milgard_material_rates.csv from tools/milgard_quote_lines.json.
 Material-only rate C = quoted line price / (W+H). Labor is NOT in the rate (separate line item).
 Recommended (p75) = 75th percentile of C per series/color/type; max = highest C.
 Missing colors estimated from V250 color ratios (computed separately for max and p75);
-A250 bronze anodized stands in for A250 black/black."""
+A250 bronze anodized stands in for A250 black/black.
+Andersen 100 Series (and IWC) are left as stored in rates.json — this script does not rebuild them."""
 import json, csv, os
 import numpy as np
 os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -51,8 +52,17 @@ if not any(c['id'] == 'adobe' for c in d['colors']):
     d['colors'].append({'id': 'adobe', 'name': 'Adobe', 'swatch': '#C8A27A', 'frame': 'adobe'})
 d['_readme'] = ("RATE TABLE (material only). Window price = (width_in + height_in) x rate. Rates are customer prices for the WINDOW ONLY: Noble's 40% margin is included; "
   "labor/installation, tax and shipping are NOT (installation is a separate line item, see data/install.json). 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. "
-  "'estimated': true = not from a real quote (hidden from customers). To add a brand/series: add entries under brands[].series and brands[].rates using key 'SERIES|colorId|typeId'. See README.md.")
+  "'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). "
+  "Andersen 100 Series is active and is NOT rebuilt by this script (customer-pricing quotes; Sandtone = White per Nick; Dark Bronze is dark-bronze exterior / white interior; thin types n < 3 are estimated). "
+  "IWC is still coming_soon. See README.md and data/andersen_100_material_rates.csv.")
 d.pop('laborIncludedPerWindow', None); d['laborIncluded'] = False; d['version'] = 2
+# This script only replaces Milgard (brands[0]) rates. Other brands, and colors/types added for them, stay.
+for cid in ('sandtone', 'terratone', 'dkbronze'):
+    if not any(c['id'] == cid for c in d['colors']): raise SystemExit('missing color ' + cid)
+for tid in ('awning', 'xox'):
+    if not any(t['id'] == tid for t in d['types']): raise SystemExit('missing type ' + tid)
+andersen = next((b for b in d['brands'] if b['id'] == 'andersen'), None)
+if not andersen or andersen.get('status') != 'active' or not andersen.get('rates'): raise SystemExit('Andersen 100 rates missing from rates.json')
 json.dump(d, open('data/rates.json', 'w'), indent=1)
 with open('data/milgard_material_rates.csv', 'w', newline='') as f:
     w = csv.writer(f)

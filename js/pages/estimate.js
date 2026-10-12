@@ -42,11 +42,16 @@ export function render(root) {
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
         h('button', { class: 'btn sm danger', onclick: () => { e.lines.splice(idx, 1); save(); rerender(); } }, 'Remove')));
-    if (isOpen) {
+      if (isOpen) {
       const upd = (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); };
+      const seriesDef = brandById(l.brand)?.series?.find((s) => s.id === l.series);
       row.append(h('div', { class: 'edit' },
         h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', { type: 'text', value: l.label, oninput: (ev) => { l.label = ev.target.value; save(); } })),
         h('div', { class: 'grid3' }, stepper('Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); }, { unit: 'in' }), stepper('Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; save(); }, { min: 1 })),
+        seriesDef && h('b', {}, 'Window type'),
+        seriesDef && h('div', { class: 'chips' }, seriesDef.types.map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
+        seriesDef && h('b', {}, 'Frame color'),
+        seriesDef && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
         h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), data.options.glass.map((o) => optCheck(l, o))), h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map((o) => optCheck(l, o)))),
         h('b', {}, 'Installation'), installEditor(l.install, (full) => { reprice(l); save(); if (full) rerender(); }, 'li-' + l.id),
         h('button', { class: 'btn primary', onclick: () => { reprice(l); save(); open.delete(l.id); rerender(); } }, 'Save line')));
@@ -87,12 +92,15 @@ export function render(root) {
   root.replaceChildren(wrap);
 }
 
+function licenseLines(c) {
+  return String(c?.license || '').split('\n').map((s) => s.trim()).filter(Boolean);
+}
 export function renderPrint(root) {
   const e = estimates.current(); const t = totals(e); const c = settings.company;
   const valid = new Date(e.created + (e.validDays || 30) * 86400000);
   const sheet = h('div', { class: 'sheet' },
     h('div', { class: 'sh-head' }, h('img', { src: 'assets/noble-logo-trim.png', alt: 'Noble Windows & Doors LLC', class: 'sh-logo' }),
-      h('div', { class: 'sh-co' }, h('b', {}, c.name), h('div', {}, c.address), h('div', {}, c.phone), c.email && h('div', {}, c.email), c.website && h('div', {}, c.website), c.license && h('div', {}, 'Lic. ' + c.license))),
+      h('div', { class: 'sh-co' }, h('b', {}, c.name), h('div', {}, c.address), h('div', {}, c.phone), c.email && h('div', {}, c.email), c.website && h('div', {}, c.website), c.hours && h('div', {}, c.hours), ...licenseLines(c).map((line) => h('div', {}, line)))),
     h('h1', { class: 'sh-title' }, 'ESTIMATE'),
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));

@@ -1,24 +1,24 @@
 {
-  "_readme": "PLACEHOLDER copy for the customer Frame Types screen. Edit name, bestFor, desc, pros, cons, and installNote. placeholder:true shows the placeholder badge (Settings can hide badges). installType must be an id in data/install.json. Choosing this frame on an estimate line sets that install type and its per-window price. diagram is the picture key: zbar, block, or nailfin.",
+  "_readme": "Frame and install copy for the customer Frame Types screen. Edit name, bestFor, desc, pros, cons, and installNote. placeholder:true shows the placeholder badge (Settings can hide badges). Retrofit and nailing fin / full frame follow the website. Block frame is not described on the site, so that card stays a placeholder. installType must be an id in data/install.json. Choosing this frame on an estimate line sets that install type and its per-window price. diagram is the picture key: zbar, block, or nailfin. Nick's gallery label 'retrofit / jump frame' is the retrofit card; the site's word is retrofit.",
   "types": [
     {
       "id": "zbar",
-      "name": "Z-bar / Retrofit",
+      "name": "Retrofit",
       "diagram": "zbar",
       "installType": "standard",
-      "bestFor": "Replacement into the existing frame. A common choice on stucco homes when the old frame stays.",
-      "desc": "The new window sits inside the frame that is already in the wall. A Z-shaped fin hooks over that old frame so the joint is covered from the outside.",
-      "pros": ["Stucco and drywall usually stay put", "No full tear-out of the old frame", "Often the quickest replacement"],
-      "cons": ["The glass opening gets a little smaller", "The old frame has to be solid and close to square"],
-      "installNote": "The old sash comes out. The new window clips into the existing frame and the Z-bar covers the outside edge. Caulk seals the fin.",
-      "placeholder": true
+      "bestFor": "Sound stucco homes, especially those built after the mid-1980s, when the old frame can stay.",
+      "desc": "The new window sets into the frame that is already in the wall. The old frame stays. No stucco cut. The glass area is a little smaller. Most retrofit installations finish in a day. On the gallery, Nick's photos of this install are labeled retrofit / jump frame.",
+      "pros": ["No stucco cut", "The old frame stays in the wall", "Usually the faster replacement"],
+      "cons": ["Glass area is slightly smaller", "The old frame has to be solid and close to square"],
+      "installNote": "The old sash comes out. The new unit sets inside the existing frame. A Z-shaped fin covers the outside joint.",
+      "placeholder": false
     },
     {
       "id": "block",
       "name": "Block Frame",
       "diagram": "block",
       "installType": "block",
-      "bestFor": "An opening that is already clear — the old frame is gone, or the pocket was built for a plain box frame.",
+      "bestFor": "An opening that is already clear — the old frame is gone, or the pocket was built for a plain box frame. The website does not describe this frame, so this card is still a placeholder.",
       "desc": "A simple box with no fin. It slides into the rough opening and is screwed through the frame into the wall.",
       "pros": ["No fin to hide or trim around", "Easy to shim until it is square", "A clean look in a prepared opening"],
       "cons": ["The opening has to be ready — the frame will not cover a missing wall", "Outside trim or stucco is a separate step"],
@@ -27,15 +27,15 @@
     },
     {
       "id": "nailfin",
-      "name": "Nailing Fin",
+      "name": "Full frame / nailing fin",
       "diagram": "nailfin",
       "installType": "stucco-fin",
-      "bestFor": "New construction, or a full tear-out where the wall face is open. Used on stucco homes that are re-finished outside.",
-      "desc": "A flat fin around the window is nailed to the wall sheathing. Stucco or siding then covers the fin.",
-      "pros": ["The fin is a built-in flange for flashing", "The usual frame when the wall is open", "New-construction standard"],
-      "cons": ["The outside skin has to be open, or the old window fully removed", "It does not mount over a frame you are keeping"],
-      "installNote": "Nail the fin to the sheathing, flash it, then let stucco or siding lap over the fin. On a replacement, the old frame comes out first.",
-      "placeholder": true
+      "bestFor": "A full-frame replacement, or new construction before stucco or siding goes on.",
+      "desc": "Full frame takes everything out back to the rough opening, flashing included. It is for a rotted, rusted, or out-of-square frame, a flashing repair, or a change in opening size. Stucco is cut and patched, and that work is part of the quote. Glass area is kept. It takes longer than a retrofit. New construction sets the unit into the framed opening before the outside skin, and the fin is sealed into the weather barrier. If stucco is coming off an elevation anyway, that elevation should get nail-fin units, flashed, before the new lath goes on.",
+      "pros": ["Glass area is kept on a full-frame replacement", "The fin gives flashing a place to tie in", "The right frame when the wall face is open"],
+      "cons": ["Stucco is cut and patched on a replacement", "Takes longer than a retrofit", "Does not mount over a frame you are keeping"],
+      "installNote": "The old frame comes out first on a replacement. Nail the fin to the sheathing, flash it, then let stucco or siding cover the fin.",
+      "placeholder": false
     }
   ]
 }

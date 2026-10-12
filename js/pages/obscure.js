@@ -12,7 +12,11 @@ export function stop() {
   document.body.style.overflow = '';
 }
 
-function patterns() { return data.obscureGlass?.patterns || []; }
+function sections() { return data.obscureGlass?.sections || []; }
+function patterns() {
+  const fromSections = sections().flatMap((s) => s.patterns || []);
+  return fromSections.length ? fromSections : (data.obscureGlass?.patterns || []);
+}
 function patternIdSet() { return new Set(patterns().map((p) => p.id)); }
 
 function liveEstimate() {
@@ -146,22 +150,65 @@ function badge(p) {
   return settings.showPlaceholders && p.placeholder ? h('span', { class: 'pill ph' }, 'placeholder') : null;
 }
 
-export function view() {
-  const list = patterns();
-  const chosen = selectedPatternId();
-  const grid = h('div', { class: 'og-grid', id: 'obscure-grid' }, list.map((p) => h('button', {
+function patternVisual(p, uid) {
+  if (p?.image) return h('img', { class: 'og-photo', src: p.image, alt: '', width: '250', height: '250', decoding: 'async', draggable: 'false' });
+  return h('div', { class: 'og-svg', html: glassSVG(p ? p.pattern : null, uid) });
+}
+
+function privacyRow(p) {
+  if (p.privacy == null || p.privacy === '') {
+    return h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), h('span', { class: 'fine' }, 'Not set'));
+  }
+  return h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), dots(p.privacy));
+}
+
+function nameBlock(p, Tag = 'b') {
+  return h('div', {},
+    h('div', { class: 'row wrap gap' }, h(Tag, {}, p.name), p.brand ? h('span', { class: 'og-brand' }, p.brand) : null),
+    p.aka ? h('div', { class: 'fine' }, 'Also called ' + p.aka) : null);
+}
+
+function photoTile(p, chosen) {
+  return h('button', {
     type: 'button', class: 'og-tile' + (p.id === chosen ? ' on' : ''), 'data-pattern': p.id,
     onclick: () => openCompare(p),
   },
-    h('div', { class: 'og-pane', html: glassSVG(p.pattern, nextId()) }),
+    h('div', { class: 'og-pane' }, patternVisual(p, nextId())),
     h('div', { class: 'og-meta' },
-      h('b', {}, p.name),
-      h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), dots(p.privacy)),
-      badge(p)))));
+      nameBlock(p),
+      privacyRow(p),
+      badge(p)));
+}
+
+function textRow(p) {
+  const status = h('p', { class: 'fine og-status' });
+  const btn = h('button', { type: 'button', class: 'btn sm' }, 'Select for this window');
+  btn.addEventListener('click', () => savePattern(p, status, btn));
+  return h('div', { class: 'card og-text' + (p.id === selectedPatternId() ? ' on' : ''), 'data-pattern': p.id },
+    nameBlock(p),
+    h('p', {}, p.desc || ''),
+    p.seriesNote ? h('p', { class: 'fine' }, p.seriesNote) : null,
+    p.limit ? h('p', { class: 'og-limit' }, p.limit) : null,
+    privacyRow(p),
+    badge(p),
+    btn, status);
+}
+
+export function view() {
+  const chosen = selectedPatternId();
+  const secs = sections();
+  const blocks = secs.length ? secs.map((sec) => h('section', { class: 'og-sec', 'data-brand': sec.brand || '' },
+    h('h2', {}, sec.title || sec.brand || 'Patterns'),
+    sec.lead ? h('p', { class: 'og-lead' }, sec.lead) : null,
+    ...(sec.notes || []).map((n) => h('p', { class: 'fine' }, n)),
+    sec.showPhotos === false
+      ? h('div', { class: 'og-list' }, (sec.patterns || []).map(textRow))
+      : h('div', { class: 'og-grid', id: sec.id === 'andersen' ? 'obscure-grid' : null }, (sec.patterns || []).map((p) => photoTile(p, chosen)))))
+    : [h('div', { class: 'og-grid', id: 'obscure-grid' }, patterns().map((p) => photoTile(p, chosen)))];
   return h('div', { class: 'og' },
-    h('p', { class: 'og-lead' }, 'Tap a pattern to compare it with clear glass. The view behind the pane is the same in every tile, so the texture is what changes.'),
-    settings.showPlaceholders && h('p', { class: 'fine' }, 'Names and privacy ratings are placeholders. Edit them in ', h('code', {}, 'data/obscure-glass.json'), '.'),
-    grid);
+    data.obscureGlass?.pageNote ? h('p', { class: 'og-lead' }, data.obscureGlass.pageNote) : null,
+    settings.showPlaceholders && h('p', { class: 'fine' }, 'Privacy ratings are still placeholders. The site does not publish them. Reed is 3 and Satin Etch is 5 from the old generic list; every other pattern is blank. Edit ', h('code', {}, 'data/obscure-glass.json'), '.'),
+    ...blocks);
 }
 
 function savePattern(p, statusEl, btn) {
@@ -187,7 +234,7 @@ function savePattern(p, statusEl, btn) {
     toast(`${p.name} will be included on the next window you add`);
   }
   btn.textContent = 'Selected for this window';
-  document.querySelectorAll('.og-tile').forEach((el) => el.classList.toggle('on', el.getAttribute('data-pattern') === p.id));
+  document.querySelectorAll('.og-tile, .og-text').forEach((el) => el.classList.toggle('on', el.getAttribute('data-pattern') === p.id));
 }
 
 function openCompare(p) {
@@ -195,7 +242,7 @@ function openCompare(p) {
   const prevOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
   let pos = 58;
-  const pat = h('div', { class: 'og-cmp-pat' }, h('div', { class: 'og-pane', html: glassSVG(p.pattern, nextId()) }));
+  const pat = h('div', { class: 'og-cmp-pat' }, h('div', { class: 'og-pane' }, patternVisual(p, nextId())));
   const bar = h('div', { class: 'og-cmp-bar' });
   const range = h('input', { type: 'range', min: '0', max: '100', value: String(pos), 'aria-label': `Compare clear glass with ${p.name}` });
   const setPos = (v) => {
@@ -206,7 +253,7 @@ function openCompare(p) {
   };
   range.addEventListener('input', () => setPos(Number(range.value)));
   const frame = h('div', { class: 'og-cmp-frame' },
-    h('div', { class: 'og-pane', html: glassSVG(null, nextId()) }),
+    h('div', { class: 'og-pane' }, patternVisual(null, nextId())),
     pat, bar,
     h('span', { class: 'og-tag l' }, 'Clear'),
     h('span', { class: 'og-tag r' }, p.name));
@@ -233,8 +280,8 @@ function openCompare(p) {
     h('div', { class: 'og-cmp-top' }, close),
     h('div', { class: 'og-cmp-stage' }, frame),
     h('div', { class: 'og-cmp-panel' },
-      h('div', { class: 'row between wrap' }, h('h2', {}, p.name), badge(p)),
-      h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), dots(p.privacy)),
+      h('div', { class: 'row between wrap' }, nameBlock(p, 'h2'), badge(p)),
+      privacyRow(p),
       h('p', {}, p.desc || ''),
       h('div', { class: 'og-scale' }, h('span', {}, 'Clear'), h('span', {}, p.name)),
       range, status, btn));
