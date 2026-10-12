@@ -1,0 +1,23 @@
+{
+  "_readme": "PLACEHOLDER OPTIONS. Edit prices here. price.type = 'perWindow' (flat $ per window), 'percent' (% of that window's base price), 'perSqFt' ($ per square foot of glass), or 'included'. Leave amount 0 / type 'included' where unknown. placeholder:true shows a 'placeholder' badge (can be hidden in Settings).",
+  "glass": [
+    {"id":"lowe","name":"Low-E / SunCoat","icon":"sun","desc":"Microscopically thin coating on the glass reflects heat in summer and helps keep warmth in during winter. Cuts glare and UV fading of floors and furniture.","price":{"type":"included","amount":0},"placeholder":true,"defaultOn":true},
+    {"id":"cardinal340","name":"Cardinal 340+","icon":"sun","desc":"Upgraded multi-layer Low-E glass with stronger solar-heat control for hot, sunny exposures (west and south facing windows).","price":{"type":"perWindow","amount":0},"placeholder":true},
+    {"id":"argon","name":"Argon Gas Fill","icon":"cloud","desc":"Inert gas between the panes that slows heat transfer better than plain air, improving insulation and comfort.","price":{"type":"included","amount":0},"placeholder":true},
+    {"id":"tempered","name":"Tempered (Safety) Glass","icon":"shield","desc":"Heat-strengthened safety glass that breaks into small pieces. Often required near doors, tubs and showers, and low to the floor.","price":{"type":"perWindow","amount":0},"placeholder":true},
+    {"id":"obscure","name":"Obscure / Privacy Glass","icon":"eye","desc":"Textured or frosted glass that lets light in but blocks the view. Popular for bathrooms and entries.","price":{"type":"perWindow","amount":0},"placeholder":true}
+  ],
+  "frame": [
+    {"id":"grids-colonial","name":"Grids (Colonial)","icon":"grid","desc":"Decorative divided-lite grid pattern between the glass for a traditional look.","price":{"type":"perWindow","amount":0},"placeholder":true},
+    {"id":"grids-prairie","name":"Grids (Prairie)","icon":"grid","desc":"Prairie-style grid pattern around the perimeter of the sash.","price":{"type":"perWindow","amount":0},"placeholder":true},
+    {"id":"screen","name":"Screen","icon":"screen","desc":"Insect screen for operable windows.","price":{"type":"included","amount":0},"placeholder":true,"defaultOn":true},
+    {"id":"nailfin-retrofit","name":"Retrofit / Flush-fin Install","icon":"frame","desc":"Frame style that installs inside the existing opening without disturbing stucco or siding.","price":{"type":"included","amount":0},"placeholder":true}
+  ],
+  "series": [
+    {"id":"V250","name":"V250 Vinyl","tag":"Value","bullets":["Vinyl frame","Clean, simple profile","Great value replacement window"],"placeholder":true},
+    {"id":"V300","name":"V300 Vinyl","tag":"Better","bullets":["Vinyl frame","Step-up construction and features over V250","Wider range of sizes/styles"],"placeholder":true},
+    {"id":"V400","name":"V400 Vinyl","tag":"Best","bullets":["Premium vinyl frame","Top-of-the-line vinyl features and finish","Our most popular upgrade for long-term homeowners"],"placeholder":true},
+    {"id":"A250","name":"A250 Aluminum","tag":"Slim / Modern","bullets":["Aluminum frame, slim sightlines","Strong, modern look","Available in bronze anodized"],"placeholder":true}
+  ],
+  "seriesNote": "Series descriptions are generic placeholders. Replace with the real talking points from Milgard / Andersen / IWC."
+}

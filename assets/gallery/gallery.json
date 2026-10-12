@@ -1,0 +1,9 @@
+{
+  "_readme": "HOW TO ADD PHOTOS: 1) copy your JPG/PNG/WebP photos into this folder (assets/gallery/). 2) add an entry to 'slides' below: {\"src\":\"my-photo.jpg\",\"title\":\"Kitchen slider\",\"caption\":\"Milgard V300 black/black, Scottsdale\"}. 3) delete the placeholder-*.svg entries. Tip: resize photos to ~1600px wide so they load fast. Reload the app (online once) so it caches them for offline use.",
+  "slides": [
+    {"src":"placeholder-1.svg","title":"Add photos here","caption":"Drop real installed-window photos into assets/gallery/ and list them in gallery.json","placeholder":true},
+    {"src":"placeholder-2.svg","title":"Add photos here","caption":"Before / after shots sell best","placeholder":true},
+    {"src":"placeholder-3.svg","title":"Add photos here","caption":"Include the series and color in the caption","placeholder":true},
+    {"src":"placeholder-4.svg","title":"Add photos here","caption":"Placeholder tile 4","placeholder":true}
+  ]
+}
