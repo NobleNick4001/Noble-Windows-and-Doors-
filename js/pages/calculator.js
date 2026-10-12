@@ -146,7 +146,7 @@ export function render(root) {
   function miniEstimate() {
     const e = estimates.current(); const t = totals(e);
     return h('div', { class: 'card mini' }, h('div', { class: 'row between' }, h('b', {}, 'Current estimate'), h('span', { class: 'muted' }, e.number)),
-      e.lines.length ? h('div', {}, h('div', { class: 'line' }, h('span', {}, `${t.count} window${t.count === 1 ? '' : 's'} · windows`), h('b', {}, fmt(t.windows))), h('div', { class: 'line' }, h('span', {}, 'Installation'), h('b', {}, fmt(t.install + t.extras))), h('div', { class: 'line strong' }, h('span', {}, 'Subtotal (before tax)'), h('b', {}, fmt(t.subtotal))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
+      e.lines.length ? h('div', {}, h('div', { class: 'line' }, h('span', {}, `${t.count} window${t.count === 1 ? '' : 's'} · windows`), h('b', {}, fmt(t.windows))), t.discount ? h('div', { class: 'line discount' }, h('span', {}, 'Discount'), h('b', {}, fmt(-t.discount))) : null, h('div', { class: 'line' }, h('span', {}, 'Installation'), h('b', {}, fmt(t.install + t.extras))), h('div', { class: 'line strong' }, h('span', {}, 'Subtotal (before tax)'), h('b', {}, fmt(t.subtotal))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
   }
   const rerender = () => render(root);
   update();

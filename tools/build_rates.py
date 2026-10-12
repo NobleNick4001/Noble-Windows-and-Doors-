@@ -50,12 +50,15 @@ for se in brand['series']:
         se['colors'].append('adobe')
 if not any(c['id'] == 'adobe' for c in d['colors']):
     d['colors'].append({'id': 'adobe', 'name': 'Adobe', 'swatch': '#C8A27A', 'frame': 'adobe'})
-d['_readme'] = ("RATE TABLE (material only). Window price = (width_in + height_in) x rate. Rates are customer prices for the WINDOW ONLY: Noble's 40% margin is included; "
-  "labor/installation, tax and shipping are NOT (installation is a separate line item, see data/install.json). 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. "
+d['_readme'] = ("RATE TABLE (material only). Stored p75/max are quoted customer $/inch and already include a 40% margin (customer = cost / 0.60). "
+  "Selling rate = stored x 0.60 / (1 - grossMargin). grossMargin is the one margin to edit (0.45 = 45%) and is applied in the app, not baked into these numbers. "
+  "Labor, tax, shipping, and flat add-ons are not scaled. 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. "
   "'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). "
   "Andersen 100 Series is active and is NOT rebuilt by this script (customer-pricing quotes; Sandtone = White per Nick; Dark Bronze is dark-bronze exterior / white interior; thin types n < 3 are estimated). "
-  "IWC is still coming_soon. See README.md and data/andersen_100_material_rates.csv.")
-d.pop('laborIncludedPerWindow', None); d['laborIncluded'] = False; d['version'] = 2
+  "IWC is still coming_soon. See README.md.")
+d.pop('laborIncludedPerWindow', None); d.pop('marginIncludedPct', None)
+d['laborIncluded'] = False; d['version'] = 2
+d['grossMargin'] = d.get('grossMargin', 0.45)
 # This script only replaces Milgard (brands[0]) rates. Other brands, and colors/types added for them, stay.
 for cid in ('sandtone', 'terratone', 'dkbronze'):
     if not any(c['id'] == cid for c in d['colors']): raise SystemExit('missing color ' + cid)

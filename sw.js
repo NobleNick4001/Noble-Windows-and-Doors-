@@ -1,8 +1,8 @@
 // Offline support: network-first (so edited JSON/rates show up immediately), cache fallback when offline.
-const CACHE = 'nwd-sales-v14';
+const CACHE = 'nwd-sales-v15';
 const PRECACHE = ['./', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'js/app.js', 'js/core.js', 'js/frames.js',
   'js/pages/calculator.js', 'js/pages/estimate.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/overlay.js', 'js/pages/settings.js', 'js/pages/obscure.js', 'js/pages/frame-types.js',
-  'data/rates.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'assets/gallery/gallery.json',
+  'data/rates.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'data/promos.json', 'assets/gallery/gallery.json',
   'assets/noble-logo-trim.png', 'assets/icon-192.png', 'assets/icon-512.png',
   'assets/obscure/cascade.png', 'assets/obscure/fern.png', 'assets/obscure/obscure.png', 'assets/obscure/reed.png', 'assets/obscure/satin-etch.png'];
 // Gallery JPEGs are not precached (46 photos). The fetch handler below stores each one on first view.

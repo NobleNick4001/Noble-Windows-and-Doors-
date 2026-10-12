@@ -1,7 +1,8 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, installLabel, defaultInstall, estimates, totals, toast, uid } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, installLabel, defaultInstall, estimates, totals, findPromo, toast, uid } from '../core.js';
 import { icon, frameKeyFor, stepper, installEditor } from './calculator.js';
 
 const open = new Set(); // line ids being edited
+const promoUi = { forId: null, draft: '', dirty: false, error: '' };
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function lineDesc(l) { return `${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${colorById(l.color)?.name || l.color}`; }
@@ -15,6 +16,8 @@ function reprice(l) {
 export function render(root) {
   const e = estimates.current();
   e.extras ||= [];
+  e.promoCode ??= '';
+  if (promoUi.forId !== e.id) { promoUi.forId = e.id; promoUi.draft = e.promoCode; promoUi.dirty = false; promoUi.error = ''; }
   const wrap = h('div', { class: 'page est' });
   const save = () => { estimates.persist(); };
   const rerender = () => render(root);
@@ -71,11 +74,33 @@ export function render(root) {
   ex.append(h('div', { class: 'chips' }, data.install.jobExtras.map((x) => h('button', { class: 'chip', onclick: () => { e.extras.push({ id: uid(), label: x.name, amount: x.amount }); save(); rerender(); } }, '+ ' + x.name)), h('button', { class: 'chip', id: 'btn-custom-extra', onclick: () => { e.extras.push({ id: uid(), label: 'Custom item', amount: 0 }); save(); rerender(); } }, '+ Custom')));
   wrap.append(ex);
 
+  function applyPromo() {
+    const raw = (promoUi.dirty ? promoUi.draft : (document.getElementById('promo-code')?.value || '')).trim();
+    if (!raw) { e.promoCode = ''; promoUi.draft = ''; promoUi.dirty = false; promoUi.error = ''; save(); rerender(); return; }
+    const promo = findPromo(raw);
+    if (!promo) { promoUi.draft = raw; promoUi.dirty = true; promoUi.error = 'That code is not valid.'; rerender(); document.getElementById('promo-code')?.focus(); return; }
+    e.promoCode = promo.code; promoUi.draft = promo.code; promoUi.dirty = false; promoUi.error = ''; save(); rerender();
+  }
+  function removePromo() { e.promoCode = ''; promoUi.draft = ''; promoUi.dirty = false; promoUi.error = ''; save(); rerender(); }
+  const applied = findPromo(e.promoCode);
+  const promoNote = totals(e).promo?.note;
+  const promoError = promoUi.error || (e.promoCode && !applied ? 'That code is not valid.' : '');
+  wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Promo code'),
+    h('div', { class: 'promo-row' },
+      h('input', { type: 'text', id: 'promo-code', value: promoUi.dirty ? promoUi.draft : e.promoCode, placeholder: 'Enter code', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false',
+        oninput: (ev) => { promoUi.draft = ev.target.value; promoUi.dirty = true; promoUi.error = ''; const n = document.getElementById('promo-error'); if (n) n.remove(); },
+        onkeydown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); applyPromo(); } } }),
+      h('button', { type: 'button', class: 'btn', id: 'promo-apply', onclick: applyPromo }, 'Apply')),
+    promoError && h('p', { class: 'warn', id: 'promo-error' }, promoError),
+    applied && h('div', { class: 'row between wrap gap', id: 'promo-applied' }, h('span', {}, `${applied.code} · ${applied.label}`), h('button', { type: 'button', class: 'btn sm', id: 'promo-remove', onclick: removePromo }, 'Remove')),
+    applied && promoNote && h('p', { class: 'fine', id: 'promo-note' }, promoNote)));
+
   // totals
   const tot = h('div', { class: 'card totals', id: 'totals' });
   function refreshTotals() {
     const t = totals(e); tot.replaceChildren(
       h('div', { class: 'line' }, h('span', {}, `Windows (${t.count})`), h('b', { id: 't-win' }, fmt(t.windows))),
+      t.discount ? h('div', { class: 'line discount' }, h('span', { id: 't-discount-lbl' }, t.discountLabel), h('b', { id: 't-discount' }, fmt(-t.discount))) : null,
       h('div', { class: 'line' }, h('span', {}, 'Installation / labor'), h('b', { id: 't-inst' }, fmt(t.install))),
       t.extras ? h('div', { class: 'line' }, h('span', {}, 'Additional items'), h('b', {}, fmt(t.extras))) : null,
       h('div', { class: 'line strong' }, h('span', {}, 'Subtotal'), h('b', { id: 't-sub' }, fmt(t.subtotal))),
@@ -107,11 +132,15 @@ export function renderPrint(root) {
   // windows table
   const tw = h('table', { class: 'sh-table' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
   const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(l.unit)), h('td', { class: 'r' }, fmt(l.unit * l.qty)))));
-  tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows)))); tw.append(tb);
+  tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
+  if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
+  tw.append(tb);
   sheet.append(h('h3', {}, 'Windows (materials)'), tw);
   const ti = h('table', { class: 'sh-table' }, h('thead', {}, h('tr', {}, ['Location', 'Installation', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 1 ? 'r' : '' }, x)))));
   const ib = h('tbody'); e.lines.forEach((l) => ib.append(h('tr', {}, h('td', {}, l.label), h('td', {}, installLabel(l.install)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(l.installUnit)), h('td', { class: 'r' }, fmt(l.installUnit * l.qty)))));
-  ib.append(h('tr', { class: 'sub' }, h('td', { colspan: 4, class: 'r' }, 'Installation / labor subtotal'), h('td', { class: 'r' }, fmt(t.install)))); ti.append(ib);
+  ib.append(h('tr', { class: 'sub' }, h('td', { colspan: 4, class: 'r' }, 'Installation / labor subtotal'), h('td', { class: 'r' }, fmt(t.install))));
+  if (t.promo?.laborAmount) ib.append(h('tr', { class: 'sub discount' }, h('td', { colspan: 4, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.laborAmount))));
+  ti.append(ib);
   sheet.append(h('h3', {}, 'Installation / labor'), ti);
   if (e.extras.length) {
     const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))));
@@ -119,7 +148,9 @@ export function renderPrint(root) {
     sheet.append(h('h3', {}, 'Additional items'), tx);
   }
   sheet.append(h('div', { class: 'sh-totals' },
-    h('div', { class: 'line' }, h('span', {}, 'Windows'), h('b', {}, fmt(t.windows))), h('div', { class: 'line' }, h('span', {}, 'Installation / labor'), h('b', {}, fmt(t.install))),
+    h('div', { class: 'line' }, h('span', {}, 'Windows'), h('b', {}, fmt(t.windows))),
+    t.discount ? h('div', { class: 'line discount', id: 'sh-discount-total' }, h('span', {}, t.discountLabel), h('b', {}, fmt(-t.discount))) : null,
+    h('div', { class: 'line' }, h('span', {}, 'Installation / labor'), h('b', {}, fmt(t.install))),
     t.extras ? h('div', { class: 'line' }, h('span', {}, 'Additional items'), h('b', {}, fmt(t.extras))) : null,
     h('div', { class: 'line' }, h('span', {}, 'Subtotal'), h('b', {}, fmt(t.subtotal))),
     e.taxPct ? h('div', { class: 'line' }, h('span', {}, `Tax (${e.taxPct}%${settings.taxOn === 'all' ? '' : ' on windows'})`), h('b', {}, fmt(t.tax))) : null,
@@ -137,7 +168,7 @@ export function renderList(root) {
   const wrap = h('div', { class: 'page' }, h('div', { class: 'row between' }, h('h1', {}, 'Saved estimates'), h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate')));
   if (!all.length) wrap.append(h('div', { class: 'card muted' }, 'No saved estimates yet. They save automatically on this device as you build them.'));
   all.forEach((x) => { const t = totals(x); wrap.append(h('div', { class: 'card lineitem' + (x.id === cur ? ' current' : '') },
-    h('div', { class: 'li-main' }, h('div', { class: 'li-text' }, h('b', {}, x.customer.name || '(no name)'), h('div', { class: 'muted' }, `${x.number} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}`), h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
+    h('div', { class: 'li-main' }, h('div', { class: 'li-text' }, h('b', {}, x.customer.name || '(no name)'), h('div', { class: 'muted' }, `${x.number} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}${x.promoCode ? ' · ' + x.promoCode : ''}`), h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
     h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'), h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
       h('button', { class: 'btn sm danger', onclick: () => { if (confirm('Delete this estimate?')) { estimates.remove(x.id); renderList(root); } } }, 'Delete')))); });
   root.replaceChildren(wrap);

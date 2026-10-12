@@ -38,10 +38,13 @@ for typ in series['types']:
     check(w['p75'] == s['p75'] and w['max'] == s['max'] and w['n'] == s['n'], 'Sandtone should match White for ' + typ)
 
 xo = brand['rates']['100|ww|hslider']
-check(abs(xo['p75'] - 9.5609) < 1e-9, 'white XO p75')
-material = money((70 + 60) * xo['p75'])
-check(material == 1242.92, f'70x60 white XO material {material} != 1242.92')
-check(abs((70 + 60) * xo['p75'] - 1243) < 1, 'about $1,243')
+check(abs(xo['p75'] - 9.5609) < 1e-9, 'white XO stored p75 stays the 40% quote rate')
+check(rates.get('grossMargin') == 0.45, 'grossMargin should be the one 45% selling margin')
+factor = 0.60 / (1 - rates['grossMargin'])
+material = money((70 + 60) * xo['p75'] * factor)
+check(abs(factor - (0.60 / 0.55)) < 1e-12, '45% margin factor')
+check(material == 1355.91, f'70x60 white XO material {material} != 1355.91')
+check(abs((70 + 60) * xo['p75'] * factor - 1356) < 1, 'about $1,356')
 check(xo['estimated'] is False and xo['n'] >= 3, 'white XO should not be a thin-sample estimate')
 check(brand['rates']['100|ww|awning']['estimated'] is True, 'awning n<3 should be estimated')
 check(brand['rates']['100|ww|xox']['estimated'] is True, 'xox n<3 should be estimated')
@@ -55,7 +58,8 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v12'" in sw, 'service worker cache should be nwd-sales-v12')
+check("const CACHE = 'nwd-sales-v15'" in sw, 'service worker cache should be nwd-sales-v15')
+check('data/promos.json' in sw, 'promo config should be precached')
 for name in ('cascade.png', 'fern.png', 'obscure.png', 'reed.png', 'satin-etch.png'):
     check(f'assets/obscure/{name}' in sw, 'sw missing ' + name)
     check(os.path.isfile(f'assets/obscure/{name}'), 'missing file ' + name)
@@ -113,6 +117,14 @@ opts = json.load(open('data/options.json'))
 blob = public_text(settings) + public_text(opts)
 for stale in ('10% Off', '0% interest', '$3 per square foot', 'ProVia'):
     check(stale not in blob, 'stale or conflicting claim in app data: ' + stale)
+
+promos = json.load(open('data/promos.json'))
+by_code = {c['code'].upper(): c for c in promos['codes']}
+check(set(by_code) == {'NOBLE5', 'NOBLE10', 'NOBLEBOGO'}, 'promo codes ' + str(sorted(by_code)))
+check(by_code['NOBLE5']['type'] == 'percent' and by_code['NOBLE5']['percent'] == 5 and by_code['NOBLE5']['appliesToLabor'] is False, 'NOBLE5')
+check(by_code['NOBLE10']['type'] == 'percent' and by_code['NOBLE10']['percent'] == 10 and by_code['NOBLE10']['appliesToLabor'] is False, 'NOBLE10')
+check(by_code['NOBLEBOGO']['type'] == 'bogo' and by_code['NOBLEBOGO']['buy'] == 4 and by_code['NOBLEBOGO']['get'] == 1 and by_code['NOBLEBOGO']['appliesToLabor'] is False, 'NOBLEBOGO one free per 5')
+check('grossMargin' in open('js/core.js').read() and 'appliesToLabor' in open('js/core.js').read(), 'pricing uses the margin constant and the per-code labor flag')
 
 if errs:
     print('FAILED')

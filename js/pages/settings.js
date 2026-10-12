@@ -20,7 +20,7 @@ export function render(root) {
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Tax applies to'), h('select', { onchange: (e) => { s.taxOn = e.target.value; commit(); } }, h('option', { value: 'windows', selected: s.taxOn === 'windows' ? 'selected' : null }, 'Windows (materials) only'), h('option', { value: 'all', selected: s.taxOn === 'all' ? 'selected' : null }, 'Everything (windows + install + extras)'))),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: s.roundToDollar ? 'checked' : null, onchange: (e) => { s.roundToDollar = e.target.checked; commit(); } }), h('span', {}, 'Round prices to whole dollars')),
     f('Estimate valid for (days)', () => s.validDays, (v) => (s.validDays = parseInt(v) || 30), 'number'),
-    h('p', { class: 'fine' }, 'Window rates are materials only and include Noble’s 40% margin; installation is a separate line (edit ', h('code', {}, 'data/install.json'), ').')));
+    h('p', { class: 'fine' }, `Window rates are materials only and include Noble’s ${Math.round((Number(data.rates.grossMargin) || 0) * 100)}% margin. Change `, h('code', {}, 'grossMargin'), ' in ', h('code', {}, 'data/rates.json'), ' to reprice every window. Installation stays a separate line (', h('code', {}, 'data/install.json'), ').')));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Company info (shown on estimates)'),
     f('Company name', () => s.company.name, (v) => (s.company.name = v)), f('Address', () => s.company.address, (v) => (s.company.address = v)), f('Phone', () => s.company.phone, (v) => (s.company.phone = v), 'tel'),
     f('Email', () => s.company.email, (v) => (s.company.email = v), 'email'), f('Website', () => s.company.website, (v) => (s.company.website = v)),
@@ -48,7 +48,7 @@ export function render(root) {
     const note = b.id === 'milgard'
       ? 'E = estimated (not from a real quote). Internal only — never shown to customers. Adobe = white/white × the multiplier in rates.json (brands[0].derivedColors.adobe.multiplier).'
       : 'E = thin sample (fewer than 3 quote lines) or otherwise estimated. Internal only — never shown to customers. Sandtone uses the same rates as White. Dark Bronze is a dark-bronze exterior with a white interior.';
-    wrap.append(h('div', { class: 'card' }, h('h3', {}, `${b.name} rates in use ($ per inch of W+H, materials only, ${s.rateSet === 'max' ? 'MAX' : 'P75'})`), h('div', { class: 'scroll' }, h('table', { class: 'rates' }, h('thead', {}, h('tr', {}, h('th', {}, 'Series'), h('th', {}, 'Color'), ...typeIds.map((t) => h('th', {}, typeName(t))))), h('tbody', {}, rows))),
+    wrap.append(h('div', { class: 'card' }, h('h3', {}, `${b.name} rates in use ($ per inch of W+H, materials only, ${Math.round((Number(data.rates.grossMargin) || 0) * 100)}% margin, ${s.rateSet === 'max' ? 'MAX' : 'P75'})`), h('div', { class: 'scroll' }, h('table', { class: 'rates' }, h('thead', {}, h('tr', {}, h('th', {}, 'Series'), h('th', {}, 'Color'), ...typeIds.map((t) => h('th', {}, typeName(t))))), h('tbody', {}, rows))),
       h('p', { class: 'fine' }, note)));
   }
   root.replaceChildren(wrap);
