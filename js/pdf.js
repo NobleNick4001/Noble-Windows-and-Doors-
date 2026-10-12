@@ -36,17 +36,23 @@ const plain = (s) => String(s ?? '').replace(/[’‘]/g, "'").replace(/[“”]
 function jsPDF() {
   const lib = window.jspdf;
   if (!lib?.jsPDF) throw new Error('PDF library did not load');
-  return new lib.jsPDF({ unit: 'pt', format: 'letter' });
+  return new lib.jsPDF({ unit: 'pt', format: 'letter', compress: true });
 }
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      const maxW = 320;
+      const scale = Math.min(1, maxW / img.naturalWidth);
       const c = document.createElement('canvas');
-      c.width = img.naturalWidth; c.height = img.naturalHeight;
-      c.getContext('2d').drawImage(img, 0, 0);
-      resolve({ data: c.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight });
+      c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const g = c.getContext('2d');
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      resolve({ data: c.toDataURL('image/jpeg', 0.82), w: c.width, h: c.height, fmt: 'JPEG' });
     };
     img.onerror = () => reject(new Error(url));
     img.src = url;
@@ -97,7 +103,7 @@ async function drawHeader(w, company) {
   if (logo) {
     const h = 34;
     const lw = Math.min(150, h * (logo.w / logo.h));
-    try { w.doc.addImage(logo.data, 'PNG', w.margin, top, lw, h); } catch { /* ignore */ }
+    try { w.doc.addImage(logo.data, logo.fmt || 'PNG', w.margin, top, lw, h); } catch { /* ignore */ }
     textTop = top + 2;
   }
   const lines = [company.name, company.address, company.phone, company.email, ...(String(company.license || '').split('\n').map((s) => s.trim()).filter(Boolean)), company.hours].filter(Boolean);

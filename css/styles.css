@@ -86,6 +86,7 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .sh-table{width:100%;border-collapse:collapse}.sh-table th{background:#f4f8fb;color:#111;text-align:left;font-size:.78rem;padding:.35rem .5rem;border-bottom:2px solid var(--blue)}.sh-table td{padding:.35rem .5rem;border-bottom:1px solid #e3e7ee;vertical-align:top;color:#111}.sh-table .r,.r{text-align:right}.sh-table tr.sub td{font-weight:700;border-bottom:0;color:#111}
 .sh-totals{margin:1rem 0 0 auto;width:60%;color:#111}.sheet .line.big2{border-top:2px solid #111;color:#111}.sheet .line.big2 b{color:#111}.pre{white-space:pre-wrap}.sig{display:flex;justify-content:space-between;margin-top:2rem}
 .ag-field{display:flex;flex-direction:column;gap:.2rem;margin:.55rem 0}.ag-lbl{font-size:.78rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.03em}.ag-value{min-height:1.4rem}.ag-money{margin:.4rem 0 .6rem}
+.sheet.contract input,.sheet.contract textarea{font-size:16px}
 .sheet.contract p{margin:.5rem 0;line-height:1.45}.sheet.contract .link{align-self:flex-start}
 .sig-box{margin:.6rem 0 1rem;padding:.7rem;border:1px solid #c5d7e6;border-radius:12px;background:#fff}
 .sig-pad{display:block;width:100%;height:140px;touch-action:none;border:2px dashed #8aa4bb;border-radius:12px;background:#fff}
