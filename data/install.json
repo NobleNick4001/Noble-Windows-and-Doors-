@@ -1,9 +1,10 @@
 {
-  "_readme": "INSTALLATION / LABOR (separate from window price). types[].price = install price PER WINDOW in dollars. surcharges[].amount = extra $ per window when ticked. jobExtras = quick-add job-level lines (permit, haul-away, trim...). Only 'standard' ($360) is real; every other price is a PLACEHOLDER (placeholder:true) for Nick to fill in. 'custom' lets the rep type any price. A rep can also override the install price on any window.",
+  "_readme": "INSTALLATION / LABOR (separate from window price). types[].price = install price PER WINDOW in dollars. surcharges[].amount = extra $ per window when ticked. jobExtras = quick-add job-level lines (permit, haul-away, trim...). Only 'standard' ($360) is real; every other price is a PLACEHOLDER (placeholder:true) for Nick to fill in. 'custom' lets the rep type any price. A rep can also override the install price on any window. Frame types in data/frame-types.json point here: zbar -> standard, nailfin -> stucco-fin, block -> block.",
   "defaultType": "standard",
   "types": [
     {"id": "standard", "name": "Standard retrofit / replacement install", "price": 360, "placeholder": false},
     {"id": "stucco-fin", "name": "Stucco / new-construction fin", "price": 360, "placeholder": true},
+    {"id": "block", "name": "Block frame install", "price": 360, "placeholder": true},
     {"id": "custom", "name": "Custom (type a price)", "price": 360, "placeholder": true, "custom": true}
   ],
   "surcharges": [

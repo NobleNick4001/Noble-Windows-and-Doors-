@@ -39,14 +39,14 @@ export function toast(msg) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, options: null, gallery: null, settingsDefault: null, install: null };
+export const data = { rates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null };
 export let settings = {};
 
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.options, data.gallery, data.settingsDefault, data.install] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'),
+  [data.rates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'),
   ]);
   loadSettings();
 }
@@ -76,7 +76,12 @@ export function getRate(brandId, series, color, type, rateSet = settings.rateSet
 }
 const roundMoney = (n) => settings.roundToDollar ? Math.round(n) : Math.round(n * 100) / 100;
 
-export function optionDef(id) { return [...data.options.glass, ...data.options.frame].find((o) => o.id === id); }
+export function optionDef(id) {
+  const hit = [...data.options.glass, ...data.options.frame].find((o) => o.id === id);
+  if (hit) return hit;
+  const p = data.obscureGlass?.patterns?.find((o) => o.id === id);
+  return p ? { ...p, price: p.price || { type: 'included', amount: 0 } } : undefined;
+}
 export function optionPrice(opt, base, w, h) {
   const p = opt?.price || { type: 'included' };
   if (p.type === 'perWindow') return p.amount || 0;
@@ -86,7 +91,8 @@ export function optionPrice(opt, base, w, h) {
 }
 // ---------- installation / labor (separate from window price) ----------
 export const installType = (id) => data.install.types.find((t) => t.id === id) || data.install.types[0];
-export const defaultInstall = () => ({ type: data.install.defaultType, surcharges: [], override: null, custom: null });
+export const defaultInstall = () => ({ type: data.install.defaultType, surcharges: [], override: null, custom: null, frameType: null });
+export const frameTypeById = (id) => data.frameTypes?.types?.find((t) => t.id === id);
 // inst = {type, surcharges[], override (number|null), custom (number|null for 'custom' type)}
 export function installUnit(inst) {
   inst = inst || defaultInstall();
@@ -98,8 +104,10 @@ export function installUnit(inst) {
 }
 export function installLabel(inst) {
   inst = inst || defaultInstall(); const t = installType(inst.type);
+  const frame = frameTypeById(inst.frameType);
   const sur = (inst.surcharges || []).map((id) => data.install.surcharges.find((x) => x.id === id)?.name).filter(Boolean);
-  return t.name + (sur.length ? ' + ' + sur.join(', ') : '');
+  const name = frame ? `${frame.name} (${t.name})` : t.name;
+  return name + (sur.length ? ' + ' + sur.join(', ') : '');
 }
 // Returns {unitBase, optionsEach, unit, total, rate, wh}
 export function priceWindow({ brand, series, color, type, w, h, qty = 1, options = [] }) {
