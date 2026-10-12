@@ -1,0 +1,19 @@
+{
+  "company": {
+    "name": "Noble Windows & Doors LLC",
+    "address": "4001 E Broadway Rd Ste B-11, Phoenix, AZ 85040",
+    "phone": "(602) 820-5935",
+    "email": "",
+    "website": "",
+    "license": ""
+  },
+  "taxPct": 0,
+  "rateSet": "p75",
+  "taxOn": "windows",
+  "roundToDollar": false,
+  "validDays": 30,
+  "slideshowSeconds": 5,
+  "showPlaceholders": true,
+  "adminPin": "",
+  "terms": "TERMS PLACEHOLDER (Nick to fill in): Window pricing is materials only; installation/labor is itemized separately. Sales tax, permits, stucco/drywall/trim repair, and any unforeseen conditions are not included unless stated. Deposit and payment schedule: ____. Warranty: ____. Estimate valid for the number of days shown above."
+}

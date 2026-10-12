@@ -1,0 +1,551 @@
+{
+ "_readme": "RATE TABLE (material only). Window price = (width_in + height_in) x rate. Rates are customer prices for the WINDOW ONLY: Noble's 40% margin is included; labor/installation, tax and shipping are NOT (installation is a separate line item, see data/install.json). 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. 'estimated': true = not from a real quote (hidden from customers). To add a brand/series: add entries under brands[].series and brands[].rates using key 'SERIES|colorId|typeId'. See README.md.",
+ "version": 2,
+ "generated": "2026-10-11",
+ "formula": "(width + height) * rate",
+ "marginIncludedPct": 40,
+ "types": [
+  {
+   "id": "hslider",
+   "name": "Horizontal Slider"
+  },
+  {
+   "id": "vslider",
+   "name": "Vertical Slider (Single Hung)"
+  },
+  {
+   "id": "picture",
+   "name": "Picture"
+  },
+  {
+   "id": "casement",
+   "name": "Casement"
+  },
+  {
+   "id": "arch",
+   "name": "Shape / Arch Top"
+  }
+ ],
+ "colors": [
+  {
+   "id": "ww",
+   "name": "White / White",
+   "swatch": "#f4f4f1",
+   "frame": "white"
+  },
+  {
+   "id": "bw",
+   "name": "Black / White",
+   "swatch": "linear-gradient(135deg,#111 50%,#f4f4f1 50%)",
+   "frame": "black"
+  },
+  {
+   "id": "bb",
+   "name": "Black / Black",
+   "swatch": "#111111",
+   "frame": "black"
+  },
+  {
+   "id": "bronze",
+   "name": "Bronze Anodized",
+   "swatch": "#5b4636",
+   "frame": "bronze"
+  },
+  {
+   "id": "adobe",
+   "name": "Adobe",
+   "swatch": "#C8A27A",
+   "frame": "adobe"
+  }
+ ],
+ "brands": [
+  {
+   "id": "milgard",
+   "name": "Milgard",
+   "status": "active",
+   "series": [
+    {
+     "id": "V250",
+     "name": "V250",
+     "colors": [
+      "ww",
+      "bw",
+      "bb",
+      "adobe"
+     ],
+     "types": [
+      "hslider",
+      "vslider",
+      "picture",
+      "casement",
+      "arch"
+     ]
+    },
+    {
+     "id": "V300",
+     "name": "V300",
+     "colors": [
+      "ww",
+      "bw",
+      "bb",
+      "adobe"
+     ],
+     "types": [
+      "hslider",
+      "vslider",
+      "picture",
+      "casement",
+      "arch"
+     ]
+    },
+    {
+     "id": "V400",
+     "name": "V400",
+     "colors": [
+      "ww",
+      "bw",
+      "bb",
+      "adobe"
+     ],
+     "types": [
+      "hslider",
+      "vslider",
+      "picture",
+      "casement",
+      "arch"
+     ]
+    },
+    {
+     "id": "A250",
+     "name": "A250",
+     "colors": [
+      "ww",
+      "bw",
+      "bb",
+      "bronze"
+     ],
+     "types": [
+      "hslider",
+      "vslider",
+      "picture",
+      "casement",
+      "arch"
+     ]
+    }
+   ],
+   "rates": {
+    "V250|ww|hslider": {
+     "p75": 7.4389,
+     "max": 8.3806,
+     "estimated": false,
+     "n": 6
+    },
+    "V250|ww|vslider": {
+     "p75": 6.2415,
+     "max": 6.3709,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|ww|picture": {
+     "p75": 5.6037,
+     "max": 6.4582,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|ww|casement": {
+     "p75": 8.4359,
+     "max": 8.4751,
+     "estimated": false,
+     "n": 2
+    },
+    "V250|ww|arch": {
+     "p75": 7.973,
+     "max": 8.5695,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|bw|hslider": {
+     "p75": 10.7252,
+     "max": 11.6044,
+     "estimated": false,
+     "n": 6
+    },
+    "V250|bw|vslider": {
+     "p75": 10.056,
+     "max": 10.8267,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|bw|picture": {
+     "p75": 7.4682,
+     "max": 8.3178,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|bw|casement": {
+     "p75": 11.5921,
+     "max": 11.7665,
+     "estimated": false,
+     "n": 2
+    },
+    "V250|bw|arch": {
+     "p75": 9.8397,
+     "max": 10.5075,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|bb|hslider": {
+     "p75": 11.1467,
+     "max": 12.0394,
+     "estimated": false,
+     "n": 6
+    },
+    "V250|bb|vslider": {
+     "p75": 10.4586,
+     "max": 11.2652,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|bb|picture": {
+     "p75": 7.7626,
+     "max": 8.6457,
+     "estimated": false,
+     "n": 3
+    },
+    "V250|bb|casement": {
+     "p75": 12.0213,
+     "max": 12.2082,
+     "estimated": false,
+     "n": 2
+    },
+    "V250|bb|arch": {
+     "p75": 10.0918,
+     "max": 10.7501,
+     "estimated": false,
+     "n": 3
+    },
+    "V300|bb|hslider": {
+     "p75": 12.0718,
+     "max": 12.9934,
+     "estimated": false,
+     "n": 6
+    },
+    "V300|bb|vslider": {
+     "p75": 11.2643,
+     "max": 12.1415,
+     "estimated": false,
+     "n": 3
+    },
+    "V300|bb|picture": {
+     "p75": 8.3622,
+     "max": 9.2127,
+     "estimated": false,
+     "n": 3
+    },
+    "V300|bb|casement": {
+     "p75": 12.6639,
+     "max": 12.8376,
+     "estimated": false,
+     "n": 2
+    },
+    "V300|bb|arch": {
+     "p75": 11.1092,
+     "max": 11.7778,
+     "estimated": false,
+     "n": 3
+    },
+    "V400|bb|hslider": {
+     "p75": 13.2175,
+     "max": 14.2116,
+     "estimated": false,
+     "n": 6
+    },
+    "V400|bb|vslider": {
+     "p75": 12.2726,
+     "max": 13.2167,
+     "estimated": false,
+     "n": 3
+    },
+    "V400|bb|picture": {
+     "p75": 11.0606,
+     "max": 13.8432,
+     "estimated": false,
+     "n": 3
+    },
+    "V400|bb|casement": {
+     "p75": 14.0217,
+     "max": 14.2092,
+     "estimated": false,
+     "n": 2
+    },
+    "V400|bb|arch": {
+     "p75": 12.4938,
+     "max": 13.2157,
+     "estimated": false,
+     "n": 3
+    },
+    "A250|bronze|hslider": {
+     "p75": 11.2521,
+     "max": 12.3095,
+     "estimated": false,
+     "n": 6
+    },
+    "A250|bronze|vslider": {
+     "p75": 9.1122,
+     "max": 9.187,
+     "estimated": false,
+     "n": 3
+    },
+    "A250|bronze|picture": {
+     "p75": 10.6209,
+     "max": 14.3726,
+     "estimated": false,
+     "n": 3
+    },
+    "A250|bronze|casement": {
+     "p75": 14.3488,
+     "max": 14.879,
+     "estimated": false,
+     "n": 2
+    },
+    "A250|bronze|arch": {
+     "p75": 14.5592,
+     "max": 15.554,
+     "estimated": false,
+     "n": 2
+    },
+    "V300|ww|hslider": {
+     "p75": 8.0563,
+     "max": 9.0447,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|ww|vslider": {
+     "p75": 6.7224,
+     "max": 6.8665,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|ww|picture": {
+     "p75": 6.0365,
+     "max": 6.8817,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|ww|casement": {
+     "p75": 8.8868,
+     "max": 8.9121,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|ww|arch": {
+     "p75": 8.7767,
+     "max": 9.3888,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|bw|hslider": {
+     "p75": 11.6153,
+     "max": 12.524,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|bw|vslider": {
+     "p75": 10.8307,
+     "max": 11.6689,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|bw|picture": {
+     "p75": 8.0451,
+     "max": 8.8633,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|bw|casement": {
+     "p75": 12.2117,
+     "max": 12.3732,
+     "estimated": true,
+     "n": 0
+    },
+    "V300|bw|arch": {
+     "p75": 10.8317,
+     "max": 11.512,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|ww|hslider": {
+     "p75": 8.8208,
+     "max": 9.8927,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|ww|vslider": {
+     "p75": 7.3241,
+     "max": 7.4746,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|ww|picture": {
+     "p75": 7.9845,
+     "max": 10.3406,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|ww|casement": {
+     "p75": 9.8397,
+     "max": 9.8642,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|ww|arch": {
+     "p75": 9.8706,
+     "max": 10.535,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|bw|hslider": {
+     "p75": 12.7176,
+     "max": 13.6981,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|bw|vslider": {
+     "p75": 11.8002,
+     "max": 12.7022,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|bw|picture": {
+     "p75": 10.6412,
+     "max": 13.3181,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|bw|casement": {
+     "p75": 13.5211,
+     "max": 13.6951,
+     "estimated": true,
+     "n": 0
+    },
+    "V400|bw|arch": {
+     "p75": 12.1817,
+     "max": 12.9174,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|ww|hslider": {
+     "p75": 7.5093,
+     "max": 8.5687,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|ww|vslider": {
+     "p75": 5.438,
+     "max": 5.438,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|ww|picture": {
+     "p75": 7.6671,
+     "max": 10.736,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|ww|casement": {
+     "p75": 10.0692,
+     "max": 10.3293,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|ww|arch": {
+     "p75": 11.5024,
+     "max": 12.399,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bw|hslider": {
+     "p75": 10.8266,
+     "max": 11.8648,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bw|vslider": {
+     "p75": 8.7615,
+     "max": 8.8294,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bw|picture": {
+     "p75": 10.2182,
+     "max": 13.8275,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bw|casement": {
+     "p75": 13.8365,
+     "max": 14.3407,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bw|arch": {
+     "p75": 14.1955,
+     "max": 15.203,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bb|hslider": {
+     "p75": 11.2521,
+     "max": 12.3095,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bb|vslider": {
+     "p75": 9.1122,
+     "max": 9.187,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bb|picture": {
+     "p75": 10.6209,
+     "max": 14.3726,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bb|casement": {
+     "p75": 14.3488,
+     "max": 14.879,
+     "estimated": true,
+     "n": 0
+    },
+    "A250|bb|arch": {
+     "p75": 14.5592,
+     "max": 15.554,
+     "estimated": true,
+     "n": 0
+    }
+   },
+   "derivedColors": {
+    "adobe": {
+     "from": "ww",
+     "multiplier": 1.0
+    }
+   }
+  },
+  {
+   "id": "andersen",
+   "name": "Andersen",
+   "status": "coming_soon",
+   "series": [],
+   "rates": {}
+  },
+  {
+   "id": "iwc",
+   "name": "IWC",
+   "status": "coming_soon",
+   "series": [],
+   "rates": {}
+  }
+ ],
+ "laborIncluded": false
+}

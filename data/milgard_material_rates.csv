@@ -1,0 +1,86 @@
+series,color,type,status,n_quoted,avg_rate,max_rate,p75_rate_RECOMMENDED,basis
+V250,White/White,Horizontal Slider,QUOTED,6,6.709,8.3806,7.4389,"Real quote lines, n=6"
+V250,White/White,Vertical Slider (Single Hung),QUOTED,3,6.1366,6.3709,6.2415,"Real quote lines, n=3"
+V250,White/White,Picture,QUOTED,3,4.9636,6.4582,5.6037,"Real quote lines, n=3"
+V250,White/White,Casement,QUOTED,2,8.3966,8.4751,8.4359,"Real quote lines, n=2"
+V250,White/White,Shape / Arch Top,QUOTED,3,7.4198,8.5695,7.973,"Real quote lines, n=3"
+V250,Black/White,Horizontal Slider,QUOTED,6,9.8625,11.6044,10.7252,"Real quote lines, n=6"
+V250,Black/White,Vertical Slider (Single Hung),QUOTED,3,9.5182,10.8267,10.056,"Real quote lines, n=3"
+V250,Black/White,Picture,QUOTED,3,7.1141,8.3178,7.4682,"Real quote lines, n=3"
+V250,Black/White,Casement,QUOTED,2,11.4177,11.7665,11.5921,"Real quote lines, n=2"
+V250,Black/White,Shape / Arch Top,QUOTED,3,9.2721,10.5075,9.8397,"Real quote lines, n=3"
+V250,Black/Black,Horizontal Slider,QUOTED,6,10.2371,12.0394,11.1467,"Real quote lines, n=6"
+V250,Black/Black,Vertical Slider (Single Hung),QUOTED,3,9.8919,11.2652,10.4586,"Real quote lines, n=3"
+V250,Black/Black,Picture,QUOTED,3,7.4006,8.6457,7.7626,"Real quote lines, n=3"
+V250,Black/Black,Casement,QUOTED,2,11.8344,12.2082,12.0213,"Real quote lines, n=2"
+V250,Black/Black,Shape / Arch Top,QUOTED,3,9.5274,10.7501,10.0918,"Real quote lines, n=3"
+V300,White/White,Horizontal Slider,ESTIMATED,0,7.2444,9.0447,8.0563,V300 black/black x V250 White/White ratio
+V300,White/White,Vertical Slider (Single Hung),ESTIMATED,0,6.6,6.8665,6.7224,V300 black/black x V250 White/White ratio
+V300,White/White,Picture,ESTIMATED,0,5.3354,6.8817,6.0365,V300 black/black x V250 White/White ratio
+V300,White/White,Casement,ESTIMATED,0,8.8618,8.9121,8.8868,V300 black/black x V250 White/White ratio
+V300,White/White,Shape / Arch Top,ESTIMATED,0,8.0757,9.3888,8.7767,V300 black/black x V250 White/White ratio
+V300,Black/White,Horizontal Slider,ESTIMATED,0,10.6495,12.524,11.6153,V300 black/black x V250 Black/White ratio
+V300,Black/White,Vertical Slider (Single Hung),ESTIMATED,0,10.2369,11.6689,10.8307,V300 black/black x V250 Black/White ratio
+V300,Black/White,Picture,ESTIMATED,0,7.6469,8.8633,8.0451,V300 black/black x V250 Black/White ratio
+V300,Black/White,Casement,ESTIMATED,0,12.0503,12.3732,12.2117,V300 black/black x V250 Black/White ratio
+V300,Black/White,Shape / Arch Top,ESTIMATED,0,10.0918,11.512,10.8317,V300 black/black x V250 Black/White ratio
+V300,Black/Black,Horizontal Slider,QUOTED,6,11.054,12.9934,12.0718,"Real quote lines, n=6"
+V300,Black/Black,Vertical Slider (Single Hung),QUOTED,3,10.6388,12.1415,11.2643,"Real quote lines, n=3"
+V300,Black/Black,Picture,QUOTED,3,7.9548,9.2127,8.3622,"Real quote lines, n=3"
+V300,Black/Black,Casement,QUOTED,2,12.4901,12.8376,12.6639,"Real quote lines, n=2"
+V300,Black/Black,Shape / Arch Top,QUOTED,3,10.3696,11.7778,11.1092,"Real quote lines, n=3"
+V400,White/White,Horizontal Slider,ESTIMATED,0,7.9154,9.8927,8.8208,V400 black/black x V250 White/White ratio
+V400,White/White,Vertical Slider (Single Hung),ESTIMATED,0,7.1878,7.4746,7.3241,V400 black/black x V250 White/White ratio
+V400,White/White,Picture,ESTIMATED,0,6.6786,10.3406,7.9845,V400 black/black x V250 White/White ratio
+V400,White/White,Casement,ESTIMATED,0,9.8156,9.8642,9.8397,V400 black/black x V250 White/White ratio
+V400,White/White,Shape / Arch Top,ESTIMATED,0,8.9804,10.535,9.8706,V400 black/black x V250 White/White ratio
+V400,Black/White,Horizontal Slider,ESTIMATED,0,11.6359,13.6981,12.7176,V400 black/black x V250 Black/White ratio
+V400,Black/White,Vertical Slider (Single Hung),ESTIMATED,0,11.1486,12.7022,11.8002,V400 black/black x V250 Black/White ratio
+V400,Black/White,Picture,ESTIMATED,0,9.5721,13.3181,10.6412,V400 black/black x V250 Black/White ratio
+V400,Black/White,Casement,ESTIMATED,0,13.3472,13.6951,13.5211,V400 black/black x V250 Black/White ratio
+V400,Black/White,Shape / Arch Top,ESTIMATED,0,11.2224,12.9174,12.1817,V400 black/black x V250 Black/White ratio
+V400,Black/Black,Horizontal Slider,QUOTED,6,12.0779,14.2116,13.2175,"Real quote lines, n=6"
+V400,Black/Black,Vertical Slider (Single Hung),QUOTED,3,11.5864,13.2167,12.2726,"Real quote lines, n=3"
+V400,Black/Black,Picture,QUOTED,3,9.9576,13.8432,11.0606,"Real quote lines, n=3"
+V400,Black/Black,Casement,QUOTED,2,13.8343,14.2092,14.0217,"Real quote lines, n=2"
+V400,Black/Black,Shape / Arch Top,QUOTED,3,11.5314,13.2157,12.4938,"Real quote lines, n=3"
+A250,White/White,Horizontal Slider,ESTIMATED,0,6.647,8.5687,7.5093,A250 bronze x V250 White/White ratio
+A250,White/White,Vertical Slider (Single Hung),ESTIMATED,0,5.5902,5.438,5.438,A250 bronze x V250 White/White ratio
+A250,White/White,Picture,ESTIMATED,0,5.9513,10.736,7.6671,A250 bronze x V250 White/White ratio
+A250,White/White,Casement,ESTIMATED,0,9.8044,10.3293,10.0692,A250 bronze x V250 White/White ratio
+A250,White/White,Shape / Arch Top,ESTIMATED,0,10.5637,12.399,11.5024,A250 bronze x V250 White/White ratio
+A250,Black/White,Horizontal Slider,ESTIMATED,0,9.7713,11.8648,10.8266,A250 bronze x V250 Black/White ratio
+A250,Black/White,Vertical Slider (Single Hung),ESTIMATED,0,8.6706,8.8294,8.7615,A250 bronze x V250 Black/White ratio
+A250,Black/White,Picture,ESTIMATED,0,8.5298,13.8275,10.2182,A250 bronze x V250 Black/White ratio
+A250,Black/White,Casement,ESTIMATED,0,13.332,14.3407,13.8365,A250 bronze x V250 Black/White ratio
+A250,Black/White,Shape / Arch Top,ESTIMATED,0,13.2009,15.203,14.1955,A250 bronze x V250 Black/White ratio
+A250,Black/Black,Horizontal Slider,ESTIMATED,0,10.1425,12.3095,11.2521,A250 black/black assumed = quoted bronze anodized
+A250,Black/Black,Vertical Slider (Single Hung),ESTIMATED,0,9.0111,9.187,9.1122,A250 black/black assumed = quoted bronze anodized
+A250,Black/Black,Picture,ESTIMATED,0,8.8732,14.3726,10.6209,A250 black/black assumed = quoted bronze anodized
+A250,Black/Black,Casement,ESTIMATED,0,13.8186,14.879,14.3488,A250 black/black assumed = quoted bronze anodized
+A250,Black/Black,Shape / Arch Top,ESTIMATED,0,13.5643,15.554,14.5592,A250 black/black assumed = quoted bronze anodized
+A250,Bronze Anodized/Bronze Anodized,Horizontal Slider,QUOTED,6,10.1425,12.3095,11.2521,"Real quote lines, n=6"
+A250,Bronze Anodized/Bronze Anodized,Vertical Slider (Single Hung),QUOTED,3,9.0111,9.187,9.1122,"Real quote lines, n=3"
+A250,Bronze Anodized/Bronze Anodized,Picture,QUOTED,3,8.8732,14.3726,10.6209,"Real quote lines, n=3"
+A250,Bronze Anodized/Bronze Anodized,Casement,QUOTED,2,13.8186,14.879,14.3488,"Real quote lines, n=2"
+A250,Bronze Anodized/Bronze Anodized,Shape / Arch Top,QUOTED,2,13.5643,15.554,14.5592,"Real quote lines, n=2"
+V250,Adobe,Horizontal Slider,ESTIMATED,0,6.709,8.3806,7.4389,Not quoted: V250 white/white rate x adobeMultiplier (1.0)
+V250,Adobe,Vertical Slider (Single Hung),ESTIMATED,0,6.1366,6.3709,6.2415,Not quoted: V250 white/white rate x adobeMultiplier (1.0)
+V250,Adobe,Picture,ESTIMATED,0,4.9636,6.4582,5.6037,Not quoted: V250 white/white rate x adobeMultiplier (1.0)
+V250,Adobe,Casement,ESTIMATED,0,8.3966,8.4751,8.4359,Not quoted: V250 white/white rate x adobeMultiplier (1.0)
+V250,Adobe,Shape / Arch Top,ESTIMATED,0,7.4198,8.5695,7.973,Not quoted: V250 white/white rate x adobeMultiplier (1.0)
+V300,Adobe,Horizontal Slider,ESTIMATED,0,7.2444,9.0447,8.0563,Not quoted: V300 white/white rate x adobeMultiplier (1.0)
+V300,Adobe,Vertical Slider (Single Hung),ESTIMATED,0,6.6,6.8665,6.7224,Not quoted: V300 white/white rate x adobeMultiplier (1.0)
+V300,Adobe,Picture,ESTIMATED,0,5.3354,6.8817,6.0365,Not quoted: V300 white/white rate x adobeMultiplier (1.0)
+V300,Adobe,Casement,ESTIMATED,0,8.8618,8.9121,8.8868,Not quoted: V300 white/white rate x adobeMultiplier (1.0)
+V300,Adobe,Shape / Arch Top,ESTIMATED,0,8.0757,9.3888,8.7767,Not quoted: V300 white/white rate x adobeMultiplier (1.0)
+V400,Adobe,Horizontal Slider,ESTIMATED,0,7.9154,9.8927,8.8208,Not quoted: V400 white/white rate x adobeMultiplier (1.0)
+V400,Adobe,Vertical Slider (Single Hung),ESTIMATED,0,7.1878,7.4746,7.3241,Not quoted: V400 white/white rate x adobeMultiplier (1.0)
+V400,Adobe,Picture,ESTIMATED,0,6.6786,10.3406,7.9845,Not quoted: V400 white/white rate x adobeMultiplier (1.0)
+V400,Adobe,Casement,ESTIMATED,0,9.8156,9.8642,9.8397,Not quoted: V400 white/white rate x adobeMultiplier (1.0)
+V400,Adobe,Shape / Arch Top,ESTIMATED,0,8.9804,10.535,9.8706,Not quoted: V400 white/white rate x adobeMultiplier (1.0)
+A250,Bronze Anodized/Bronze Anodized,Horizontal Slider,QUOTED,6,10.1425,12.3095,11.2521,"Real quote lines, n=6 (A250 black/black uses this)"
+A250,Bronze Anodized/Bronze Anodized,Vertical Slider (Single Hung),QUOTED,3,9.0111,9.187,9.1122,"Real quote lines, n=3 (A250 black/black uses this)"
+A250,Bronze Anodized/Bronze Anodized,Picture,QUOTED,3,8.8732,14.3726,10.6209,"Real quote lines, n=3 (A250 black/black uses this)"
+A250,Bronze Anodized/Bronze Anodized,Casement,QUOTED,2,13.8186,14.879,14.3488,"Real quote lines, n=2 (A250 black/black uses this)"
+A250,Bronze Anodized/Bronze Anodized,Shape / Arch Top,QUOTED,2,13.5643,15.554,14.5592,"Real quote lines, n=2 (A250 black/black uses this)"
