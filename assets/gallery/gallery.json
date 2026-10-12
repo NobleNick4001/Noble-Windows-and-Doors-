@@ -1,9 +1,13 @@
 {
-  "_readme": "Job photos. Every file listed here is shown, including andersen-100-05 (house number) and milgard-v300-02 (installer). Thumbnails and the slideshow use object-fit contain so the whole photo stays in frame. Order is Nick's 14 photos first (Milgard V300, Andersen 100, Andersen 100 retrofit / jump frame), then website photos as Noble projects. caption is the on-screen label. installType 'unspecified' means show no install label. lowRes photos (760x570 site files) are not scaled past their pixel size in the slideshow. Gallery images are cached on first view (not all precached).",
+  "_readme": "Job photos. Every file listed here is shown, including andersen-100-05 (house number) and milgard-v300-02 (installer). Thumbnails and the slideshow use object-fit contain so the whole photo stays in frame. Order is Nick's 17 photos first (Milgard V300, Milgard V400 Tuscany, Andersen 100, Andersen 100 retrofit / jump frame), then website photos as Noble projects. caption is the on-screen label. installType 'unspecified' means show no install label. lowRes photos (760x570 site files) are not scaled past their pixel size in the slideshow. Gallery images are cached on first view (not all precached).",
   "groups": [
     {
       "id": "milgard-v300",
       "label": "Milgard V300"
+    },
+    {
+      "id": "milgard-v400-tuscany",
+      "label": "Milgard V400 Tuscany"
     },
     {
       "id": "andersen-100",
@@ -41,6 +45,45 @@
       "installType": "unspecified",
       "source": "nick",
       "group": "milgard-v300",
+      "w": 1200,
+      "h": 1600,
+      "lowRes": false
+    },
+    {
+      "src": "milgard-v300-03.jpg",
+      "caption": "Milgard V300 picture window with transom on stucco",
+      "brand": "Milgard",
+      "series": "V300",
+      "category": "window - picture",
+      "installType": "unspecified",
+      "source": "nick",
+      "group": "milgard-v300",
+      "w": 1200,
+      "h": 1600,
+      "lowRes": false
+    },
+    {
+      "src": "milgard-v400-tuscany-02.jpg",
+      "caption": "Milgard V400 Tuscany sliders with transoms at the patio",
+      "brand": "Milgard",
+      "series": "V400 Tuscany",
+      "category": "window - slider",
+      "installType": "unspecified",
+      "source": "nick",
+      "group": "milgard-v400-tuscany",
+      "w": 1200,
+      "h": 1600,
+      "lowRes": false
+    },
+    {
+      "src": "milgard-v400-tuscany-03.jpg",
+      "caption": "Milgard V400 Tuscany XOX slider with transom",
+      "brand": "Milgard",
+      "series": "V400 Tuscany",
+      "category": "window - slider",
+      "installType": "unspecified",
+      "source": "nick",
+      "group": "milgard-v400-tuscany",
       "w": 1200,
       "h": 1600,
       "lowRes": false
