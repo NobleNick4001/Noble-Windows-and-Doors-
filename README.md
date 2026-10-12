@@ -10,7 +10,7 @@ Mobile/tablet-first web app (plain HTML/CSS/JS, no build step, no backend). Runs
 (Must be served over http(s) — not file:// — for the service worker, camera and PWA install. Camera/"Add to Home Screen" on a phone need HTTPS, e.g. GitHub Pages / Netlify / Cloudflare Pages.)
 
 ## What's in it
-Calculator · Estimate (builder + printable/PDF page) · Saved estimates · Options (glass / frame series / frame types / colors / obscure glass) · Gallery + full-screen slideshow · Window preview (photo overlay) · Settings.
+Calculator · Estimate (builder + printable/PDF page) · Saved estimates · Options (glass / brands / frame types / colors / obscure glass) · Gallery + full-screen slideshow · Window preview (photo overlay) · Settings.
 
 ## Pricing model
 - **Window price** (material only) = (width + height in inches) × rate, rate = $/inch for brand · series · color · type. Rates are customer prices (include Noble's 40% margin), exclude labor, tax and shipping.
@@ -25,11 +25,11 @@ Calculator · Estimate (builder + printable/PDF page) · Saved estimates · Opti
 | `data/milgard_material_rates.csv` | Human-readable copy of the Milgard material-only rate table (avg / max / P75, quoted vs estimated, basis). |
 | `data/andersen_100_material_rates.csv` | Human-readable Andersen 100 Series material-only rates (P75 / max, quoted vs thin-sample estimate). |
 | `data/install.json` | Install types & prices, surcharges, job-extra presets. Only "standard = $360" is real; the rest are placeholder prices. |
-| `data/options.json` | Glass / frame options with add-on pricing (`perWindow`, `percent`, `perSqFt`, or `included`). All placeholders ($0). |
-| `data/obscure-glass.json` | Andersen privacy-glass patterns (Cascade, Fern, Obscure, Reed, Satin Etch). Photos are in `assets/obscure/` (250×250; the card and the clear-vs-pattern slider show the real photo, capped near 2× so it stays sharp). Reed privacy 3 and Satin Etch privacy 5 are the old generic ratings; Cascade, Fern, and Obscure have no rating yet. Edit name, description, and privacy here — do not guess a number. |
-| `data/frame-types.json` | Customer frame-style copy (Z-bar / retrofit, block frame, nailing fin): description, best for, pros, cons, installation note. Each row’s `installType` points at a labor price in `data/install.json`. Placeholders — edit the wording here. |
-| `data/settings.default.json` | Defaults: tax %, rate set, company info, estimate terms, validity days. Settings page overrides are stored on each device (localStorage). |
-| `assets/gallery/gallery.json` | Slideshow manifest. Drop photos in `assets/gallery/` and add entries (instructions inside the file). |
+| `data/options.json` | Glass and frame options, brand talking points (Milgard Tuscany / Trinsic / Style Line / Ultra fiberglass, Andersen 100 through E-Series and SmartSun, IWC 8800 Ambassador), the 3-year workmanship warranty, and the process steps. Add-on prices that are still unknown use `price.unset`. Financing, the 10% promo, and rebate claims are not in here. |
+| `data/obscure-glass.json` | Andersen privacy glass with photos (Cascade/Rain, Fern/Single Glue Chip, Obscure/Pattern 62/Stippolyte, Reed/English Reed, Satin Etch) and a separate Milgard list by name only. V300 Trinsic omits Aquatex, Glue Chip, and Frosted Glue Chip. The site publishes no privacy ratings — Reed 3 and Satin Etch 5 are still the old generic numbers; everything else is blank. |
+| `data/frame-types.json` | Retrofit and full-frame / nailing-fin copy from the website. Block frame is still a placeholder (the site does not describe it). Each row’s `installType` points at a labor price in `data/install.json`. |
+| `data/settings.default.json` | Defaults: tax %, rate set, company info, estimate terms, validity days. Estimates print (623) 810-3460, mgr@noblewandd.com, and both licenses on their own lines: AZ ROC #364772 (KB-1) and AZ ROC #364771 (CR-11). Hours are Mon–Sun 6am–6pm. Settings page overrides are stored on each device (localStorage). |
+| `assets/gallery/gallery.json` | All 39 job photos, including every Nick photo (house numbers and installers stay in frame). Thumbnails and the slideshow use `object-fit: contain`, so nothing is cropped. Filter chips: Milgard V300, Andersen 100, Andersen 100 Retrofit, Noble projects. Nick's 14 photos are first; the website photos follow. `installType: "unspecified"` shows no install label. 760×570 site photos are marked `lowRes` and are not blown up past their pixel size. Images cache on first view; they are not all precached. |
 
 **Adobe color** (V250/V300/V400 only) has no quote, so its rate is *derived*: white/white rate × `multiplier` in `data/rates.json` → `brands[0].derivedColors.adobe.multiplier` (default 1.00). Change that one number to reprice Adobe everywhere. Adobe cells are always flagged estimated (internal only).
 

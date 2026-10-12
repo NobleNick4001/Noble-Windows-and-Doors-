@@ -39,7 +39,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     if (tag === 'ipad-portrait') await page.pdf({ path: OUT + 'sample-estimate.pdf', format: 'Letter', printBackground: true });
     await go('#/saved'); await shot('05-saved');
     await go('#/options'); await shot('06-options-glass');
-    await page.evaluate(() => [...document.querySelectorAll('.seg-btn')].find((b) => b.textContent === 'Frame series').click()); await shot('07-options-frames');
+    await page.evaluate(() => [...document.querySelectorAll('.seg-btn')].find((b) => b.textContent === 'Brands').click()); await shot('07-options-frames');
     await page.evaluate(() => [...document.querySelectorAll('.seg-btn')].find((b) => b.textContent.startsWith('Colors')).click()); await shot('08-options-colors');
     await go('#/gallery'); await shot('09-gallery');
     await page.click('#btn-slideshow'); await sleep(900); await shot('10-slideshow');

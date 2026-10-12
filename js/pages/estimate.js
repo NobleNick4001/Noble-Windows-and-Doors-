@@ -92,12 +92,15 @@ export function render(root) {
   root.replaceChildren(wrap);
 }
 
+function licenseLines(c) {
+  return String(c?.license || '').split('\n').map((s) => s.trim()).filter(Boolean);
+}
 export function renderPrint(root) {
   const e = estimates.current(); const t = totals(e); const c = settings.company;
   const valid = new Date(e.created + (e.validDays || 30) * 86400000);
   const sheet = h('div', { class: 'sheet' },
     h('div', { class: 'sh-head' }, h('img', { src: 'assets/noble-logo-trim.png', alt: 'Noble Windows & Doors LLC', class: 'sh-logo' }),
-      h('div', { class: 'sh-co' }, h('b', {}, c.name), h('div', {}, c.address), h('div', {}, c.phone), c.email && h('div', {}, c.email), c.website && h('div', {}, c.website), c.license && h('div', {}, 'Lic. ' + c.license))),
+      h('div', { class: 'sh-co' }, h('b', {}, c.name), h('div', {}, c.address), h('div', {}, c.phone), c.email && h('div', {}, c.email), c.website && h('div', {}, c.website), c.hours && h('div', {}, c.hours), ...licenseLines(c).map((line) => h('div', {}, line)))),
     h('h1', { class: 'sh-title' }, 'ESTIMATE'),
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));

@@ -2,10 +2,11 @@
   "company": {
     "name": "Noble Windows & Doors LLC",
     "address": "4001 E Broadway Rd Ste B-11, Phoenix, AZ 85040",
-    "phone": "(602) 820-5935",
-    "email": "",
+    "phone": "(623) 810-3460",
+    "email": "mgr@noblewandd.com",
     "website": "",
-    "license": ""
+    "license": "AZ ROC #364772 (KB-1)\nAZ ROC #364771 (CR-11)",
+    "hours": "Mon–Sun 6:00 AM–6:00 PM"
   },
   "taxPct": 0,
   "rateSet": "p75",
@@ -15,5 +16,5 @@
   "slideshowSeconds": 5,
   "showPlaceholders": true,
   "adminPin": "",
-  "terms": "TERMS PLACEHOLDER (Nick to fill in): Window pricing is materials only; installation/labor is itemized separately. Sales tax, permits, stucco/drywall/trim repair, and any unforeseen conditions are not included unless stated. Deposit and payment schedule: ____. Warranty: ____. Estimate valid for the number of days shown above."
+  "terms": "3-Year Workmanship Warranty: covers the installation. If something we did is the reason a unit leaks, sticks, or will not seal, we come back and correct it. The manufacturer warranty is separate and depends on the product. Window prices are materials only; installation is itemized separately. Sales tax, permits, and extra stucco or drywall work are not included unless this estimate says so. Financing offers and rebates are not included. Estimate valid for the number of days shown above."
 }

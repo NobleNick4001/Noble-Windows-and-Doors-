@@ -12,7 +12,11 @@ export function stop() {
   document.body.style.overflow = '';
 }
 
-function patterns() { return data.obscureGlass?.patterns || []; }
+function sections() { return data.obscureGlass?.sections || []; }
+function patterns() {
+  const fromSections = sections().flatMap((s) => s.patterns || []);
+  return fromSections.length ? fromSections : (data.obscureGlass?.patterns || []);
+}
 function patternIdSet() { return new Set(patterns().map((p) => p.id)); }
 
 function liveEstimate() {
@@ -158,22 +162,53 @@ function privacyRow(p) {
   return h('div', { class: 'row wrap' }, h('span', { class: 'og-priv' }, 'Privacy'), dots(p.privacy));
 }
 
-export function view() {
-  const list = patterns();
-  const chosen = selectedPatternId();
-  const grid = h('div', { class: 'og-grid', id: 'obscure-grid' }, list.map((p) => h('button', {
+function nameBlock(p, Tag = 'b') {
+  return h('div', {},
+    h('div', { class: 'row wrap gap' }, h(Tag, {}, p.name), p.brand ? h('span', { class: 'og-brand' }, p.brand) : null),
+    p.aka ? h('div', { class: 'fine' }, 'Also called ' + p.aka) : null);
+}
+
+function photoTile(p, chosen) {
+  return h('button', {
     type: 'button', class: 'og-tile' + (p.id === chosen ? ' on' : ''), 'data-pattern': p.id,
     onclick: () => openCompare(p),
   },
     h('div', { class: 'og-pane' }, patternVisual(p, nextId())),
     h('div', { class: 'og-meta' },
-      h('div', { class: 'row wrap gap' }, h('b', {}, p.name), p.brand ? h('span', { class: 'og-brand' }, p.brand) : null),
+      nameBlock(p),
       privacyRow(p),
-      badge(p)))));
+      badge(p)));
+}
+
+function textRow(p) {
+  const status = h('p', { class: 'fine og-status' });
+  const btn = h('button', { type: 'button', class: 'btn sm' }, 'Select for this window');
+  btn.addEventListener('click', () => savePattern(p, status, btn));
+  return h('div', { class: 'card og-text' + (p.id === selectedPatternId() ? ' on' : ''), 'data-pattern': p.id },
+    nameBlock(p),
+    h('p', {}, p.desc || ''),
+    p.seriesNote ? h('p', { class: 'fine' }, p.seriesNote) : null,
+    p.limit ? h('p', { class: 'og-limit' }, p.limit) : null,
+    privacyRow(p),
+    badge(p),
+    btn, status);
+}
+
+export function view() {
+  const chosen = selectedPatternId();
+  const secs = sections();
+  const blocks = secs.length ? secs.map((sec) => h('section', { class: 'og-sec', 'data-brand': sec.brand || '' },
+    h('h2', {}, sec.title || sec.brand || 'Patterns'),
+    sec.lead ? h('p', { class: 'og-lead' }, sec.lead) : null,
+    ...(sec.notes || []).map((n) => h('p', { class: 'fine' }, n)),
+    sec.showPhotos === false
+      ? h('div', { class: 'og-list' }, (sec.patterns || []).map(textRow))
+      : h('div', { class: 'og-grid', id: sec.id === 'andersen' ? 'obscure-grid' : null }, (sec.patterns || []).map((p) => photoTile(p, chosen)))))
+    : [h('div', { class: 'og-grid', id: 'obscure-grid' }, patterns().map((p) => photoTile(p, chosen)))];
   return h('div', { class: 'og' },
-    h('p', { class: 'og-lead' }, 'Andersen privacy glass — Cascade, Fern, Obscure, Reed, and Satin Etch. Tap a pattern to compare the real glass with clear.'),
-    settings.showPlaceholders && h('p', { class: 'fine' }, 'Privacy ratings were not taken from the photos. Reed (3) and Satin Etch (5) are still the old generic numbers; Cascade, Fern, and Obscure have none yet. Edit them in ', h('code', {}, 'data/obscure-glass.json'), '.'),
-    grid);
+    data.obscureGlass?.pageNote ? h('p', { class: 'og-lead' }, data.obscureGlass.pageNote) : null,
+    settings.showPlaceholders && h('p', { class: 'fine' }, 'Privacy ratings are still placeholders. The site does not publish them. Reed is 3 and Satin Etch is 5 from the old generic list; every other pattern is blank. Edit ', h('code', {}, 'data/obscure-glass.json'), '.'),
+    ...blocks);
 }
 
 function savePattern(p, statusEl, btn) {
@@ -199,7 +234,7 @@ function savePattern(p, statusEl, btn) {
     toast(`${p.name} will be included on the next window you add`);
   }
   btn.textContent = 'Selected for this window';
-  document.querySelectorAll('.og-tile').forEach((el) => el.classList.toggle('on', el.getAttribute('data-pattern') === p.id));
+  document.querySelectorAll('.og-tile, .og-text').forEach((el) => el.classList.toggle('on', el.getAttribute('data-pattern') === p.id));
 }
 
 function openCompare(p) {
@@ -245,7 +280,7 @@ function openCompare(p) {
     h('div', { class: 'og-cmp-top' }, close),
     h('div', { class: 'og-cmp-stage' }, frame),
     h('div', { class: 'og-cmp-panel' },
-      h('div', { class: 'row between wrap' }, h('div', { class: 'row wrap gap' }, h('h2', {}, p.name), p.brand ? h('span', { class: 'og-brand' }, p.brand) : null), badge(p)),
+      h('div', { class: 'row between wrap' }, nameBlock(p, 'h2'), badge(p)),
       privacyRow(p),
       h('p', {}, p.desc || ''),
       h('div', { class: 'og-scale' }, h('span', {}, 'Clear'), h('span', {}, p.name)),

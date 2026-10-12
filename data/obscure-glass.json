@@ -1,10 +1,47 @@
 {
-  "_readme": "Andersen privacy glass for the customer screen — the five patterns Andersen carries. Photos (250×250, from Noble's energy-efficient windows page) live in assets/obscure/. Edit name, desc, and privacy here (1 = outlines still visible, 5 = detail gone). Do not invent a privacy number: leave privacy null until Nick sets it. Reed (3) and Satin Etch (5) still use the previous generic ratings — confirm them before treating them as final. placeholder:true shows the placeholder badge (Settings can hide badges). image is the photo shown on the card and in the clear-vs-pattern comparison; pattern is only a drawn fallback if image is missing. brand labels the group (add a Milgard group later with brand \"Milgard\" if those patterns come back). Order in this list is the order on screen.",
-  "patterns": [
-    {"id":"cascade","name":"Cascade","brand":"Andersen","image":"assets/obscure/cascade.png","pattern":"rain","privacy":null,"desc":"Vertical water-streak texture. Light comes through; the view breaks into ripples."},
-    {"id":"fern","name":"Fern","brand":"Andersen","image":"assets/obscure/fern.png","pattern":"gluechip","privacy":null,"desc":"Pressed fern and leaf shapes across the glass."},
-    {"id":"andersen-obscure","name":"Obscure","brand":"Andersen","image":"assets/obscure/obscure.png","pattern":"pebble","privacy":null,"desc":"A fine, even pebbled texture. The view softens into light."},
-    {"id":"reed","name":"Reed","brand":"Andersen","image":"assets/obscure/reed.png","pattern":"reed","privacy":3,"desc":"Vertical flutes. You get light and a soft sense of movement outside, not a clear view."},
-    {"id":"satin","name":"Satin Etch","brand":"Andersen","image":"assets/obscure/satin-etch.png","pattern":"satin","privacy":5,"desc":"Even frosted etch. The strongest privacy here — light in, detail out."}
+  "_readme": "Privacy glass copy for the customer screen. Edit name, aka, desc, and privacy (1 = outlines still visible, 5 = detail gone). The Noble site does not publish privacy ratings — leave privacy null unless Nick sets one. Reed (3) and Satin Etch (5) are still the old generic numbers. Andersen patterns have photos in assets/obscure/. Milgard patterns are names and descriptions only (no photos). Do not add C650/C700 — the site uses both codes for fiberglass. Order inside each section is the order on screen.",
+  "pageNote": "Glass facing a tub or shower, with the bottom edge under 60 inches above the floor, has to be tempered unless the glass is more than 60 inches horizontally from the water.",
+  "sections": [
+    {
+      "id": "andersen",
+      "brand": "Andersen",
+      "title": "Andersen",
+      "lead": "Five privacy patterns. Andersen calls this privacy patterned glass. All of them let daylight through.",
+      "notes": [
+        "Cascade and Reed can run vertical or horizontal. The direction is set when the glass is made and has to be on the order.",
+        "Available tempered. Both panes are tempered. With High-Performance Impact-Resistant glass, only the outside pane is tempered."
+      ],
+      "showPhotos": true,
+      "patterns": [
+        {"id":"cascade","name":"Cascade","aka":"Rain","brand":"Andersen","image":"assets/obscure/cascade.png","privacy":null,"desc":"Runs of water frozen into the surface. Vertical or horizontal — say which way on the order."},
+        {"id":"fern","name":"Fern","aka":"Single Glue Chip","brand":"Andersen","image":"assets/obscure/fern.png","privacy":null,"desc":"A feathered crystalline chip with a frosted look. The most decorative of the five."},
+        {"id":"andersen-obscure","name":"Obscure","aka":"Pattern 62, Stippolyte","brand":"Andersen","image":"assets/obscure/obscure.png","privacy":null,"desc":"Andersen's standard patterned obscure glass. An even, fine stipple with no direction to it. The usual bathroom ask."},
+        {"id":"reed","name":"Reed","aka":"English Reed","brand":"Andersen","image":"assets/obscure/reed.png","privacy":3,"desc":"Fluted bars. The strongest distortion in the set, and the most architectural. Common on entry sidelights. Vertical or horizontal — say which way on the order."},
+        {"id":"satin","name":"Satin Etch","brand":"Andersen","image":"assets/obscure/satin-etch.png","privacy":5,"desc":"A pearlescent glass with no pattern to read. A way to share light between two spaces and still keep privacy."}
+      ]
+    },
+    {
+      "id": "milgard",
+      "brand": "Milgard",
+      "title": "Milgard",
+      "lead": "Nine patterns, by name and description only. No Milgard privacy-glass photos in the app yet.",
+      "notes": [
+        "V300 Trinsic does not offer Aquatex, Glue Chip, or Frosted Glue Chip. Those three are marked on the card.",
+        "The other six are listed for V400 Tuscany, V300 Trinsic, V250 Style Line, and A250 aluminum.",
+        "No privacy rating is published. Ask to see a real sample — a screen cannot match the glass."
+      ],
+      "showPhotos": false,
+      "patterns": [
+        {"id":"milgard-p516","name":"P516","brand":"Milgard","privacy":null,"desc":"Fine, even granular texture with no direction to it.","seriesNote":"V400 Tuscany, V300 Trinsic, V250 Style Line, A250 aluminum"},
+        {"id":"milgard-42","name":"#42 Clear","brand":"Milgard","privacy":null,"desc":"Coarse pebbled texture, despite the name.","seriesNote":"V400 Tuscany, V300 Trinsic, V250 Style Line, A250 aluminum"},
+        {"id":"milgard-aquatex","name":"Aquatex","brand":"Milgard","privacy":null,"desc":"Rounded ripple, like water sitting on the surface.","seriesNote":"V400 Tuscany, V250 Style Line, A250 aluminum","limit":"Not on V300 Trinsic"},
+        {"id":"milgard-delta-frost","name":"Delta Frost","brand":"Milgard","privacy":null,"desc":"Angular veined frost.","seriesNote":"V400 Tuscany, V300 Trinsic, V250 Style Line, A250 aluminum"},
+        {"id":"milgard-gluechip","name":"Glue Chip","brand":"Milgard","privacy":null,"desc":"Feathered, fern-like crystal.","seriesNote":"V400 Tuscany, V250 Style Line, A250 aluminum","limit":"Not on V300 Trinsic"},
+        {"id":"milgard-frosted-gluechip","name":"Frosted Glue Chip","brand":"Milgard","privacy":null,"desc":"Glue chip over a frosted base. Obscures more than glue chip alone.","seriesNote":"V400 Tuscany, V250 Style Line, A250 aluminum","limit":"Not on V300 Trinsic"},
+        {"id":"milgard-narrow-reed","name":"Narrow Reed","brand":"Milgard","privacy":null,"desc":"Close vertical flutes. The strongest of the Milgard patterns, and directional.","seriesNote":"V400 Tuscany, V300 Trinsic, V250 Style Line, A250 aluminum"},
+        {"id":"milgard-rain","name":"Rain","brand":"Milgard","privacy":null,"desc":"Vertical streaks, like rain running down the pane.","seriesNote":"V400 Tuscany, V300 Trinsic, V250 Style Line, A250 aluminum"},
+        {"id":"milgard-satin","name":"Satin Etch","aka":"Matelux","brand":"Milgard","privacy":null,"desc":"Even satin frost, no pattern. Milgard brochures also call this Matelux.","seriesNote":"V400 Tuscany, V300 Trinsic, V250 Style Line, A250 aluminum"}
+      ]
+    }
   ]
 }

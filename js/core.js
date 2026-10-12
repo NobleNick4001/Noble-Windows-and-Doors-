@@ -48,6 +48,9 @@ export async function loadData() {
   [data.rates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes] = await Promise.all([
     getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'),
   ]);
+  if (data.obscureGlass?.sections) {
+    data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
+  }
   loadSettings();
 }
 function deepMerge(a, b) {

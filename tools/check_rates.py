@@ -55,18 +55,64 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v10'" in sw, 'service worker cache should be nwd-sales-v10')
+check("const CACHE = 'nwd-sales-v12'" in sw, 'service worker cache should be nwd-sales-v12')
 for name in ('cascade.png', 'fern.png', 'obscure.png', 'reed.png', 'satin-etch.png'):
     check(f'assets/obscure/{name}' in sw, 'sw missing ' + name)
     check(os.path.isfile(f'assets/obscure/{name}'), 'missing file ' + name)
+check('assets/gallery/gallery.json' in sw, 'gallery manifest should be precached')
+check('placeholder-1.svg' not in sw, 'placeholder gallery should not be precached')
+for banned in ('milgard-v300-01.jpg', 'site-finished-01.jpg'):
+    check(banned not in sw, 'gallery photo should not be precached: ' + banned)
 
 glass = json.load(open('data/obscure-glass.json'))
-names = [p['name'] for p in glass['patterns']]
-check(names == ['Cascade', 'Fern', 'Obscure', 'Reed', 'Satin Etch'], 'patterns ' + str(names))
-by = {p['name']: p for p in glass['patterns']}
-check(all(p.get('brand') == 'Andersen' for p in glass['patterns']), 'every pattern should be labelled Andersen')
+sections = {s['id']: s for s in glass['sections']}
+andersen = sections['andersen']['patterns']
+milgard = sections['milgard']['patterns']
+names = [p['name'] for p in andersen]
+check(names == ['Cascade', 'Fern', 'Obscure', 'Reed', 'Satin Etch'], 'andersen patterns ' + str(names))
+by = {p['name']: p for p in andersen}
+check(all(p.get('brand') == 'Andersen' and p.get('image') for p in andersen), 'andersen patterns need brand and photo')
+check(by['Cascade'].get('aka') == 'Rain' and by['Fern'].get('aka') == 'Single Glue Chip', 'andersen alt names')
+check('Pattern 62' in by['Obscure'].get('aka', '') and by['Reed'].get('aka') == 'English Reed', 'obscure/reed alt names')
 check(by['Reed']['privacy'] == 3 and by['Satin Etch']['privacy'] == 5, 'keep generic Reed/Satin ratings')
 check(by['Cascade']['privacy'] is None and by['Fern']['privacy'] is None and by['Obscure']['privacy'] is None, 'do not invent Cascade/Fern/Obscure ratings')
+check([p['name'] for p in milgard] == ['P516', '#42 Clear', 'Aquatex', 'Delta Frost', 'Glue Chip', 'Frosted Glue Chip', 'Narrow Reed', 'Rain', 'Satin Etch'], 'milgard pattern list')
+check(all(p.get('privacy') is None and not p.get('image') for p in milgard), 'milgard patterns are name/description only, no invented ratings')
+check(sections['milgard'].get('showPhotos') is False, 'milgard section is not a photo grid')
+limited = {p['name'] for p in milgard if p.get('limit')}
+check(limited == {'Aquatex', 'Glue Chip', 'Frosted Glue Chip'}, 'V300 Trinsic exclusions ' + str(limited))
+def public_text(obj):
+    if isinstance(obj, dict):
+        return ' '.join(public_text(v) for k, v in obj.items() if k != '_readme')
+    if isinstance(obj, list):
+        return ' '.join(public_text(v) for v in obj)
+    return str(obj)
+check('C650' not in public_text(glass) and 'C700' not in public_text(glass), 'do not use the conflicting fiberglass codes')
+
+gallery = json.load(open('assets/gallery/gallery.json'))
+gs = gallery['slides']
+check(len(gs) == 39, 'gallery should have 39 photos')
+check(all(s.get('source') == 'nick' for s in gs[:14]), 'first 14 slides are Nick photos')
+check(all(s.get('group') == 'noble-projects' for s in gs[14:]), 'website photos follow as Noble projects')
+check([g['label'] for g in gallery['groups']] == ['Milgard V300', 'Andersen 100', 'Andersen 100 Retrofit', 'Noble projects'], 'filter labels')
+check(all(os.path.isfile('assets/gallery/' + s['src']) for s in gs), 'a gallery file is missing')
+check(sum(1 for s in gs if s.get('lowRes')) == 16, '760px site photos should be flagged lowRes')
+check(not any(s.get('placeholder') for s in gs), 'placeholders should be gone')
+srcs = {s['src'] for s in gs}
+check('andersen-100-05.jpg' in srcs and 'milgard-v300-02.jpg' in srcs, 'keep the house-number and installer photos')
+check('object-fit:contain' in open('css/styles.css').read().split('.thumb img')[1][:180], 'gallery thumbs should not crop')
+
+company = settings['company']
+check(company.get('phone') == '(623) 810-3460', 'confirmed company phone')
+check('820-5935' not in open('data/settings.default.json').read() and '820-5935' not in open('js/pages/settings.js').read() and '820-5935' not in open('README.md').read(), 'old phone should be gone')
+check(company.get('email') == 'mgr@noblewandd.com', 'site email')
+lic_lines = [ln.strip() for ln in company.get('license', '').split('\n') if ln.strip()]
+check(lic_lines == ['AZ ROC #364772 (KB-1)', 'AZ ROC #364771 (CR-11)'], 'both ROC lines ' + str(lic_lines))
+check('6:00' in (company.get('hours') or ''), 'hours')
+opts = json.load(open('data/options.json'))
+blob = public_text(settings) + public_text(opts)
+for stale in ('10% Off', '0% interest', '$3 per square foot', 'ProVia'):
+    check(stale not in blob, 'stale or conflicting claim in app data: ' + stale)
 
 if errs:
     print('FAILED')

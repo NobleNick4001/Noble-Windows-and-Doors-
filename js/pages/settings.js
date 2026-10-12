@@ -23,8 +23,9 @@ export function render(root) {
     h('p', { class: 'fine' }, 'Window rates are materials only and include Noble’s 40% margin; installation is a separate line (edit ', h('code', {}, 'data/install.json'), ').')));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Company info (shown on estimates)'),
     f('Company name', () => s.company.name, (v) => (s.company.name = v)), f('Address', () => s.company.address, (v) => (s.company.address = v)), f('Phone', () => s.company.phone, (v) => (s.company.phone = v), 'tel'),
-    f('Email', () => s.company.email, (v) => (s.company.email = v), 'email'), f('Website', () => s.company.website, (v) => (s.company.website = v)), f('License #', () => s.company.license, (v) => (s.company.license = v)),
-    h('p', { class: 'fine' }, 'Address and phone are placeholders from memory (Noble GC) — please confirm.')));
+    f('Email', () => s.company.email, (v) => (s.company.email = v), 'email'), f('Website', () => s.company.website, (v) => (s.company.website = v)),
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Licenses (one per line, printed on estimates)'), h('textarea', { rows: 2, id: 's-license', oninput: (e) => { s.company.license = e.target.value; commit(); } }, s.company.license)),
+    f('Hours', () => s.company.hours || '', (v) => (s.company.hours = v))));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Estimate terms'), h('textarea', { rows: 6, id: 's-terms', oninput: (e) => { s.terms = e.target.value; commit(); } }, s.terms)));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'App'),
     f('Slideshow seconds per photo', () => s.slideshowSeconds, (v) => (s.slideshowSeconds = parseFloat(v) || 5), 'number'),
