@@ -98,14 +98,15 @@ export function render(root) {
   // totals
   const tot = h('div', { class: 'card totals', id: 'totals' });
   function refreshTotals() {
-    const t = totals(e); tot.replaceChildren(
+    const t = totals(e); tot.replaceChildren(...[
       h('div', { class: 'line' }, h('span', {}, `Windows (${t.count})`), h('b', { id: 't-win' }, fmt(t.windows))),
       t.discount ? h('div', { class: 'line discount' }, h('span', { id: 't-discount-lbl' }, t.discountLabel), h('b', { id: 't-discount' }, fmt(-t.discount))) : null,
       h('div', { class: 'line' }, h('span', {}, 'Installation / labor'), h('b', { id: 't-inst' }, fmt(t.install))),
       t.extras ? h('div', { class: 'line' }, h('span', {}, 'Additional items'), h('b', {}, fmt(t.extras))) : null,
       h('div', { class: 'line strong' }, h('span', {}, 'Subtotal'), h('b', { id: 't-sub' }, fmt(t.subtotal))),
       h('div', { class: 'line' }, h('span', { class: 'row gap' }, 'Tax %', h('input', { type: 'text', class: 'taxin', id: 't-taxpct', inputmode: 'decimal', value: e.taxPct, oninput: (ev) => { e.taxPct = parseFloat(ev.target.value) || 0; save(); const t2 = totals(e); $tax.textContent = fmt(t2.tax); $tot.textContent = fmt(t2.total); $lbl.textContent = totLabel(t2); } })), h('b', {}, h('span', { id: 't-tax' }, fmt(t.tax)))),
-      h('div', { class: 'line big2' }, h('span', { id: 't-lbl' }, totLabel(t)), h('b', { id: 't-total' }, fmt(t.total))));
+      h('div', { class: 'line big2' }, h('span', { id: 't-lbl' }, totLabel(t)), h('b', { id: 't-total' }, fmt(t.total))),
+    ].filter(Boolean));
     var $tax = $('#t-tax', tot), $tot = $('#t-total', tot), $lbl = $('#t-lbl', tot);
   }
   const totLabel = (t) => (e.taxPct ? 'Total with tax' : 'Total (before tax)');
