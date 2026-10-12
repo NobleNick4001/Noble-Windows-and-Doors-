@@ -53,7 +53,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await shot('13-preview-black');
     if (tag === 'ipad-landscape') { const [dl] = await Promise.all([new Promise((r) => { page.once('response', r); setTimeout(r, 1500); }), page.evaluate(() => document.querySelector('#ov-save').click())]); await sleep(800); }
     await go('#/settings'); await shot('14-settings');
-    await go('#/calculator'); await page.evaluate(() => [...document.querySelectorAll('.seg-btn')].find((b) => b.textContent.startsWith('Andersen')).click()); await shot('15-andersen-soon');
+    await go('#/calculator');
+    await page.evaluate(() => [...document.querySelectorAll('.seg-btn')].find((b) => b.textContent.startsWith('Andersen')).click());
+    await sleep(200);
+    await page.evaluate(() => { [...document.querySelectorAll('.tile')].find((c) => c.textContent.trim() === 'Horizontal Slider').click(); });
+    await sleep(150);
+    await page.evaluate(() => { [...document.querySelectorAll('.swatch')].find((c) => c.textContent.trim() === 'White / White').click(); });
+    await sleep(150);
+    await type('#in-w', '70'); await type('#in-h', '60'); await type('#in-q', '1');
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.link')].find((el) => el.textContent === 'Show math'); if (b) b.click(); });
+    await sleep(200);
+    if (tag === 'ipad-landscape') {
+      const px = await page.evaluate(() => ({ summary: document.querySelector('.eyebrow')?.textContent, w: document.querySelector('#price-window')?.textContent, i: document.querySelector('#price-install')?.textContent, math: document.querySelector('.math')?.textContent }));
+      console.log('Andersen XO white 70x60 ->', JSON.stringify(px));
+      if (px.w !== '$1,242.92') throw new Error('Andersen material spot-check failed: ' + px.w + ' (expected $1,242.92)');
+      if (px.i !== '$360.00') throw new Error('Labor should stay separate at $360, got ' + px.i);
+    }
+    await shot('15-andersen-calc');
     await ctx.close();
   }
   console.log('ERRORS:', errors.length ? errors : 'none');

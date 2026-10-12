@@ -28,8 +28,9 @@ export function render(root, sub = 'glass') {
     wrap.append(h('div', { class: 'cards2' }, data.options.series.map((s) => h('div', { class: 'card opt-card' }, h('div', { class: 'row between' }, h('h2', {}, s.name), h('span', { class: 'pill ok' }, s.tag)), h('ul', {}, s.bullets.map((b) => h('li', {}, b))), h('div', { class: 'row gap' }, ...['hslider', 'vslider', 'picture', 'casement', 'arch'].map((t) => icon(t, s.id === 'A250' ? 'bronze' : 'white', 'tyicon sm'))), badge(s)))));
     wrap.append(h('p', { class: 'fine' }, data.options.seriesNote));
   } else if (sub === 'colors') {
-    const series = (data.rates.brands[0].series);
-    wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Frame colors'), h('div', { class: 'swatches wide' }, data.rates.colors.map((c) => h('div', { class: 'swatch static' }, h('i', { style: `background:${c.swatch}` }), h('span', {}, c.name), h('small', {}, series.filter((s) => s.colors.includes(c.id)).map((s) => s.id).join(' · ')))))));
+    const active = data.rates.brands.filter((b) => b.status === 'active');
+    const where = (id) => active.flatMap((b) => b.series.filter((s) => s.colors.includes(id)).map((s) => (b.series.length > 1 ? `${b.name} ${s.id}` : `${b.name} ${s.name}`))).join(' · ');
+    wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Frame colors'), h('div', { class: 'swatches wide' }, data.rates.colors.map((c) => h('div', { class: 'swatch static' }, h('i', { style: `background:${c.swatch}` }), h('span', {}, c.name), h('small', {}, where(c.id) || '—'))))));
     wrap.append(h('div', { class: 'cards3' }, data.options.frame.map((o) => h('div', { class: 'card opt-card' }, h('div', { class: 'opt-ico' }, ICONS[o.icon] || '◻'), h('h2', {}, o.name), h('p', {}, o.desc), h('div', { class: 'row gap' }, priceLabel(o), badge(o))))));
   }
   root.replaceChildren(wrap);

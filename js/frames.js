@@ -4,6 +4,9 @@ export const FRAME_COLORS = {
   black: { frame: '#16161a', edge: '#000000', inner: '#3a3a40' },
   bronze: { frame: '#5b4636', edge: '#2e231a', inner: '#7a6150' },
   adobe: { frame: '#C8A27A', edge: '#7d5f3f', inner: '#b08b62' },
+  sandtone: { frame: '#CBBBA0', edge: '#8d7d66', inner: '#ddd0bc' },
+  terratone: { frame: '#8A6A4F', edge: '#5c4634', inner: '#a8886c' },
+  dkbronze: { frame: '#4a3b2f', edge: '#2a211a', inner: '#6b5746' },
 };
 export function frameColors(c) {
   if (typeof c === 'string' && c.startsWith('#')) {
@@ -69,6 +72,20 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
       // hinge-side triangle (hinge on left): lines from right-middle to left corners
       body += `<path d="M${gx + gw - st},${gy + gh / 2} L${gx + st},${gy + st} M${gx + gw - st},${gy + gh / 2} L${gx + st},${gy + gh - st}" stroke="${e}" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".6"/>`;
       body += `<rect x="${gx + gw - st - 4}" y="${gy + gh / 2 - 14}" width="9" height="28" rx="3" fill="${e}" opacity=".7"/>`;
+    } else if (type === 'awning') {
+      body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
+      body += rect(gx, gy, gw, st, i) + rect(gx, gy + gh - st, gw, st, i) + rect(gx, gy, st, gh, i) + rect(gx + gw - st, gy, st, gh, i);
+      body += `<path d="M${gx + gw / 2},${gy + gh - st} L${gx + st},${gy + st} M${gx + gw / 2},${gy + gh - st} L${gx + gw - st},${gy + st}" stroke="${e}" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".6"/>`;
+      body += `<rect x="${gx + gw / 2 - 14}" y="${gy + gh - st - 6}" width="28" height="9" rx="3" fill="${e}" opacity=".7"/>`;
+    } else if (type === 'xox') {
+      const third = gw / 3;
+      body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
+      body += rect(gx, gy, gw, st, i) + rect(gx, gy + gh - st, gw, st, i) + rect(gx, gy, st, gh, i) + rect(gx + gw - st, gy, st, gh, i);
+      body += rect(gx + third - st * 0.35, gy, st * 1.2, gh, f);
+      body += rect(gx + third * 2 - st * 0.35, gy, st * 1.2, gh, f);
+      const ay = H / 2;
+      body += `<path d="M${gx + third * 0.62},${ay} h${-third * 0.28} m${st},${-st * 0.7} l${-st},${st * 0.7} l${st},${st * 0.7}" stroke="${e}" stroke-width="2.2" fill="none" opacity=".55"/>`;
+      body += `<path d="M${gx + third * 2.38},${ay} h${third * 0.28} m${-st},${-st * 0.7} l${st},${st * 0.7} l${-st},${st * 0.7}" stroke="${e}" stroke-width="2.2" fill="none" opacity=".55"/>`;
     }
   }
   const lbl = label ? `<text x="${W / 2}" y="${H + 24}" text-anchor="middle" font-family="Helvetica,Arial" font-size="18" fill="#333">${label}</text>` : '';

@@ -1,5 +1,5 @@
 {
- "_readme": "RATE TABLE (material only). Window price = (width_in + height_in) x rate. Rates are customer prices for the WINDOW ONLY: Noble's 40% margin is included; labor/installation, tax and shipping are NOT (installation is a separate line item, see data/install.json). 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. 'estimated': true = not from a real quote (hidden from customers). To add a brand/series: add entries under brands[].series and brands[].rates using key 'SERIES|colorId|typeId'. See README.md.",
+ "_readme": "RATE TABLE (material only). Window price = (width_in + height_in) x rate. Rates are customer prices for the WINDOW ONLY: Noble's 40% margin is included; labor/installation, tax and shipping are NOT (installation is a separate line item, see data/install.json). 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. 'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). Andersen 100 Series is active and is NOT rebuilt by tools/build_rates.py (customer-pricing quotes; Sandtone = White per Nick; Dark Bronze is dark-bronze exterior / white interior; thin types n < 3 are estimated). IWC is still coming_soon. See README.md and data/andersen_100_material_rates.csv.",
  "version": 2,
  "generated": "2026-10-11",
  "formula": "(width + height) * rate",
@@ -24,6 +24,14 @@
   {
    "id": "arch",
    "name": "Shape / Arch Top"
+  },
+  {
+   "id": "awning",
+   "name": "Awning"
+  },
+  {
+   "id": "xox",
+   "name": "XOX Horizontal Slider"
   }
  ],
  "colors": [
@@ -56,6 +64,24 @@
    "name": "Adobe",
    "swatch": "#C8A27A",
    "frame": "adobe"
+  },
+  {
+   "id": "sandtone",
+   "name": "Sandtone",
+   "swatch": "#CBBBA0",
+   "frame": "sandtone"
+  },
+  {
+   "id": "terratone",
+   "name": "Terratone",
+   "swatch": "#8A6A4F",
+   "frame": "terratone"
+  },
+  {
+   "id": "dkbronze",
+   "name": "Dark Bronze",
+   "swatch": "#4a3b2f",
+   "frame": "dkbronze"
   }
  ],
  "brands": [
@@ -535,9 +561,291 @@
   {
    "id": "andersen",
    "name": "Andersen",
-   "status": "coming_soon",
-   "series": [],
-   "rates": {}
+   "status": "active",
+   "series": [
+    {
+     "id": "100",
+     "name": "100 Series",
+     "colors": [
+      "ww",
+      "sandtone",
+      "terratone",
+      "bw",
+      "dkbronze",
+      "bb"
+     ],
+     "types": [
+      "hslider",
+      "xox",
+      "vslider",
+      "picture",
+      "casement",
+      "arch",
+      "awning"
+     ]
+    }
+   ],
+   "rates": {
+    "100|ww|awning": {
+     "p75": 13.603,
+     "max": 13.603,
+     "estimated": true,
+     "n": 1
+    },
+    "100|ww|arch": {
+     "p75": 14.997,
+     "max": 15.6808,
+     "estimated": false,
+     "n": 3
+    },
+    "100|ww|vslider": {
+     "p75": 9.5035,
+     "max": 9.5903,
+     "estimated": true,
+     "n": 2
+    },
+    "100|ww|hslider": {
+     "p75": 9.5609,
+     "max": 9.5903,
+     "estimated": false,
+     "n": 3
+    },
+    "100|ww|xox": {
+     "p75": 12.2627,
+     "max": 12.2627,
+     "estimated": true,
+     "n": 1
+    },
+    "100|ww|picture": {
+     "p75": 6.945,
+     "max": 7.0593,
+     "estimated": true,
+     "n": 2
+    },
+    "100|ww|casement": {
+     "p75": 13.5529,
+     "max": 13.9021,
+     "estimated": true,
+     "n": 2
+    },
+    "100|sandtone|awning": {
+     "p75": 13.603,
+     "max": 13.603,
+     "estimated": true,
+     "n": 1,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone|arch": {
+     "p75": 14.997,
+     "max": 15.6808,
+     "estimated": false,
+     "n": 3,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone|vslider": {
+     "p75": 9.5035,
+     "max": 9.5903,
+     "estimated": true,
+     "n": 2,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone|hslider": {
+     "p75": 9.5609,
+     "max": 9.5903,
+     "estimated": false,
+     "n": 3,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone|xox": {
+     "p75": 12.2627,
+     "max": 12.2627,
+     "estimated": true,
+     "n": 1,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone|picture": {
+     "p75": 6.945,
+     "max": 7.0593,
+     "estimated": true,
+     "n": 2,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone|casement": {
+     "p75": 13.5529,
+     "max": 13.9021,
+     "estimated": true,
+     "n": 2,
+     "basis": "per Nick (= White)"
+    },
+    "100|terratone|awning": {
+     "p75": 14.6152,
+     "max": 14.6152,
+     "estimated": true,
+     "n": 1
+    },
+    "100|terratone|arch": {
+     "p75": 16.183,
+     "max": 17.0645,
+     "estimated": false,
+     "n": 3
+    },
+    "100|terratone|vslider": {
+     "p75": 10.7352,
+     "max": 10.974,
+     "estimated": true,
+     "n": 2
+    },
+    "100|terratone|hslider": {
+     "p75": 10.5749,
+     "max": 10.974,
+     "estimated": false,
+     "n": 3
+    },
+    "100|terratone|xox": {
+     "p75": 12.8018,
+     "max": 12.8018,
+     "estimated": true,
+     "n": 1
+    },
+    "100|terratone|picture": {
+     "p75": 7.9135,
+     "max": 7.9853,
+     "estimated": true,
+     "n": 2
+    },
+    "100|terratone|casement": {
+     "p75": 14.7145,
+     "max": 15.1597,
+     "estimated": true,
+     "n": 2
+    },
+    "100|bw|awning": {
+     "p75": 14.6152,
+     "max": 14.6152,
+     "estimated": true,
+     "n": 1
+    },
+    "100|bw|arch": {
+     "p75": 16.183,
+     "max": 17.0645,
+     "estimated": false,
+     "n": 3
+    },
+    "100|bw|vslider": {
+     "p75": 10.7352,
+     "max": 10.974,
+     "estimated": true,
+     "n": 2
+    },
+    "100|bw|hslider": {
+     "p75": 10.5749,
+     "max": 10.974,
+     "estimated": false,
+     "n": 3
+    },
+    "100|bw|xox": {
+     "p75": 12.8018,
+     "max": 12.8018,
+     "estimated": true,
+     "n": 1
+    },
+    "100|bw|picture": {
+     "p75": 7.9135,
+     "max": 7.9853,
+     "estimated": true,
+     "n": 2
+    },
+    "100|bw|casement": {
+     "p75": 14.7145,
+     "max": 15.1597,
+     "estimated": true,
+     "n": 2
+    },
+    "100|dkbronze|awning": {
+     "p75": 14.6152,
+     "max": 14.6152,
+     "estimated": true,
+     "n": 1
+    },
+    "100|dkbronze|arch": {
+     "p75": 16.183,
+     "max": 17.0645,
+     "estimated": false,
+     "n": 3
+    },
+    "100|dkbronze|vslider": {
+     "p75": 10.7352,
+     "max": 10.974,
+     "estimated": true,
+     "n": 2
+    },
+    "100|dkbronze|hslider": {
+     "p75": 10.5749,
+     "max": 10.974,
+     "estimated": false,
+     "n": 3
+    },
+    "100|dkbronze|xox": {
+     "p75": 12.8018,
+     "max": 12.8018,
+     "estimated": true,
+     "n": 1
+    },
+    "100|dkbronze|picture": {
+     "p75": 7.9135,
+     "max": 7.9853,
+     "estimated": true,
+     "n": 2
+    },
+    "100|dkbronze|casement": {
+     "p75": 14.7145,
+     "max": 15.1597,
+     "estimated": true,
+     "n": 2
+    },
+    "100|bb|awning": {
+     "p75": 15.8643,
+     "max": 15.8643,
+     "estimated": true,
+     "n": 1
+    },
+    "100|bb|arch": {
+     "p75": 17.5739,
+     "max": 18.6272,
+     "estimated": false,
+     "n": 3
+    },
+    "100|bb|vslider": {
+     "p75": 12.1333,
+     "max": 12.519,
+     "estimated": true,
+     "n": 2
+    },
+    "100|bb|hslider": {
+     "p75": 11.8807,
+     "max": 12.519,
+     "estimated": false,
+     "n": 3
+    },
+    "100|bb|xox": {
+     "p75": 13.5297,
+     "max": 13.5297,
+     "estimated": true,
+     "n": 1
+    },
+    "100|bb|picture": {
+     "p75": 9.2694,
+     "max": 9.5307,
+     "estimated": true,
+     "n": 2
+    },
+    "100|bb|casement": {
+     "p75": 16.1479,
+     "max": 16.7115,
+     "estimated": true,
+     "n": 2
+    }
+   }
   },
   {
    "id": "iwc",

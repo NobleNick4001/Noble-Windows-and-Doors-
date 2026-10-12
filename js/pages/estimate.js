@@ -42,11 +42,16 @@ export function render(root) {
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
         h('button', { class: 'btn sm danger', onclick: () => { e.lines.splice(idx, 1); save(); rerender(); } }, 'Remove')));
-    if (isOpen) {
+      if (isOpen) {
       const upd = (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); };
+      const seriesDef = brandById(l.brand)?.series?.find((s) => s.id === l.series);
       row.append(h('div', { class: 'edit' },
         h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', { type: 'text', value: l.label, oninput: (ev) => { l.label = ev.target.value; save(); } })),
         h('div', { class: 'grid3' }, stepper('Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); }, { unit: 'in' }), stepper('Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; save(); }, { min: 1 })),
+        seriesDef && h('b', {}, 'Window type'),
+        seriesDef && h('div', { class: 'chips' }, seriesDef.types.map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
+        seriesDef && h('b', {}, 'Frame color'),
+        seriesDef && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
         h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), data.options.glass.map((o) => optCheck(l, o))), h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map((o) => optCheck(l, o)))),
         h('b', {}, 'Installation'), installEditor(l.install, (full) => { reprice(l); save(); if (full) rerender(); }, 'li-' + l.id),
         h('button', { class: 'btn primary', onclick: () => { reprice(l); save(); open.delete(l.id); rerender(); } }, 'Save line')));

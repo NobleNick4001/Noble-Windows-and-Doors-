@@ -34,13 +34,21 @@ export function render(root) {
     h('button', { class: 'btn', onclick: () => { const blob = new Blob([JSON.stringify({ estimates: estimates.all(), settings: s }, null, 1)], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(blob), download: 'noble-estimates-backup.json' }); document.body.append(a); a.click(); a.remove(); } }, 'Export estimates (JSON)'),
     h('label', { class: 'btn' }, 'Import backup', h('input', { type: 'file', accept: 'application/json', hidden: true, onchange: async (e) => { try { const j = JSON.parse(await e.target.files[0].text()); store.set('nwd.estimates', { ...estimates.all(), ...(j.estimates || {}) }); toast('Imported'); } catch { toast('Bad file'); } } })),
     h('button', { class: 'btn danger', onclick: () => { if (confirm('Reset settings to defaults?')) { localStorage.removeItem('nwd.settings'); loadSettings(); render(root); } } }, 'Reset settings'))));
-  // rate table viewer (admin) — shows estimated flag
-  const b = data.rates.brands.find((x) => x.status === 'active');
-  if (b) {
+  // rate table viewer (admin) — shows estimated flag, one table per active brand
+  const activeBrands = data.rates.brands.filter((x) => x.status === 'active' && x.series?.length);
+  for (const b of activeBrands) {
+    const typeIds = [...new Set(b.series.flatMap((se) => se.types))];
     const rows = [];
-    for (const se of b.series) for (const c of se.colors) rows.push(h('tr', {}, h('td', {}, se.id), h('td', {}, colorName(c)), ...se.types.map((t) => { const r = getRate(b.id, se.id, c, t, s.rateSet); return h('td', { class: r?.estimated ? 'est' : '' }, r ? r.rate.toFixed(2) + (r.estimated ? ' E' : '') : '—'); })));
-    wrap.append(h('div', { class: 'card' }, h('h3', {}, `${b.name} rates in use ($ per inch of W+H, materials only, ${s.rateSet === 'max' ? 'MAX' : 'P75'})`), h('div', { class: 'scroll' }, h('table', { class: 'rates' }, h('thead', {}, h('tr', {}, h('th', {}, 'Series'), h('th', {}, 'Color'), ...b.series[0].types.map((t) => h('th', {}, typeName(t))))), h('tbody', {}, rows))),
-      h('p', { class: 'fine' }, 'E = estimated (not from a real quote). Internal only — never shown to customers. Edit data/rates.json to change rates. Adobe = white/white × the multiplier in rates.json (brands[0].derivedColors.adobe.multiplier).')));
+    for (const se of b.series) for (const c of se.colors) rows.push(h('tr', {}, h('td', {}, se.id), h('td', {}, colorName(c)), ...typeIds.map((t) => {
+      if (!se.types.includes(t)) return h('td', {}, '—');
+      const r = getRate(b.id, se.id, c, t, s.rateSet);
+      return h('td', { class: r?.estimated ? 'est' : '' }, r ? r.rate.toFixed(2) + (r.estimated ? ' E' : '') : '—');
+    })));
+    const note = b.id === 'milgard'
+      ? 'E = estimated (not from a real quote). Internal only — never shown to customers. Adobe = white/white × the multiplier in rates.json (brands[0].derivedColors.adobe.multiplier).'
+      : 'E = thin sample (fewer than 3 quote lines) or otherwise estimated. Internal only — never shown to customers. Sandtone uses the same rates as White. Dark Bronze is a dark-bronze exterior with a white interior.';
+    wrap.append(h('div', { class: 'card' }, h('h3', {}, `${b.name} rates in use ($ per inch of W+H, materials only, ${s.rateSet === 'max' ? 'MAX' : 'P75'})`), h('div', { class: 'scroll' }, h('table', { class: 'rates' }, h('thead', {}, h('tr', {}, h('th', {}, 'Series'), h('th', {}, 'Color'), ...typeIds.map((t) => h('th', {}, typeName(t))))), h('tbody', {}, rows))),
+      h('p', { class: 'fine' }, note)));
   }
   root.replaceChildren(wrap);
 }
