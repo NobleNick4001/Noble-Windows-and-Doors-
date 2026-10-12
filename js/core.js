@@ -39,14 +39,14 @@ export function toast(msg) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null };
+export const data = { rates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null };
 export let settings = {};
 
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'),
+  [data.rates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'),
   ]);
   if (data.obscureGlass?.sections) {
     data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
@@ -67,15 +67,23 @@ export const typeName = (id) => data.rates.types.find((t) => t.id === id)?.name 
 export const colorById = (id) => data.rates.colors.find((c) => c.id === id);
 export const colorName = (id) => colorById(id)?.name || id;
 
+// Stored p75/max already include this margin (customer = cost / 0.60). Selling margin is data/rates.json grossMargin.
+const QUOTED_MARGIN = 0.40;
+export function marginFactor() {
+  const g = Number(data.rates?.grossMargin);
+  const margin = Number.isFinite(g) && g >= 0 && g < 1 ? g : QUOTED_MARGIN;
+  return (1 - QUOTED_MARGIN) / (1 - margin);
+}
 export function getRate(brandId, series, color, type, rateSet = settings.rateSet) {
   const b = brandById(brandId);
   let r = b?.rates?.[`${series}|${color}|${type}`];
-  if (!r) { // derived color (e.g. Adobe = black/black x multiplier; always flagged estimated)
+  if (!r) { // derived color (e.g. Adobe = white/white x multiplier; always flagged estimated)
     const d = b?.derivedColors?.[color]; const base = d && b.rates[`${series}|${d.from}|${type}`]; const m = d?.multiplier ?? 1;
     if (base) r = { p75: base.p75 * m, max: base.max * m, estimated: true, n: 0 };
   }
   if (!r) return null;
-  return { rate: rateSet === 'max' ? r.max : r.p75, estimated: !!r.estimated, raw: r };
+  const stored = rateSet === 'max' ? r.max : r.p75;
+  return { rate: stored * marginFactor(), estimated: !!r.estimated, raw: r };
 }
 const roundMoney = (n) => settings.roundToDollar ? Math.round(n) : Math.round(n * 100) / 100;
 
@@ -138,7 +146,7 @@ export const estimates = {
   },
   blank() {
     return { id: uid(), number: this.nextNumber(), created: Date.now(), updated: Date.now(),
-      customer: { name: '', address: '', phone: '', email: '' }, lines: [], extras: [], notes: '', taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
+      customer: { name: '', address: '', phone: '', email: '' }, lines: [], extras: [], notes: '', promoCode: '', taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
   },
   // current draft: loaded or created on demand (not persisted until it has content)
   current() {
@@ -153,22 +161,61 @@ export const estimates = {
   startNew() { this._cur = this.blank(); this.setCurrent(this._cur.id); return this._cur; },
   persist() {
     const e = this._cur; if (!e) return;
-    if (e.lines.length || (e.extras || []).length || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes) this.save(e);
+    const has = e.lines.length || (e.extras || []).length || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || e.contract;
+    if (has || this.all()[e.id]) this.save(e);
   },
   duplicate(id) {
     const src = this.all()[id]; if (!src) return null;
     const c = JSON.parse(JSON.stringify(src)); c.id = uid(); c.number = this.nextNumber(); c.created = Date.now();
     c.lines.forEach((l) => (l.id = uid())); c.customer.name = c.customer.name ? c.customer.name + ' (copy)' : '';
+    delete c.contract;
     this.save(c); this._cur = c; this.setCurrent(c.id); return c;
   },
 };
+const r2 = (n) => Math.round(n * 100) / 100;
+export function findPromo(code) {
+  const key = String(code || '').trim().toUpperCase();
+  if (!key) return null;
+  return (data.promos?.codes || []).find((c) => String(c.code || '').trim().toUpperCase() === key) || null;
+}
+// Discount off window material (line unit x qty). Labor only when that code's appliesToLabor is true.
+export function promoResult(e, windows = 0, install = 0) {
+  const entered = String(e?.promoCode || '').trim();
+  const empty = { applied: false, invalid: false, amount: 0, windowAmount: 0, laborAmount: 0, label: '', note: '', promo: null };
+  if (!entered) return empty;
+  const promo = findPromo(entered);
+  if (!promo) return { ...empty, invalid: true, error: 'That code is not valid.' };
+  const lines = e.lines || [];
+  let windowAmount = 0, laborAmount = 0, note = '';
+  if (promo.type === 'percent') {
+    const pct = Number(promo.percent) || 0;
+    windowAmount = r2(windows * pct / 100);
+    if (promo.appliesToLabor) laborAmount = r2(install * pct / 100);
+  } else if (promo.type === 'bogo') {
+    const buy = Number(promo.buy) || 0, get = Number(promo.get) || 0, group = buy + get;
+    const count = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+    const freeN = group > 0 && get > 0 ? Math.floor(count / group) * get : 0;
+    if (freeN < 1) note = `Needs ${group} or more windows. One free window per ${group} (the cheapest material price).`;
+    else {
+      const units = [];
+      for (const l of lines) for (let i = 0; i < (Number(l.qty) || 0); i++) units.push({ material: Number(l.unit) || 0, labor: Number(l.installUnit) || 0 });
+      units.sort((a, b) => a.material - b.material);
+      for (const u of units.slice(0, freeN)) { windowAmount += u.material; if (promo.appliesToLabor) laborAmount += u.labor; }
+      windowAmount = r2(windowAmount); laborAmount = r2(laborAmount);
+    }
+  }
+  const amount = r2(windowAmount + laborAmount);
+  return { applied: true, invalid: false, amount, windowAmount, laborAmount, label: `Discount (${promo.code} · ${promo.label})`, note, promo };
+}
 export function totals(e) {
-  const r2 = (n) => Math.round(n * 100) / 100;
-  const windows = r2(e.lines.reduce((s, l) => s + l.unit * l.qty, 0));
-  const install = r2(e.lines.reduce((s, l) => s + (l.installUnit || 0) * l.qty, 0));
+  const lines = e.lines || [];
+  const windows = r2(lines.reduce((s, l) => s + l.unit * l.qty, 0));
+  const install = r2(lines.reduce((s, l) => s + (l.installUnit || 0) * l.qty, 0));
   const extras = r2((e.extras || []).reduce((s, x) => s + (Number(x.amount) || 0), 0));
-  const subtotal = r2(windows + install + extras);
-  const taxable = (settings.taxOn === 'all') ? subtotal : windows;
+  const promo = promoResult(e, windows, install);
+  const discount = promo.amount;
+  const subtotal = r2(windows + install + extras - discount);
+  const taxable = Math.max(0, (settings.taxOn === 'all') ? subtotal : r2(windows - promo.windowAmount));
   const tax = r2(taxable * (e.taxPct || 0) / 100);
-  return { windows, install, extras, subtotal, taxable, tax, total: r2(subtotal + tax), count: e.lines.reduce((s, l) => s + l.qty, 0) };
+  return { windows, install, extras, discount, discountLabel: promo.label, promo, subtotal, taxable, tax, total: r2(subtotal + tax), count: lines.reduce((s, l) => s + l.qty, 0) };
 }

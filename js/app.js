@@ -1,6 +1,7 @@
 import { $, h, loadData, estimates, toast } from './core.js';
 import * as calculator from './pages/calculator.js';
 import * as estimate from './pages/estimate.js';
+import * as contract from './pages/contract.js';
 import * as options from './pages/options.js';
 import * as gallery from './pages/gallery.js';
 import * as obscure from './pages/obscure.js';
@@ -9,7 +10,7 @@ import * as settings from './pages/settings.js';
 
 const ROUTES = [
   ['calculator', 'Calculator', '🧮', (r) => calculator.render(r)],
-  ['estimate', 'Estimate', '📄', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : estimate.render(r))],
+  ['estimate', 'Estimate', '📄', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
   ['saved', 'Saved', '🗂', (r) => estimate.renderList(r)],
   ['options', 'Options', '🪟', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', '🖼', (r) => gallery.render(r)],

@@ -1,0 +1,8 @@
+{
+  "_readme": "Promo codes for estimates. Matching ignores letter case. Each code has appliesToLabor: false means the discount comes off window material only (the windows line, including per-window options), never installation. Set appliesToLabor true only for a code that should also discount labor. percent = that percent off. bogo = one free window per (buy + get) windows, using the cheapest window material price. NOBLEBOGO is buy 4 get 1, so one free window per 5 (5–9 windows discounts one, 10–14 discounts two, and so on). A bogo code with fewer windows than buy+get is still valid and discounts $0.",
+  "codes": [
+    {"code": "NOBLE5", "label": "5% off windows", "type": "percent", "percent": 5, "appliesToLabor": false},
+    {"code": "NOBLE10", "label": "10% off windows", "type": "percent", "percent": 10, "appliesToLabor": false},
+    {"code": "NOBLEBOGO", "label": "Buy 4, get the 5th free", "type": "bogo", "buy": 4, "get": 1, "appliesToLabor": false}
+  ]
+}
