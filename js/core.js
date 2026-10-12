@@ -39,14 +39,14 @@ export function toast(msg) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null };
+export const data = { rates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null };
 export let settings = {};
 
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'),
+  [data.rates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'),
   ]);
   if (data.obscureGlass?.sections) {
     data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
@@ -161,13 +161,14 @@ export const estimates = {
   startNew() { this._cur = this.blank(); this.setCurrent(this._cur.id); return this._cur; },
   persist() {
     const e = this._cur; if (!e) return;
-    const has = e.lines.length || (e.extras || []).length || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode;
+    const has = e.lines.length || (e.extras || []).length || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || e.contract;
     if (has || this.all()[e.id]) this.save(e);
   },
   duplicate(id) {
     const src = this.all()[id]; if (!src) return null;
     const c = JSON.parse(JSON.stringify(src)); c.id = uid(); c.number = this.nextNumber(); c.created = Date.now();
     c.lines.forEach((l) => (l.id = uid())); c.customer.name = c.customer.name ? c.customer.name + ' (copy)' : '';
+    delete c.contract;
     this.save(c); this._cur = c; this.setCurrent(c.id); return c;
   },
 };
