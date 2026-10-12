@@ -22,6 +22,7 @@ export function render(root) {
     f('Estimate valid for (days)', () => s.validDays, (v) => (s.validDays = parseInt(v) || 30), 'number'),
     h('p', { class: 'fine' }, `Window rates are materials only and include Noble’s ${Math.round((Number(data.rates.grossMargin) || 0) * 100)}% margin. Change `, h('code', {}, 'grossMargin'), ' in ', h('code', {}, 'data/rates.json'), ' to reprice every window. Installation stays a separate line (', h('code', {}, 'data/install.json'), ').')));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Company info (shown on estimates)'),
+    f('Salesperson (Submitted by on the purchase agreement)', () => s.salesperson || '', (v) => (s.salesperson = v), 'text', 's-salesperson'),
     f('Company name', () => s.company.name, (v) => (s.company.name = v)), f('Address', () => s.company.address, (v) => (s.company.address = v)), f('Phone', () => s.company.phone, (v) => (s.company.phone = v), 'tel'),
     f('Email', () => s.company.email, (v) => (s.company.email = v), 'email'), f('Website', () => s.company.website, (v) => (s.company.website = v)),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Licenses (one per line, printed on estimates)'), h('textarea', { rows: 2, id: 's-license', oninput: (e) => { s.company.license = e.target.value; commit(); } }, s.company.license)),

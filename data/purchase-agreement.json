@@ -1,0 +1,31 @@
+{
+  "_readme": "Wording from Noble's two-page purchase contract. The on-screen header uses company settings (logo, address, phone, email, licenses), not the older phone and ROC printed on the Word file. Edit the clauses here. depositPct is the amount due to order; the rest is due on completion.",
+  "title": "Purchase Contract",
+  "termsTitle": "Noble Windows and Doors LLC Terms and Disclosures",
+  "depositPct": 65,
+  "balanceLabel": "Remaining 35% Balance is due upon completion of work.",
+  "depositLabel": "Amount due to order product, 65% of total",
+  "payNote": "Note: All payments must be made to Noble Windows and Doors LLC.",
+  "promise": "The Owner/ signer of this contract agrees to pay Noble Windows and Doors LLC for all labor, materials and services furnished and performed by Noble Windows and Doors LLC stated under the terms of this contract for the total sum of the following amount:",
+  "initialLead": "If all promises made by the salesman are stated clearly in this agreement, please initial here:",
+  "initialRest": "This contract is subject to approval by the owners of Noble Windows and Doors and can be revoked by any officer, at any time.",
+  "ack": "Purchaser (s) signature indicates that the purchaser (s) has read and understands all terms and disclosures contained on the front and back page of this contract and agrees to pay all sums due hereunder in a timely manner to Noble Windows and Doors LLC.",
+  "clauses": [
+    "All surplus material is property of Noble Windows and Doors LLC",
+    "Installation of products is up to the scheduling of Noble Windows and Doors LLC",
+    "Noble windows And Doors LLC will perform all work to per code up to industry standard",
+    "Purchaser agrees that he/ she will immediately upon completion of work, sign a Contractors’ completion certificate, note; any other documents such as deed of trust and/ or any other documents deemed necessary by Noble Windows and Doors.",
+    "If the purchaser (s) refuse (s) to complete the purchase as agreed, the purchaser (s) shall be liable for the entire balance of the contract price, due and payable immediately. If Noble Windows and Doors LLC employ legal counsel for the purpose of enforcing the terms hereof, purchaser (s) agree to pay all the costs of collection, including but not limited to attorney’s fees and any other costs.",
+    "Noble Windows and Doors LLC shall not be responsible for painting or staining unless specified in the contract.",
+    "Noble Windows and Doors LLC shall not be responsible for removal or replacing installation of any security systems already installed on the existing windows and Customer is responsible for contacting the security company for professional installation.",
+    "Noble Windows and Doors LLC shall not be responsible for removing and re installing existing window treatments; (such as) mini blinds, curtains, shutters, security bar or security shutters. If not stated in the contract Noble Windows and Doors reserve the right to charge $50 per window opening for removal and re installing any of the above window openings.",
+    "Noble Windows and Doors LLC shall not be responsible for any extra/unforeseen needed by purchaser (s). A change order with the scope of work and price for the work will be submitted; with consent from the purchaser (s) and approved by the purchaser (s) before any additional work will be performed.",
+    "Noble Windows and Doors LLC shall take precautions to protect the client’s property with drop cloths and other protective methods. It is required that the client move any personal and/or irreplaceable items that are within a 3-foot area from the work being done to avoid damaging these items or other property.",
+    "Noble Windows and Doors LLC are not responsible for HOA approval on any product style or color. Any/ all HOA approval if needed, is the Purchasers responsibility only.",
+    "\"Buyers Right To Cancel'', if this agreement was solicited at your residence and you do not want the goods sold or services, you may cancel this agreement by mailing a notice to the seller. The Notice must say you do not want the goods or services and must be mailed before midnight of the third business day after you sign this agreement. The notice must be mailed to Noble Windows and Doors LLC.",
+    "Purchaser (s) understands and agrees that if this contract is canceled after the three (3) day recission period, the purchaser will be liable for liquidated damages of not less than twenty-five percent (25%) of the total sales price, in repayment of damages to the contractor.",
+    "Any time frames for progress or completion represented by Noble Windows and Doors LLC are estimates only and cannot be warranties",
+    "$35.00 charge for all returned checks",
+    "Screen mesh is not covered under warranty for tears and repairs."
+  ]
+}
