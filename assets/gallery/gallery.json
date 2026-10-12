@@ -1,5 +1,5 @@
 {
-  "_readme": "Job photos. Every file listed here is shown, including andersen-100-05 (house number) and milgard-v300-02 (installer). Thumbnails and the slideshow use object-fit contain so the whole photo stays in frame. Order is Nick's 17 photos first (Milgard V300, Milgard V400 Tuscany, Andersen 100, Andersen 100 retrofit / jump frame), then website photos as Noble projects. caption is the on-screen label. installType 'unspecified' means show no install label. lowRes photos (760x570 site files) are not scaled past their pixel size in the slideshow. Gallery images are cached on first view (not all precached).",
+  "_readme": "Job photos. Every file listed here is shown, including andersen-100-05 (house number) and milgard-v300-02 (installer). Thumbnails and the slideshow use object-fit contain so the whole photo stays in frame. Order is Nick's 17 photos first (Milgard V300, Milgard V400 Tuscany, Andersen 100, Andersen 100 retrofit / jump frame), then the Multi Slides pool-patio before/after, then website photos as Noble projects. caption is the on-screen label. installType 'unspecified' means show no install label. lowRes photos (760x570 site files) are not scaled past their pixel size in the slideshow. Gallery images are cached on first view (not all precached).",
   "groups": [
     {
       "id": "milgard-v300",
@@ -16,6 +16,10 @@
     {
       "id": "andersen-100-retrofit",
       "label": "Andersen 100 Retrofit"
+    },
+    {
+      "id": "multi-slides",
+      "label": "Multi Slides"
     },
     {
       "id": "noble-projects",
@@ -240,6 +244,58 @@
       "installType": "retrofit / jump frame",
       "source": "nick",
       "group": "andersen-100-retrofit",
+      "w": 1600,
+      "h": 1200,
+      "lowRes": false
+    },
+    {
+      "src": "multi-slides-pool-patio-01.jpg",
+      "caption": "Before: XOX window and patio door",
+      "brand": null,
+      "series": "XOX + patio door",
+      "category": "window + door",
+      "installType": "unspecified",
+      "source": "nick",
+      "group": "multi-slides",
+      "w": 1600,
+      "h": 1200,
+      "lowRes": false
+    },
+    {
+      "src": "multi-slides-pool-patio-02.jpg",
+      "caption": "Before: door removed",
+      "brand": null,
+      "series": "XOX window",
+      "category": "window",
+      "installType": "unspecified",
+      "source": "nick",
+      "group": "multi-slides",
+      "w": 1600,
+      "h": 1200,
+      "lowRes": false
+    },
+    {
+      "src": "multi-slides-pool-patio-03.jpg",
+      "caption": "After: white 3-panel slider, wide",
+      "brand": null,
+      "series": "3-panel slider",
+      "category": "door",
+      "installType": "unspecified",
+      "source": "nick",
+      "group": "multi-slides",
+      "w": 1600,
+      "h": 1200,
+      "lowRes": false
+    },
+    {
+      "src": "multi-slides-pool-patio-04.jpg",
+      "caption": "After: white 3-panel slider, finished",
+      "brand": null,
+      "series": "3-panel slider",
+      "category": "door",
+      "installType": "unspecified",
+      "source": "nick",
+      "group": "multi-slides",
       "w": 1600,
       "h": 1200,
       "lowRes": false
