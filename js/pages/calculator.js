@@ -1,13 +1,24 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines } from '../core.js';
 import { frameSVG } from '../frames.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, label: '', options: null, details: false, install: null }, store.get('nwd.calc', {}));
 const persist = () => store.set('nwd.calc', calc);
 
+function knownOptionIds() {
+  const ids = new Set([...(data.options.glass || []), ...(data.options.frame || [])].map((o) => o.id));
+  (data.obscureGlass?.patterns || []).forEach((p) => ids.add(p.id));
+  return ids;
+}
+function defaultOptions() {
+  return [...data.options.glass, ...data.options.frame].filter((o) => o.defaultOn).map((o) => o.id);
+}
 function normalize() {
   const b = brandById(calc.brand) || data.rates.brands[0]; calc.brand = b.id;
   if (!calc.install) calc.install = defaultInstall();
-  if (!calc.options) calc.options = [...data.options.glass, ...data.options.frame].filter((o) => o.defaultOn).map((o) => o.id);
+  if (!Array.isArray(calc.install.surcharges)) calc.install.surcharges = [];
+  const known = knownOptionIds();
+  if (!calc.options) calc.options = defaultOptions();
+  else calc.options = calc.options.filter((id) => known.has(id));
   if (!b.series.length) return b;
   let s = b.series.find((x) => x.id === calc.series); if (!s) { s = b.series[0]; calc.series = s.id; }
   if (!s.types.includes(calc.type)) calc.type = s.types[0];
@@ -22,7 +33,7 @@ export const frameKeyFor = (colorId) => colorById(colorId)?.frame || 'white';
 
 function obscureIds() { return new Set((data.obscureGlass?.patterns || []).map((p) => p.id)); }
 export function applyObscurePattern(patternId) {
-  if (!calc.options) calc.options = [...data.options.glass, ...data.options.frame].filter((o) => o.defaultOn).map((o) => o.id);
+  if (!calc.options) calc.options = defaultOptions();
   const ids = obscureIds();
   calc.options = calc.options.filter((id) => !ids.has(id));
   if (!calc.options.includes('obscure')) calc.options.push('obscure');
@@ -55,7 +66,7 @@ export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', 
 export function installEditor(inst, onChange, idp = 'inst') {
   const t = installType(inst.type);
   const frames = data.frameTypes?.types || [];
-  const priceLabel = (x) => `${x.name} — ${fmt(x.price)}${x.placeholder ? ' (placeholder)' : ''}`;
+  const priceLabel = (x) => x.custom ? x.name : `${x.name} — ${fmt(x.price)}${x.placeholder ? ' (placeholder)' : ''}`;
   return h('div', { class: 'install-ed' },
     frames.length ? h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Frame type'),
       h('select', { id: idp + '-frame', onchange: (e) => {
@@ -73,7 +84,8 @@ export function installEditor(inst, onChange, idp = 'inst') {
         onChange(true);
       } }, data.install.types.map((x) => h('option', { value: x.id, selected: x.id === inst.type ? 'selected' : null }, priceLabel(x))))),
     t.custom && h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Custom install price ($ per window)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-custom', value: inst.custom ?? '', oninput: (e) => { inst.custom = e.target.value.replace(/[^0-9.]/g, ''); onChange(); } })),
-    h('div', { class: 'checks' }, data.install.surcharges.map((s) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: inst.surcharges.includes(s.id) ? 'checked' : null, onchange: (e) => { inst.surcharges = e.target.checked ? [...inst.surcharges, s.id] : inst.surcharges.filter((x) => x !== s.id); onChange(); } }), h('span', {}, s.name), s.amount ? h('em', {}, ' +' + fmt(s.amount)) : null))),
+    h('div', { class: 'checks' }, data.install.surcharges.map((s) => h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + '-sur-' + s.id, checked: (inst.surcharges || []).includes(s.id) ? 'checked' : null, onchange: (e) => { const cur = inst.surcharges || []; inst.surcharges = e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id); onChange(true); } }), h('span', {}, s.name), s.amount ? h('em', {}, ' +' + fmt(s.amount) + ' / window') : null))),
+    h('p', { class: 'fine' }, 'Add-ons are charged per window, times this line’s quantity. Promo codes do not apply.'),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Override install price ($ per window, optional)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-override', value: inst.override ?? '', placeholder: 'leave blank to use the price above', oninput: (e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); inst.override = v === '' ? null : v; onChange(); } })));
 }
 
@@ -110,7 +122,7 @@ export function render(root) {
   root.replaceChildren(wrap);
 
   function optionsCard() {
-    const mk = (o) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: calc.options.includes(o.id) ? 'checked' : null, onchange: (e) => { calc.options = e.target.checked ? [...calc.options, o.id] : calc.options.filter((x) => x !== o.id); if (o.id === 'obscure' && !e.target.checked) calc.options = calc.options.filter((id) => !obscureIds().has(id)); persist(); update(); } }), h('span', {}, o.name), o.price.type !== 'included' && o.price.amount ? h('em', {}, ' +' + (o.price.type === 'percent' ? o.price.amount + '%' : fmt(o.price.amount))) : null);
+    const mk = (o) => h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'opt-' + o.id, checked: calc.options.includes(o.id) ? 'checked' : null, onchange: (e) => { calc.options = e.target.checked ? [...calc.options, o.id] : calc.options.filter((x) => x !== o.id); if (o.id === 'obscure' && !e.target.checked) calc.options = calc.options.filter((id) => !obscureIds().has(id)); persist(); update(); } }), h('span', {}, o.name), o.price.type !== 'included' && o.price.amount ? h('em', {}, ' +' + (o.price.type === 'percent' ? o.price.amount + '%' : fmt(o.price.amount))) : null);
     return h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Glass & frame options')),
       h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), data.options.glass.map(mk)), h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map(mk))));
   }
@@ -121,19 +133,21 @@ export function render(root) {
     const summary = `${brand.name} ${calc.series} · ${typeName(calc.type)} · ${colorById(calc.color).name}`;
     priceBox.append(h('div', { class: 'eyebrow' }, summary));
     if (!p) { priceBox.append(h('div', { class: 'big muted' }, '—'), h('p', { class: 'muted' }, 'Enter width and height to see the price.')); return; }
-    const qty = parseInt(calc.qty) || 1, inst = installUnit(calc.install);
+    const qty = parseInt(calc.qty) || 1, inst = installUnit(calc.install), add = addonUnit(calc.install);
+    const each = p.unit + inst + add;
     const warn = (parseFloat(calc.w) < 12 || parseFloat(calc.h) < 12 || parseFloat(calc.w) > 144 || parseFloat(calc.h) > 144);
     priceBox.append(...[
-      h('div', { class: 'big', id: 'price-window' }, fmt(p.unit)), h('div', { class: 'sub' }, 'window price (materials) · each'),
+      h('div', { class: 'big', id: 'price-window' }, fmt(p.unit)), h('div', { class: 'sub' }, p.optionsEach ? 'window price (materials, incl. glass) · each' : 'window price (materials) · each'),
       h('div', { class: 'line' }, h('span', {}, 'Installation / labor (each)'), h('b', { id: 'price-install' }, fmt(inst))),
-      h('div', { class: 'line strong' }, h('span', {}, 'Window + install, each'), h('b', { id: 'price-each' }, fmt(p.unit + inst))),
-      qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} windows`), h('b', { id: 'price-total' }, fmt((p.unit + inst) * qty))),
+      add ? h('div', { class: 'line' }, h('span', { id: 'price-addon-lbl' }, 'Add-ons (each) · ' + addonNames(calc.install).join(', ')), h('b', { id: 'price-addons' }, fmt(add))) : null,
+      h('div', { class: 'line strong' }, h('span', {}, add ? 'Window + install + add-ons, each' : 'Window + install, each'), h('b', { id: 'price-each' }, fmt(each))),
+      qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} windows`), h('b', { id: 'price-total' }, fmt(each * qty))),
       h('div', { class: 'fine' }, 'Before tax'),
       warn && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
       h('button', { class: 'link', onclick: () => { calc.details = !calc.details; persist(); update(); } }, calc.details ? 'Hide math' : 'Show math'),
-      calc.details && h('div', { class: 'math' }, `(${calc.w} + ${calc.h}) = ${p.wh}" × $${p.rate.toFixed(4)}/in = ${fmt(p.unitBase)}`, p.optionsEach ? ` + options ${fmt(p.optionsEach)}` : '', ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`),
+      calc.details && h('div', { class: 'math' }, `(${calc.w} + ${calc.h}) = ${p.wh}" × $${p.rate.toFixed(4)}/in = ${fmt(p.unitBase)}`, p.optionsEach ? ` + glass ${fmt(p.optionsEach)}` : '', ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`, add ? ` · add-ons ${fmt(add)}` : ''),
       h('button', { class: 'btn primary xl', id: 'btn-add', onclick: addToEstimate }, '+ Add to estimate'),
-      h('p', { class: 'fine' }, 'Window price = materials only. Installation shown separately. Sales tax not included.')].filter(Boolean));
+      h('p', { class: 'fine' }, 'Window price includes glass upcharges. Installation and add-ons are separate. Sales tax not included.')].filter(Boolean));
   }
   function addToEstimate() {
     const a = args(); const p = priceWindow(a);
@@ -146,7 +160,7 @@ export function render(root) {
   function miniEstimate() {
     const e = estimates.current(); const t = totals(e);
     return h('div', { class: 'card mini' }, h('div', { class: 'row between' }, h('b', {}, 'Current estimate'), h('span', { class: 'muted' }, e.number)),
-      e.lines.length ? h('div', {}, h('div', { class: 'line' }, h('span', {}, `${t.count} window${t.count === 1 ? '' : 's'} · windows`), h('b', {}, fmt(t.windows))), t.discount ? h('div', { class: 'line discount' }, h('span', {}, 'Discount'), h('b', {}, fmt(-t.discount))) : null, h('div', { class: 'line' }, h('span', {}, 'Installation'), h('b', {}, fmt(t.install + t.extras))), h('div', { class: 'line strong' }, h('span', {}, 'Subtotal (before tax)'), h('b', {}, fmt(t.subtotal))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
+      e.lines.length ? h('div', {}, ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', {}, row.id === 'windows' ? `${t.count} window${t.count === 1 ? '' : 's'} · windows` : row.label), h('b', {}, fmt(row.amount)))), h('div', { class: 'line strong' }, h('span', {}, 'Subtotal (before tax)'), h('b', {}, fmt(t.subtotal))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
   }
   const rerender = () => render(root);
   update();

@@ -1,5 +1,5 @@
 {
-  "_readme": "Frame and install copy for the customer Frame Types screen. Edit name, bestFor, desc, pros, cons, and installNote. placeholder:true shows the placeholder badge (Settings can hide badges). Retrofit and nailing fin / full frame follow the website. Block frame is not described on the site, so that card stays a placeholder. installType must be an id in data/install.json. Choosing this frame on an estimate line sets that install type and its per-window price. diagram is the picture key: zbar, block, or nailfin. Nick's gallery label 'retrofit / jump frame' is the retrofit card; the site's word is retrofit.",
+  "_readme": "Frame and install copy for the customer Frame Types screen. Edit name, bestFor, desc, pros, cons, and installNote. placeholder:true shows the placeholder badge (Settings can hide badges). Retrofit and nailing fin / full frame follow the website. Block frame is not described on the site, so that card's wording stays a placeholder; its labor price is real. installType must be an id in data/install.json. Choosing this frame on an estimate line sets that install type and its per-window price: zbar (retrofit / jump frame) $360, nailfin (R&R stucco / nailing fin) $400, block $380. diagram is the picture key: zbar, block, or nailfin.",
   "types": [
     {
       "id": "zbar",

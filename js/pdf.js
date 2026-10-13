@@ -1,5 +1,5 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
-import { fmt, totals, settings, brandById, typeName, colorName, installLabel, optionDef } from './core.js';
+import { fmt, totals, summaryLines, settings, data, brandById, typeName, colorName, installUnit, addonUnit, addonNames, installLabel, optionDef } from './core.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -150,6 +150,7 @@ export async function makeContractPdf(model) {
   w.text('Specifications of work needed:', { size: 11, bold: true, gap: 1 });
   w.text(model.specifications || '—', { size: 11, gap: 6 });
   row('Estimated completion date:', model.completionDate ? fdate(model.completionDate + 'T12:00:00') : '');
+  (model.summary || []).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
   w.text('Project Total Cost  ' + fmt(model.pay.total), { size: 12, bold: true, gap: 3 });
   w.text(a.depositLabel + '  ' + fmt(model.pay.deposit), { size: 11, gap: 2 });
   w.text(a.balanceLabel + '  ' + fmt(model.pay.balance), { size: 11, gap: 8 });
@@ -204,21 +205,38 @@ export async function makeEstimatePdf(e) {
   w.text('Prepared for', { size: 10, bold: true, gap: 1 });
   w.text([e.customer?.name, e.customer?.address, e.customer?.phone, e.customer?.email].filter(Boolean).join('\n') || '—', { size: 10, gap: 8 });
 
-  w.text('Windows (materials)', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
+  w.text('Windows (materials, including glass)', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
   (e.lines || []).forEach((l) => {
     w.text(`${l.label || 'Window'}  ·  ${lineDesc(l)}`, { size: 9, bold: true, gap: 0 });
-    w.text(`${l.w}" x ${l.h}"    Qty ${l.qty}    ${fmt(l.unit)} each    ${fmt(l.unit * l.qty)}`, { size: 9, gap: 3 });
+    const glass = l.optionsEach ? `    glass ${fmt(l.optionsEach)}` : '';
+    w.text(`${l.w}" x ${l.h}"    Qty ${l.qty}    ${fmt(l.unit)} each${glass}    ${fmt(l.unit * l.qty)}`, { size: 9, gap: 3 });
   });
   w.text('Windows subtotal  ' + fmt(t.windows), { size: 10, bold: true, gap: 2 });
   if (t.promo?.windowAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.windowAmount), { size: 10, bold: true, gap: 4 });
 
   w.text('Installation / labor', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
   (e.lines || []).forEach((l) => {
+    const each = installUnit(l.install);
     w.text(`${l.label || 'Window'}  ·  ${installLabel(l.install)}`, { size: 9, gap: 0 });
-    w.text(`Qty ${l.qty}    ${fmt(l.installUnit)} each    ${fmt((l.installUnit || 0) * l.qty)}`, { size: 9, gap: 3 });
+    w.text(`Qty ${l.qty}    ${fmt(each)} each    ${fmt(each * l.qty)}`, { size: 9, gap: 3 });
   });
   w.text('Installation / labor subtotal  ' + fmt(t.install), { size: 10, bold: true, gap: 4 });
   if (t.promo?.laborAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.laborAmount), { size: 10, gap: 4 });
+
+  const addRows = (e.lines || []).filter((l) => addonUnit(l.install));
+  if (addRows.length) {
+    w.text('Add-ons', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
+    addRows.forEach((l) => {
+      const each = addonUnit(l.install);
+      w.text(`${l.label || 'Window'}  ·  ${addonNames(l.install).join(', ')}`, { size: 9, gap: 0 });
+      w.text(`Qty ${l.qty}    ${fmt(each)} each    ${fmt(each * l.qty)}`, { size: 9, gap: 3 });
+    });
+    w.text('Add-ons subtotal  ' + fmt(t.addons), { size: 10, bold: true, gap: 4 });
+  }
+  if (t.stuccoOn) {
+    w.text(t.stuccoName, { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
+    w.text(`Qty ${t.stuccoQty}    ${fmt(t.stuccoUnit)} each    ${fmt(t.stucco)}`, { size: 10, gap: 4 });
+  }
 
   if ((e.extras || []).length) {
     w.text('Additional items', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
@@ -226,13 +244,14 @@ export async function makeEstimatePdf(e) {
     w.text('Additional items subtotal  ' + fmt(t.extras), { size: 10, bold: true, gap: 4 });
   }
 
-  w.text('Windows  ' + fmt(t.windows), { size: 11, gap: 1 });
-  if (t.discount) w.text(t.discountLabel + '  ' + fmt(-t.discount), { size: 11, gap: 1 });
-  w.text('Installation / labor  ' + fmt(t.install), { size: 11, gap: 1 });
-  if (t.extras) w.text('Additional items  ' + fmt(t.extras), { size: 11, gap: 1 });
+  summaryLines(t).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
   w.text('Subtotal  ' + fmt(t.subtotal), { size: 11, bold: true, gap: 1 });
   if (e.taxPct) w.text(`Tax (${e.taxPct}%)  ${fmt(t.tax)}`, { size: 11, gap: 1 });
   w.text((e.taxPct ? 'TOTAL  ' : 'TOTAL (before tax)  ') + fmt(t.total), { size: 13, bold: true, gap: 2 });
+  const pct = Number(data.agreement?.depositPct) || 65;
+  const pay = contractPay(t.total, pct);
+  w.text(`Deposit (${pct}%)  ${fmt(pay.deposit)}`, { size: 11, gap: 1 });
+  w.text(`Final (${100 - pct}%)  ${fmt(pay.balance)}`, { size: 11, gap: 4 });
   if (!e.taxPct) w.text('Sales tax not included.', { size: 8, gap: 6 });
   if (e.notes) { w.text('Notes', { size: 11, bold: true, gap: 1 }); w.text(e.notes, { size: 9, gap: 6 }); }
   w.text('Terms', { size: 11, bold: true, gap: 1 });

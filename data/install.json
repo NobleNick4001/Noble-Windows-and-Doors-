@@ -1,21 +1,21 @@
 {
-  "_readme": "INSTALLATION / LABOR (separate from window price). types[].price = install price PER WINDOW in dollars. surcharges[].amount = extra $ per window when ticked. jobExtras = quick-add job-level lines (permit, haul-away, trim...). Only 'standard' ($360) is real; every other price is a PLACEHOLDER (placeholder:true) for Nick to fill in. 'custom' lets the rep type any price. A rep can also override the install price on any window. Frame types in data/frame-types.json point here: zbar -> standard, nailfin -> stucco-fin, block -> block.",
+  "_readme": "INSTALLATION / LABOR (separate from window price). types[].price = install price PER WINDOW. surcharges[] are per-window add-ons: the line total is amount × that line's quantity, and they are NOT part of the labor price and NOT discounted by promo codes. stuccoRepair is an optional estimate line at price × its own quantity (the estimate screen defaults that quantity to the window count). jobExtras are flat job-level lines. Frame types in data/frame-types.json point here: zbar (retrofit / jump frame) -> standard, nailfin -> stucco-fin, block -> block. 'custom' lets the rep type a labor price. A rep can also override the labor price on any window; add-ons still add on top.",
   "defaultType": "standard",
   "types": [
-    {"id": "standard", "name": "Standard retrofit / replacement install", "price": 360, "placeholder": false},
-    {"id": "stucco-fin", "name": "Stucco / new-construction fin", "price": 360, "placeholder": true},
-    {"id": "block", "name": "Block frame install", "price": 360, "placeholder": true},
-    {"id": "custom", "name": "Custom (type a price)", "price": 360, "placeholder": true, "custom": true}
+    {"id": "standard", "name": "Retrofit/Jump frame", "price": 360, "placeholder": false},
+    {"id": "stucco-fin", "name": "R&R stucco / nailing fin", "price": 400, "placeholder": false},
+    {"id": "block", "name": "Block frame install", "price": 380, "placeholder": false},
+    {"id": "custom", "name": "Custom (type a price)", "price": 0, "placeholder": false, "custom": true}
   ],
   "surcharges": [
-    {"id": "second-story", "name": "Second story", "amount": 0, "placeholder": true},
-    {"id": "difficult-access", "name": "Difficult access", "amount": 0, "placeholder": true},
-    {"id": "oversize", "name": "Oversize / heavy window", "amount": 0, "placeholder": true}
+    {"id": "second-story", "name": "2nd story", "amount": 75, "placeholder": false},
+    {"id": "difficult-access", "name": "Difficult access", "amount": 75, "placeholder": false},
+    {"id": "oversize", "name": "Oversized/heavy", "amount": 85, "placeholder": false}
   ],
+  "stuccoRepair": {"id": "stucco-repair", "name": "Stucco repair & paint", "price": 650},
   "jobExtras": [
     {"id": "permit", "name": "Permit", "amount": 0, "placeholder": true},
     {"id": "haul-away", "name": "Haul-away / disposal", "amount": 0, "placeholder": true},
-    {"id": "trim", "name": "Interior / exterior trim", "amount": 0, "placeholder": true},
-    {"id": "stucco-patch", "name": "Stucco / drywall patch", "amount": 0, "placeholder": true}
+    {"id": "trim", "name": "Interior / exterior trim", "amount": 0, "placeholder": true}
   ]
 }
