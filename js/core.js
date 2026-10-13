@@ -86,6 +86,7 @@ export function getRate(brandId, series, color, type, rateSet = settings.rateSet
   return { rate: stored * marginFactor(), estimated: !!r.estimated, raw: r };
 }
 const roundMoney = (n) => settings.roundToDollar ? Math.round(n) : Math.round(n * 100) / 100;
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 export function optionDef(id) {
   const hit = [...data.options.glass, ...data.options.frame].find((o) => o.id === id);
@@ -100,25 +101,45 @@ export function optionPrice(opt, base, w, h) {
   if (p.type === 'perSqFt') return (w * h / 144) * (p.amount || 0);
   return 0;
 }
-// ---------- installation / labor (separate from window price) ----------
+// ---------- installation / labor (separate from window price and from add-ons) ----------
 export const installType = (id) => data.install.types.find((t) => t.id === id) || data.install.types[0];
 export const defaultInstall = () => ({ type: data.install.defaultType, surcharges: [], override: null, custom: null, frameType: null });
 export const frameTypeById = (id) => data.frameTypes?.types?.find((t) => t.id === id);
+const surchargeDef = (id) => data.install?.surcharges?.find((x) => x.id === id);
 // inst = {type, surcharges[], override (number|null), custom (number|null for 'custom' type)}
+// Labor only. Per-window add-ons are addonUnit and are not folded into this price.
 export function installUnit(inst) {
   inst = inst || defaultInstall();
   if (inst.override != null && inst.override !== '' && !isNaN(inst.override)) return roundMoney(Number(inst.override));
   const t = installType(inst.type);
   const base = t.custom && inst.custom != null && inst.custom !== '' ? Number(inst.custom) || 0 : t.price;
-  const sur = (inst.surcharges || []).reduce((s, id) => s + (data.install.surcharges.find((x) => x.id === id)?.amount || 0), 0);
-  return roundMoney(base + sur);
+  return roundMoney(base);
+}
+export function addonNames(inst) {
+  return (inst?.surcharges || []).map((id) => surchargeDef(id)?.name).filter(Boolean);
+}
+export function addonUnit(inst) {
+  const sur = (inst?.surcharges || []).reduce((s, id) => s + (Number(surchargeDef(id)?.amount) || 0), 0);
+  return roundMoney(sur);
 }
 export function installLabel(inst) {
   inst = inst || defaultInstall(); const t = installType(inst.type);
   const frame = frameTypeById(inst.frameType);
-  const sur = (inst.surcharges || []).map((id) => data.install.surcharges.find((x) => x.id === id)?.name).filter(Boolean);
-  const name = frame ? `${frame.name} (${t.name})` : t.name;
-  return name + (sur.length ? ' + ' + sur.join(', ') : '');
+  return frame ? `${frame.name} (${t.name})` : t.name;
+}
+export function windowCount(e) {
+  return (e?.lines || []).reduce((s, l) => s + (Number(l.qty) || 0), 0);
+}
+// Optional estimate line. qty null follows the window count until the rep types a quantity.
+export function stuccoState(e) {
+  const def = data.install?.stuccoRepair || { name: 'Stucco repair & paint', price: 650 };
+  const rec = e?.stuccoRepair || {};
+  const on = !!rec.on;
+  const count = windowCount(e);
+  const follows = rec.qty == null || rec.qty === '';
+  const qty = on ? (follows ? count : Math.max(0, parseInt(rec.qty, 10) || 0)) : 0;
+  const unit = Number(def.price) || 0;
+  return { on, follows: on && follows, name: def.name, unit, qty, total: r2(unit * qty) };
 }
 // Returns {unitBase, optionsEach, unit, total, rate, wh}
 export function priceWindow({ brand, series, color, type, w, h, qty = 1, options = [] }) {
@@ -146,7 +167,7 @@ export const estimates = {
   },
   blank() {
     return { id: uid(), number: this.nextNumber(), created: Date.now(), updated: Date.now(),
-      customer: { name: '', address: '', phone: '', email: '' }, lines: [], extras: [], notes: '', promoCode: '', taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
+      customer: { name: '', address: '', phone: '', email: '' }, lines: [], extras: [], stuccoRepair: { on: false, qty: null }, notes: '', promoCode: '', taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
   },
   // current draft: loaded or created on demand (not persisted until it has content)
   current() {
@@ -161,7 +182,7 @@ export const estimates = {
   startNew() { this._cur = this.blank(); this.setCurrent(this._cur.id); return this._cur; },
   persist() {
     const e = this._cur; if (!e) return;
-    const has = e.lines.length || (e.extras || []).length || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || e.contract;
+    const has = e.lines.length || (e.extras || []).length || e.stuccoRepair?.on || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || e.contract;
     if (has || this.all()[e.id]) this.save(e);
   },
   duplicate(id) {
@@ -172,13 +193,13 @@ export const estimates = {
     this.save(c); this._cur = c; this.setCurrent(c.id); return c;
   },
 };
-const r2 = (n) => Math.round(n * 100) / 100;
 export function findPromo(code) {
   const key = String(code || '').trim().toUpperCase();
   if (!key) return null;
   return (data.promos?.codes || []).find((c) => String(c.code || '').trim().toUpperCase() === key) || null;
 }
-// Discount off window material (line unit x qty). Labor only when that code's appliesToLabor is true.
+// Discount off window cost including glass upcharges. Labor only when that code's appliesToLabor is true.
+// Add-ons and stucco repair are never discounted.
 export function promoResult(e, windows = 0, install = 0) {
   const entered = String(e?.promoCode || '').trim();
   const empty = { applied: false, invalid: false, amount: 0, windowAmount: 0, laborAmount: 0, label: '', note: '', promo: null };
@@ -195,10 +216,10 @@ export function promoResult(e, windows = 0, install = 0) {
     const buy = Number(promo.buy) || 0, get = Number(promo.get) || 0, group = buy + get;
     const count = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
     const freeN = group > 0 && get > 0 ? Math.floor(count / group) * get : 0;
-    if (freeN < 1) note = `Needs ${group} or more windows. One free window per ${group} (the cheapest material price).`;
+    if (freeN < 1) note = `Needs ${group} or more windows. One free window per ${group} (the cheapest window price, including glass).`;
     else {
       const units = [];
-      for (const l of lines) for (let i = 0; i < (Number(l.qty) || 0); i++) units.push({ material: Number(l.unit) || 0, labor: Number(l.installUnit) || 0 });
+      for (const l of lines) for (let i = 0; i < (Number(l.qty) || 0); i++) units.push({ material: Number(l.unit) || 0, labor: installUnit(l.install) });
       units.sort((a, b) => a.material - b.material);
       for (const u of units.slice(0, freeN)) { windowAmount += u.material; if (promo.appliesToLabor) laborAmount += u.labor; }
       windowAmount = r2(windowAmount); laborAmount = r2(laborAmount);
@@ -209,13 +230,30 @@ export function promoResult(e, windows = 0, install = 0) {
 }
 export function totals(e) {
   const lines = e.lines || [];
-  const windows = r2(lines.reduce((s, l) => s + l.unit * l.qty, 0));
-  const install = r2(lines.reduce((s, l) => s + (l.installUnit || 0) * l.qty, 0));
+  const qtyOf = (l) => Number(l.qty) || 0;
+  const windows = r2(lines.reduce((s, l) => s + (Number(l.unit) || 0) * qtyOf(l), 0));
+  const install = r2(lines.reduce((s, l) => s + installUnit(l.install) * qtyOf(l), 0));
+  const addons = r2(lines.reduce((s, l) => s + addonUnit(l.install) * qtyOf(l), 0));
+  const stucco = stuccoState(e);
   const extras = r2((e.extras || []).reduce((s, x) => s + (Number(x.amount) || 0), 0));
   const promo = promoResult(e, windows, install);
   const discount = promo.amount;
-  const subtotal = r2(windows + install + extras - discount);
+  const subtotal = r2(windows + install + addons + stucco.total + extras - discount);
   const taxable = Math.max(0, (settings.taxOn === 'all') ? subtotal : r2(windows - promo.windowAmount));
   const tax = r2(taxable * (e.taxPct || 0) / 100);
-  return { windows, install, extras, discount, discountLabel: promo.label, promo, subtotal, taxable, tax, total: r2(subtotal + tax), count: lines.reduce((s, l) => s + l.qty, 0) };
+  return {
+    windows, install, addons, stucco: stucco.total, stuccoName: stucco.name, stuccoQty: stucco.qty, stuccoUnit: stucco.unit, stuccoOn: stucco.on,
+    extras, discount, discountLabel: promo.label, promo, subtotal, taxable, tax, total: r2(subtotal + tax),
+    count: lines.reduce((s, l) => s + qtyOf(l), 0),
+  };
+}
+// Rows shared by the estimate screen, the print view, the estimate PDF, and the purchase agreement.
+export function summaryLines(t) {
+  const rows = [{ id: 'windows', label: 'Windows', amount: t.windows }];
+  if (t.discount) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -t.discount, discount: true });
+  rows.push({ id: 'install', label: 'Installation / labor', amount: t.install });
+  if (t.addons) rows.push({ id: 'addons', label: 'Add-ons', amount: t.addons });
+  if (t.stucco) rows.push({ id: 'stucco', label: t.stuccoName || 'Stucco repair & paint', amount: t.stucco });
+  if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
+  return rows;
 }

@@ -205,8 +205,11 @@ export function view() {
       ? h('div', { class: 'og-list' }, (sec.patterns || []).map(textRow))
       : h('div', { class: 'og-grid', id: sec.id === 'andersen' ? 'obscure-grid' : null }, (sec.patterns || []).map((p) => photoTile(p, chosen)))))
     : [h('div', { class: 'og-grid', id: 'obscure-grid' }, patterns().map((p) => photoTile(p, chosen)))];
+  const obscurePrice = (data.options?.glass || []).find((o) => o.id === 'obscure');
+  const pct = obscurePrice?.price?.type === 'percent' ? obscurePrice.price.amount : 0;
   return h('div', { class: 'og' },
     data.obscureGlass?.pageNote ? h('p', { class: 'og-lead' }, data.obscureGlass.pageNote) : null,
+    pct ? h('p', { class: 'fine', id: 'obscure-price-note' }, `Obscured glass adds ${pct}% of the window price. The pattern you pick does not add a second charge. It stacks with laminated and tempered glass.`) : null,
     settings.showPlaceholders && h('p', { class: 'fine' }, 'Privacy ratings are still placeholders. The site does not publish them. Reed is 3 and Satin Etch is 5 from the old generic list; every other pattern is blank. Edit ', h('code', {}, 'data/obscure-glass.json'), '.'),
     ...blocks);
 }

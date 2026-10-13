@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, estimates, totals, toast } from '../core.js';
+import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast } from '../core.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
 
@@ -45,7 +45,16 @@ export function buildSpec(e) {
   const doors = lines.filter(isDoor);
   const windows = lines.filter((l) => !isDoor(l));
   const parts = [describe(windows, 'windows'), describe(doors, 'doors')].filter(Boolean);
-  return (parts.join(' ') || 'Work to be confirmed.') + ' Labor and materials. Does not include paint.';
+  const counts = new Map();
+  for (const l of lines) {
+    const qty = Number(l.qty) || 0;
+    for (const name of addonNames(l.install)) counts.set(name, (counts.get(name) || 0) + qty);
+  }
+  const addBits = [...counts.entries()].map(([name, n]) => `${name} on ${n} window${n === 1 ? '' : 's'}`);
+  const st = stuccoState(e);
+  const paint = st.on && st.qty ? ` Includes stucco repair and paint for ${st.qty} window${st.qty === 1 ? '' : 's'}.` : ' Does not include paint.';
+  const adds = addBits.length ? ` Add-ons: ${addBits.join('; ')}.` : '';
+  return (parts.join(' ') || 'Work to be confirmed.') + ' Labor and materials.' + paint + adds;
 }
 
 function blankContract() {
@@ -120,7 +129,8 @@ export function render(root) {
     spec,
     h('button', { type: 'button', class: 'link', id: 'spec-rebuild', onclick: () => { c.specsEdited = false; c.specifications = buildSpec(e); const box = document.getElementById('contract-spec'); if (box) box.value = c.specifications; save(); } }, 'Rebuild summary from the estimate'),
     field('Estimated completion date:', c.completionDate, { id: 'ag-complete', edit: true, type: 'date', oninput: (ev) => { c.completionDate = ev.target.value; save(); } }),
-    h('div', { class: 'ag-money' },
+    h('div', { class: 'ag-money', id: 'contract-money' },
+      ...summaryLines(totals(e)).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: 'contract-' + row.id }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
       h('div', { class: 'line' }, h('span', {}, 'Project Total Cost'), h('b', { id: 'contract-total' }, fmt(pay().total))),
       h('div', { class: 'line' }, h('span', {}, a.depositLabel), h('b', { id: 'contract-deposit' }, fmt(pay().deposit))),
       h('div', { class: 'line' }, h('span', {}, a.balanceLabel), h('b', { id: 'contract-balance' }, fmt(pay().balance)))),
@@ -194,7 +204,7 @@ async function send(e, c, a) {
     const model = {
       agreement: a, company: settings.company, number: e.number, customer: e.customer,
       submittedBy: c.submittedBy, specifications: c.specifications, completionDate: c.completionDate,
-      pay, words: moneyWords(pay.total), initials: c.initials, signatures: sig, signedOn: c.signedOn,
+      pay, summary: summaryLines(totals(e)), words: moneyWords(pay.total), initials: c.initials, signatures: sig, signedOn: c.signedOn,
     };
     const contractBlob = await makeContractPdf(model);
     const estimateBlob = await makeEstimatePdf(e);
