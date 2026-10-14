@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
 import { frameSVG } from '../frames.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
@@ -128,10 +128,13 @@ export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', 
 }
 
 // Reusable install editor (calculator + estimate line editing). inst is mutated; onChange called after.
-export function installEditor(inst, onChange, idp = 'inst') {
+export function installEditor(inst, onChange, idp = 'inst', line = null) {
   const t = installType(inst.type);
   const frames = data.frameTypes?.types || [];
   const priceLabel = (x) => x.custom ? x.name : `${x.name} — ${fmt(x.price)}${x.placeholder ? ' (placeholder)' : ''}`;
+  const frameWarn = line && needsFrameWarning({ brand: line.brand, series: line.series, install: inst, frameType: line.frameType })
+    ? h('p', { class: 'warn frame-warn', id: idp + '-frame-warn' }, FRAME_TYPE_WARNING)
+    : null;
   return h('div', { class: 'install-ed' },
     frames.length ? h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Frame type'),
       h('select', { id: idp + '-frame', onchange: (e) => {
@@ -140,7 +143,8 @@ export function installEditor(inst, onChange, idp = 'inst') {
         const ft = frames.find((f) => f.id === id);
         if (ft?.installType) inst.type = ft.installType;
         onChange(true);
-      } }, h('option', { value: '', selected: !inst.frameType ? 'selected' : null }, 'Not set'), frames.map((f) => h('option', { value: f.id, selected: f.id === inst.frameType ? 'selected' : null }, f.name)))) : null,
+      } }, h('option', { value: '', selected: !inst.frameType ? 'selected' : null }, 'Not set'), frames.map((f) => h('option', { value: f.id, selected: f.id === inst.frameType ? 'selected' : null }, f.name))),
+      frameWarn) : frameWarn,
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Install type'),
       h('select', { id: idp + '-type', onchange: (e) => {
         inst.type = e.target.value;
@@ -183,7 +187,7 @@ export function render(root) {
       upgradeEditor(calc, () => { persist(); update(); }, 'opt-'),
       calc.series === 'V400' ? h('p', { class: 'fine' }, 'Composite units: choose Custom unit and enter the supplier price.') : null),
     h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Installation / labor')),
-      installEditor(calc.install, (rerenderNeeded) => { persist(); rerenderNeeded ? rerender() : update(); }, 'calc-inst')),
+      installEditor(calc.install, (rerenderNeeded) => { persist(); rerenderNeeded ? rerender() : update(); }, 'calc-inst', calc)),
   );
 
   const priceBox = h('div', { class: 'card price', id: 'pricebox' });
@@ -196,10 +200,12 @@ export function render(root) {
     priceBox.replaceChildren();
     const summary = `${brand.name} ${calc.series} · ${typeName(calc.type)} · ${colorById(calc.color).name}`;
     priceBox.append(h('div', { class: 'eyebrow' }, summary));
+    const frameWarn = needsFrameWarning({ brand: calc.brand, series: calc.series, install: calc.install })
+      ? h('p', { class: 'warn frame-warn', id: 'frame-warn' }, FRAME_TYPE_WARNING) : null;
     if (!p) {
       const needsPrice = calc.type === 'custom_supplier' || isCustomLine(calc);
       const sized = parseFloat(calc.w) > 0 && parseFloat(calc.h) > 0;
-      priceBox.append(h('div', { class: 'big muted' }, '—'), h('p', { class: 'muted' }, needsPrice ? 'Enter the supplier’s customer price.' : sized ? 'No fitted rate for this combination. Choose Custom unit and enter the supplier price.' : 'Enter width and height to see the price.'));
+      priceBox.append(h('div', { class: 'big muted' }, '—'), h('p', { class: 'muted' }, needsPrice ? 'Enter the supplier’s customer price.' : sized ? 'No fitted rate for this combination. Choose Custom unit and enter the supplier price.' : 'Enter width and height to see the price.'), frameWarn);
       return;
     }
     const qty = parseInt(calc.qty) || 1, inst = installUnit(calc.install), add = addonUnit(calc.install);
@@ -214,6 +220,7 @@ export function render(root) {
       h('div', { class: 'line strong' }, h('span', {}, add ? 'Window + install + add-ons, each' : 'Window + install, each'), h('b', { id: 'price-each' }, fmt(each))),
       qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} windows`), h('b', { id: 'price-total' }, fmt(each * qty))),
       h('div', { class: 'fine' }, 'Material price. The estimate adds Installation / Labor, $150 shipping, and 9.1% sales tax on materials.'),
+      frameWarn,
       warn && calc.series !== '8900' && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
       doorWidth && h('p', { class: 'warn' }, '8900 doors are quoted for widths of about 59"–192".'),
       h('button', { class: 'link', onclick: () => { calc.details = !calc.details; persist(); update(); } }, calc.details ? 'Hide math' : 'Show math'),

@@ -1,4 +1,4 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, addonName } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates } from '../cloud.js';
 import { contractPay } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
@@ -14,10 +14,19 @@ function lineDesc(l) {
   const mull = Number(l.unitsPerLine) > 1 ? ` · ${l.unitsPerLine} units` : '';
   return `${custom}${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${colorById(l.color)?.name || l.color}${mull}`;
 }
-function optNames(l) {
-  const fromOpt = (l.options || []).map((id) => optionDef(id)?.name).filter(Boolean);
-  const fromAdd = (l.addons || []).map((id) => addonName(id)).filter((n) => n && !fromOpt.includes(n));
-  return [...fromAdd, ...fromOpt];
+function optNames(l) { return lineOptionNames(l); }
+export function compactWindowList(lines, { always = false, id = 'compact-windows' } = {}) {
+  const root = h('div', { class: 'sh-compact' + (always ? ' always' : ''), id });
+  for (const section of windowSections(lines)) {
+    root.append(h('div', { class: 'sh-brand' }, section.brandName));
+    for (const l of section.lines) {
+      const row = compactWindowLine(l);
+      root.append(h('div', { class: 'win-card' },
+        h('div', { class: 'win-top' }, h('span', { class: 'win-title' }, row.title), h('b', { class: 'win-price' }, fmt(row.price))),
+        h('div', { class: 'win-sub' }, row.detail)));
+    }
+  }
+  return root;
 }
 function reprice(l) {
   const p = priceWindow(l);
@@ -111,6 +120,7 @@ export function render(root) {
       h('div', { class: 'li-main' }, icon(l.type, frameKeyFor(l.color), 'tyicon sm'),
         h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
           h('div', { class: 'fine' }, `Install: ${installLabel(l.install)}`),
+          needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
           addonNames(l.install).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install).join(', ')}`) : null),
         h('div', { class: 'li-price' }, h('div', {}, `${l.qty} × ${fmt(l.unit)}`), h('b', {}, fmt(l.unit * l.qty)))),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
@@ -129,7 +139,7 @@ export function render(root) {
         seriesDef && h('b', {}, 'Frame color'),
         seriesDef && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
         upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
-        h('b', {}, 'Installation'), installEditor(l.install, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id),
+        h('b', {}, 'Installation'), installEditor(l.install, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id, l),
         h('button', { class: 'btn primary', onclick: () => { reprice(l); save(); open.delete(l.id); rerender(); } }, 'Save line')));
     }
     lines.append(row);
@@ -264,13 +274,20 @@ export function renderPrint(root) {
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));
   // windows table
-  const tw = h('table', { class: 'sh-table' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
+  const tw = h('table', { class: 'sh-table sh-wide' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
   const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(l.unit)), h('td', { class: 'r' }, fmt(l.unit * l.qty)))));
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
   if (t.percentDiscountAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-percent-discount-row' }, h('td', { colspan: 5, class: 'r' }, t.percentDiscountLabel), h('td', { class: 'r' }, fmt(-t.percentDiscountAmount))));
   tw.append(tb);
-  sheet.append(h('h3', {}, 'Windows (materials, including glass)'), tw);
+  const compact = compactWindowList(e.lines, { id: 'sh-compact' });
+  const foot = h('div', { class: 'win-foot' });
+  const footLine = (label, amount, extra = {}) => h('div', { class: 'win-top' + (extra.discount ? ' discount' : ''), id: extra.id || null }, h('span', {}, label), h('b', {}, fmt(amount)));
+  foot.append(footLine('Windows subtotal', t.windows, { id: 'sh-compact-windows' }));
+  if (t.promo?.windowAmount) foot.append(footLine(t.discountLabel, -t.promo.windowAmount, { discount: true, id: 'sh-compact-discount' }));
+  if (t.percentDiscountAmount) foot.append(footLine(t.percentDiscountLabel, -t.percentDiscountAmount, { discount: true, id: 'sh-compact-percent' }));
+  compact.append(foot);
+  sheet.append(h('h3', {}, 'Windows (materials, including glass)'), tw, compact);
   if (e.extras.length) {
     const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))));
     tx.append(h('tr', { class: 'sub' }, h('td', { class: 'r' }, 'Additional items subtotal'), h('td', { class: 'r' }, fmt(t.extras))));

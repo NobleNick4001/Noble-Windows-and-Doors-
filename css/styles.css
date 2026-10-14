@@ -96,6 +96,15 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .sh-meta{display:flex;justify-content:space-between;gap:1rem;margin-bottom:.6rem;color:#111}.sh-meta .r{text-align:right}
 .sheet h3{color:var(--blue);margin:1rem 0 .3rem;font-size:.85rem}
 .sh-table{width:100%;border-collapse:collapse}.sh-table th{background:#f4f8fb;color:#111;text-align:left;font-size:.78rem;padding:.35rem .5rem;border-bottom:2px solid var(--blue)}.sh-table td{padding:.35rem .5rem;border-bottom:1px solid #e3e7ee;vertical-align:top;color:#111}.sh-table .r,.r{text-align:right}.sh-table tr.sub td{font-weight:700;border-bottom:0;color:#111}
+.sh-compact{display:none}.sh-compact.always{display:block}
+.sh-brand{font-weight:700;color:#1d75bc;margin:.55rem 0 .1rem;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+.win-card{padding:.42rem 0;border-bottom:1px solid #e3e7ee;break-inside:avoid}
+.win-top{display:flex;justify-content:space-between;align-items:baseline;gap:.75rem}
+.win-title{font-weight:700;color:#111;min-width:0}
+.win-price{font-weight:700;white-space:nowrap;color:#111}
+.win-sub{font-size:.78rem;color:#5c6570;margin-top:.12rem;line-height:1.35}
+.win-foot{margin-top:.35rem}.win-foot .win-top{padding:.18rem 0}.win-foot .discount b{color:var(--ok)}
+.frame-warn{background:#fdecea;border:1px solid #e7b2ab;border-radius:10px;padding:.45rem .65rem;margin:.35rem 0}
 .sh-totals{margin:1rem 0 0 auto;width:60%;color:#111}.sheet .line.big2{border-top:2px solid #111;color:#111}.sheet .line.big2 b{color:#111}.pre{white-space:pre-wrap}.sig{display:flex;justify-content:space-between;margin-top:2rem}
 .ag-field{display:flex;flex-direction:column;gap:.2rem;margin:.55rem 0}.ag-lbl{font-size:.78rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.03em}.ag-value{min-height:1.4rem}.ag-money{margin:.4rem 0 .6rem}
 .sheet.contract input,.sheet.contract textarea{font-size:16px}
@@ -106,7 +115,16 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .sig-box .btn.sm{min-height:44px}
 .terms-list{margin:.3rem 0 1rem;padding-left:1.25rem}.terms-list li{margin:.4rem 0;line-height:1.4}
 @media (max-width:760px){.sheet.contract{padding:.75rem}.sheet.contract .sh-head{flex-direction:column;align-items:flex-start;gap:.4rem}.sheet.contract .sh-co{text-align:left}.sheet.contract .sh-logo{height:64px}}
-@media print{@page{margin:.5in}body{background:#fff;color:#000}.top,nav,.noprint,#toast{display:none!important}main{padding:0;max-width:none}.sheet{border:0;box-shadow:0 0 0;padding:0;max-width:none;color:#000}.sheet h1,.sheet h2,.sheet h3,.sh-title{color:#1d75bc}.sh-head{border-bottom:3px solid #f28c28}.sh-table tr,.sh-totals,.sig,.sig-box{break-inside:avoid}.sheet .line,.sheet .line.big2,.sheet .line.big2 b,.sheet .line.discount b,.sh-table td,.sh-co,.sh-meta{color:#000;border-top-color:#000}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media (max-width:600px){
+ .sheet{padding:.75rem .7rem}
+ .sheet .sh-wide{display:none}
+ .sheet .sh-compact{display:block}
+ .sh-head{flex-direction:column;align-items:flex-start;gap:.35rem}
+ .sh-co,.sh-meta .r{text-align:left}
+ .sh-meta{flex-direction:column;gap:.4rem}
+ .sh-totals{width:100%}
+}
+@media print{@page{margin:.5in}body{background:#fff;color:#000}.top,nav,.noprint,#toast{display:none!important}main{padding:0;max-width:none}.sheet{border:0;box-shadow:0 0 0;padding:0;max-width:none;color:#000}.sheet h1,.sheet h2,.sheet h3,.sh-title{color:#1d75bc}.sh-head{border-bottom:3px solid #f28c28}.sh-table tr,.sh-totals,.sig,.sig-box,.win-card{break-inside:avoid}.sheet .line,.sheet .line.big2,.sheet .line.big2 b,.sheet .line.discount b,.sh-table td,.sh-co,.sh-meta{color:#000;border-top-color:#000}.sheet .sh-wide{display:none!important}.sheet .sh-compact{display:block!important}.win-sub{color:#5c6570}.sh-brand{color:#1d75bc}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .ov-controls b,.edit>b,.cols2>div>b{display:block;margin:.7rem 0 .25rem;color:var(--navy)}.ov-controls .row{margin-bottom:.4rem}
 .sheet table tr.sub td{color:#000}
 .grid3>*,.grid2>*,.field,.field input,.row>input{min-width:0}
