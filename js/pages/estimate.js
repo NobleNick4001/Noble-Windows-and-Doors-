@@ -293,11 +293,11 @@ export function renderPrint(root) {
     tx.append(h('tr', { class: 'sub' }, h('td', { class: 'r' }, 'Additional items subtotal'), h('td', { class: 'r' }, fmt(t.extras))));
     sheet.append(h('h3', {}, 'Additional items'), tx);
   }
-  const shId = { windows: 'sh-windows', discount: 'sh-discount-total', percentDiscount: 'sh-percent-discount', install: 'sh-labor', shipping: 'sh-shipping', extras: 'sh-extras', tax: 'sh-tax' };
+  const shId = { install: 'sh-labor', shipping: 'sh-shipping', extras: 'sh-extras', tax: 'sh-tax' };
   const pct = Number(data.agreement?.depositPct) || 60;
   const pay = contractPay(t.total, pct);
   sheet.append(h('div', { class: 'sh-totals' },
-    ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: shId[row.id] }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
+    ...summaryLines(t, { includeMaterials: false }).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: shId[row.id] }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
     h('div', { class: 'line big2' }, h('span', {}, 'TOTAL'), h('b', { id: 'sh-total' }, fmt(t.total))),
     h('div', { class: 'line' }, h('span', {}, `Deposit (${pct}%)`), h('b', { id: 'sh-deposit' }, fmt(pay.deposit))),
     h('div', { class: 'line' }, h('span', {}, `Final (${100 - pct}%)`), h('b', { id: 'sh-final' }, fmt(pay.balance)))));

@@ -571,13 +571,15 @@ export function totals(e) {
   };
 }
 // Client-facing rows: itemized materials stay on the window lines. Labor, add-ons, and stucco are one Installation / Labor amount.
-export function summaryLines(t) {
-  const rows = [{ id: 'windows', label: 'Windows', amount: t.windows }];
+// includeMaterials false skips the window subtotal and the two material discounts when those rows are already printed above the totals.
+const MATERIAL_SUMMARY = new Set(['windows', 'discount', 'percentDiscount']);
+export function summaryLines(t, { includeMaterials = true } = {}) {
+  const rows = [{ id: 'windows', label: 'Windows subtotal', amount: t.windows }];
   if (t.discount) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -t.discount, discount: true });
   if (t.percentDiscountAmount) rows.push({ id: 'percentDiscount', label: t.percentDiscountLabel || 'Additional discount', amount: -t.percentDiscountAmount, discount: true });
   rows.push({ id: 'install', label: 'Installation / Labor', amount: t.labor });
   rows.push({ id: 'shipping', label: 'Shipping & Handling', amount: t.shipping });
   if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
   rows.push({ id: 'tax', label: `Sales Tax (${SALES_TAX_PCT}%)`, amount: t.tax });
-  return rows;
+  return includeMaterials ? rows : rows.filter((row) => !MATERIAL_SUMMARY.has(row.id));
 }

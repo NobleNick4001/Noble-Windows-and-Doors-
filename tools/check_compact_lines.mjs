@@ -72,5 +72,12 @@ if (!est.includes("class: 'sh-table sh-wide'") || !est.includes('compactWindowLi
 if (!pdf.includes('writeCompactWindows') || !pdf.includes('ascii: true')) fail('pdf should use the compact lines');
 if (!contract.includes('compactWindowList') || !contract.includes('lines: e.lines')) fail('agreement should list the windows');
 if (!css.includes('max-width:600px') || !css.includes('.sheet .sh-wide{display:none}') || !css.includes('.sheet .sh-compact{display:block!important}')) fail('narrow and print css');
+if (!est.includes('includeMaterials: false') || !pdf.includes('includeMaterials: false')) fail('print and pdf should not repeat the material totals');
+if (contract.includes('includeMaterials: false')) fail('agreement summary should keep the single material block');
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+if (!html.includes('viewport-fit=cover')) fail('viewport should use viewport-fit=cover');
+if (!html.includes('apple-mobile-web-app-status-bar-style') || !html.includes('black-translucent')) fail('status bar style should stay black-translucent with the safe-area padding');
+if (!css.includes('padding-top:calc(.3rem + env(safe-area-inset-top))')) fail('phone header should keep the status-bar inset');
+if (!css.includes('calc(.2rem + env(safe-area-inset-bottom))')) fail('bottom nav should keep the home-indicator inset');
 
 if (!process.exitCode) console.log('compact lines ok');
