@@ -3,3 +3,6 @@ project_id = "nmyatpcjqfokmfbssimc"
 
 [functions.hubspot-sync]
 verify_jwt = true
+
+[functions.send-estimate]
+verify_jwt = true

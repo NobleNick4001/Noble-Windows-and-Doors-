@@ -1,12 +1,13 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
-import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates } from '../cloud.js';
-import { contractPay } from '../pdf.js';
+import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail } from '../cloud.js';
+import { contractPay, makeEstimatePdf } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
 const open = new Set(); // line ids being edited
 const promoUi = { forId: null, draft: '', dirty: false, error: '' };
 const pctUi = { forId: null, draft: '', dirty: false, error: '' };
-const hubUi = { estimateId: null, matches: [], autoId: null, busy: false };
+const hubUi = { estimateId: null, matches: [], autoId: null, busy: false, intent: null };
+const sendUi = { busy: false, error: '', confirm: '' };
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function lineDesc(l) {
@@ -58,18 +59,118 @@ async function presentEstimate(rerender) {
 async function confirmHubspot(e, choice, rerender) {
   if (hubUi.busy) return;
   hubUi.busy = true;
+  const sending = hubUi.intent === 'send';
   try {
     applyHubspotChoice(e, choice);
     hubUi.estimateId = null;
     hubUi.matches = [];
-    await markPresented(e);
+    hubUi.intent = null;
+    if (sending) await deliverEstimate(e, rerender);
+    else await markPresented(e);
   } finally {
     hubUi.busy = false;
     rerender();
   }
 }
 
+async function blobToBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let bin = '';
+  const size = 0x8000;
+  for (let i = 0; i < bytes.length; i += size) bin += String.fromCharCode(...bytes.subarray(i, i + size));
+  return btoa(bin);
+}
+
+async function deliverEstimate(e, rerender) {
+  if (sendUi.busy) return;
+  sendUi.busy = true;
+  sendUi.error = '';
+  rerender();
+  try {
+    const pdfBase64 = await blobToBase64(await makeEstimatePdf(e));
+    const sent = await sendEstimateEmail(e, pdfBase64);
+    if (!sent.ok) {
+      sendUi.error = sent.error || 'Email failed. The estimate was not marked presented.';
+      toast(sendUi.error);
+      return;
+    }
+    const who = sent.data?.sent_to || e.customer?.email || '';
+    if (e.status === 'signed') {
+      estimates.save(e);
+      toast(`Emailed ${who}.`);
+      return;
+    }
+    const hub = await markPresented(e, { followUp: true, quiet: true });
+    if (hub?.ok && hub.data?.task_error) toast(`Emailed ${who}. The follow-up task was not created.`);
+    else if (hub?.ok) toast(`Emailed ${who} and marked presented.`);
+    else toast(`Emailed ${who} and marked presented. HubSpot sync is not available yet.`);
+  } catch (err) {
+    console.error(err);
+    sendUi.error = 'Email failed. The estimate was not marked presented.';
+    toast(sendUi.error);
+  } finally {
+    sendUi.busy = false;
+    rerender();
+  }
+}
+
+function askToSend(e, rerender) {
+  const email = String(e.customer?.email || '').trim();
+  if (!email || !email.includes('@')) {
+    sendUi.error = 'Enter the client email before sending.';
+    toast(sendUi.error);
+    rerender();
+    return;
+  }
+  sendUi.error = '';
+  sendUi.confirm = email;
+  rerender();
+}
+
+async function confirmedSend(e, rerender) {
+  if (hubUi.busy || sendUi.busy) return;
+  sendUi.confirm = '';
+  hubUi.busy = true;
+  rerender();
+  try {
+    const prep = await preparePresented(e);
+    if (!prep.ok) return;
+    if (!prep.ready) {
+      hubUi.intent = 'send';
+      hubUi.estimateId = e.id;
+      hubUi.matches = prep.matches || [];
+      hubUi.autoId = prep.autoId || null;
+      return;
+    }
+    await deliverEstimate(e, rerender);
+  } finally {
+    hubUi.busy = false;
+    rerender();
+  }
+}
+
+function hubspotPicker(e, rerender) {
+  if (hubUi.estimateId !== e.id || !hubUi.matches.length) return null;
+  return h('div', { class: 'modal', id: 'hubspot-match' },
+    h('div', { class: 'modal-card hubspot-match' },
+      h('h3', {}, 'HubSpot lead'),
+      h('p', { class: 'muted' }, hubUi.intent === 'send'
+        ? 'A similar contact is already in HubSpot. Confirm that lead before the estimate is emailed.'
+        : 'A similar contact is already in HubSpot. Confirm that lead, or start a new one.'),
+      ...hubUi.matches.map((m) => h('div', { class: 'match' + (m.id === hubUi.autoId ? ' best' : '') },
+        h('b', {}, m.name || 'Unnamed contact'),
+        h('span', { class: 'fine' }, m.confident ? ' Likely match' : ' Possible match'),
+        h('div', {}, m.phone || 'No phone'),
+        h('div', {}, m.email || 'No email'),
+        m.deal
+          ? h('div', { class: 'fine' }, `Open deal: ${m.deal.name || m.deal.id}${m.deal.amount ? ' · $' + m.deal.amount : ''}`)
+          : h('div', { class: 'fine' }, 'No open deal yet. A new deal will be created.'),
+        h('button', { type: 'button', class: 'btn primary', onclick: () => confirmHubspot(e, { match: m }, rerender) }, 'Use this lead'))),
+      h('button', { type: 'button', class: 'btn', id: 'hubspot-new-lead', onclick: () => confirmHubspot(e, { createNew: true, matches: hubUi.matches }, rerender) }, 'New lead')));
+}
+
 export function render(root) {
+  sendUi.confirm = '';
   const e = estimates.current();
   e.extras ||= [];
   e.stuccoRepair ||= { on: false, qty: null };
@@ -88,24 +189,11 @@ export function render(root) {
       h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, '+ New'),
       h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
       h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' || hubUi.busy ? true : null, onclick: () => presentEstimate(rerender) }, 'Mark presented'),
-      h('a', { class: 'btn primary', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
+      h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
       h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
-
-  if (hubUi.estimateId === e.id && hubUi.matches.length) {
-    wrap.append(h('div', { class: 'card hubspot-match', id: 'hubspot-match' },
-      h('h3', {}, 'HubSpot lead'),
-      h('p', { class: 'muted' }, 'A similar contact is already in HubSpot. Confirm that lead, or start a new one.'),
-      ...hubUi.matches.map((m) => h('div', { class: 'match' + (m.id === hubUi.autoId ? ' best' : '') },
-        h('b', {}, m.name || 'Unnamed contact'),
-        h('span', { class: 'fine' }, m.confident ? ' Likely match' : ' Possible match'),
-        h('div', {}, m.phone || 'No phone'),
-        h('div', {}, m.email || 'No email'),
-        m.deal
-          ? h('div', { class: 'fine' }, `Open deal: ${m.deal.name || m.deal.id}${m.deal.amount ? ' · $' + m.deal.amount : ''}`)
-          : h('div', { class: 'fine' }, 'No open deal yet. A new deal will be created.'),
-        h('button', { type: 'button', class: 'btn primary', onclick: () => confirmHubspot(e, { match: m }, rerender) }, 'Use this lead'))),
-      h('button', { type: 'button', class: 'btn', id: 'hubspot-new-lead', onclick: () => confirmHubspot(e, { createNew: true, matches: hubUi.matches }, rerender) }, 'New lead')));
-  }
+  wrap.append(h('a', { class: 'btn primary xl', id: 'btn-present', href: '#/estimate/present' }, 'Present'));
+  const picker = hubspotPicker(e, rerender);
+  if (picker) wrap.append(picker);
 
   // customer
   const cf = (key, label, type = 'text', ph = '') => h('label', { class: 'field' }, h('span', { class: 'lbl' }, label), h('input', { type, id: 'c-' + key, value: e.customer[key], placeholder: ph, autocomplete: 'off', oninput: (ev) => { e.customer[key] = ev.target.value; if (!e.hubspotContactId) delete e.hubspotChoice; save(); } }));
@@ -264,8 +352,8 @@ export function render(root) {
 function licenseLines(c) {
   return String(c?.license || '').split('\n').map((s) => s.trim()).filter(Boolean);
 }
-export function renderPrint(root) {
-  const e = estimates.current(); const t = totals(e); const c = settings.company;
+function estimateSheet(e) {
+  const t = totals(e); const c = settings.company;
   const valid = new Date(e.created + (e.validDays || 30) * 86400000);
   const sheet = h('div', { class: 'sheet' },
     h('div', { class: 'sh-head' }, h('img', { src: 'assets/noble-logo-trim.png', alt: 'Noble Windows & Doors LLC', class: 'sh-logo' }),
@@ -304,8 +392,36 @@ export function renderPrint(root) {
   if (e.notes) sheet.append(h('h3', {}, 'Notes'), h('p', { class: 'pre' }, e.notes));
   sheet.append(h('h3', {}, 'Terms'), h('p', { class: 'pre fine' }, settings.terms),
     h('div', { class: 'sig' }, h('div', {}, 'Accepted by (signature) ______________________________'), h('div', {}, 'Date ______________')));
+  return sheet;
+}
+export function renderPrint(root) {
+  const e = estimates.current();
   root.replaceChildren(h('div', { class: 'page printpage' },
-    h('div', { class: 'noprint row gap wrap' }, h('a', { class: 'btn', href: '#/estimate' }, '← Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), sheet));
+    h('div', { class: 'noprint row gap wrap' }, h('a', { class: 'btn', href: '#/estimate' }, '← Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), estimateSheet(e)));
+}
+export function renderPresent(root) {
+  const e = estimates.current();
+  const rerender = () => renderPresent(root);
+  const page = h('div', { class: 'page present-page' },
+    h('div', { class: 'noprint row' }, h('a', { class: 'btn sm', id: 'btn-present-back', href: '#/estimate' }, '← Estimate')),
+    sendUi.error ? h('p', { class: 'warn', id: 'send-error' }, sendUi.error) : null,
+    estimateSheet(e),
+    h('div', { class: 'present-bar noprint' },
+      h('a', { class: 'btn', id: 'btn-accept', href: '#/estimate/contract' }, 'Accept'),
+      h('button', { type: 'button', class: 'btn primary', id: 'btn-save-send', disabled: sendUi.busy || hubUi.busy ? true : null, onclick: () => askToSend(e, rerender) }, sendUi.busy ? 'Sending…' : 'Save & Send')));
+  if (sendUi.confirm) {
+    page.append(h('div', { class: 'modal', id: 'send-confirm' },
+      h('div', { class: 'modal-card' },
+        h('h3', {}, 'Send estimate'),
+        h('p', {}, 'Email this estimate PDF to'),
+        h('p', {}, h('b', { id: 'send-confirm-email' }, sendUi.confirm)),
+        h('div', { class: 'row gap' },
+          h('button', { type: 'button', class: 'btn', id: 'send-cancel', onclick: () => { sendUi.confirm = ''; rerender(); } }, 'Cancel'),
+          h('button', { type: 'button', class: 'btn primary', id: 'send-confirm-yes', onclick: () => confirmedSend(e, rerender) }, 'Send')))));
+  }
+  const picker = hubspotPicker(e, rerender);
+  if (picker) page.append(picker);
+  root.replaceChildren(page);
 }
 
 export function renderList(root) {

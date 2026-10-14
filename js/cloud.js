@@ -75,6 +75,8 @@ export function toRow(e, ownerId) {
     presented_at: e.presentedAt || null,
     signed_at: e.signedAt || null,
   };
+  if (e.sentAt) row.sent_at = e.sentAt;
+  if (e.sentTo) row.sent_to = e.sentTo;
   if (e.hubspotChoice === 'new') {
     row.hubspot_contact_id = null;
     row.hubspot_deal_id = null;
@@ -99,6 +101,8 @@ export function fromRow(row) {
   if (row.hubspot_deal_id) e.hubspotDealId = row.hubspot_deal_id;
   if (row.presented_at) e.presentedAt = row.presented_at;
   if (row.signed_at) e.signedAt = row.signed_at;
+  if (row.sent_at) e.sentAt = row.sent_at;
+  if (row.sent_to) e.sentTo = row.sent_to;
   if (row.updated_at) e.updated = Date.parse(row.updated_at);
   const contracts = row.contracts || [];
   if (contracts.length && !e.contractRowId) {
@@ -251,7 +255,7 @@ async function doFlush() {
         }
         if (item.ops.includes('signed') || item.ops.includes('presented')) {
           const event = item.ops.includes('signed') ? 'signed' : 'presented';
-          const hub = await syncHubspot(e, event, { quiet: true });
+          const hub = await syncHubspot(e, event, { quiet: true, followUp: item.ops.includes('followup') });
           if (item.remoteId === focusRemote) hubReport = hub;
           if (!hub.ok && !hub.skipped) left.push(event);
         }
@@ -292,7 +296,7 @@ async function insertContract(sb, e, ownerId) {
 }
 
 async function pull(sb) {
-  const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, updated_at, deleted_at, contracts(id, signed_at)').order('updated_at', { ascending: false });
+  const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, sent_at, sent_to, updated_at, deleted_at, contracts(id, signed_at)').order('updated_at', { ascending: false });
   if (error || !data) return;
   const queued = new Set(loadQueue().map((q) => q.remoteId));
   const all = estimates.all();
@@ -322,6 +326,7 @@ export async function syncHubspot(e, event, opts = {}) {
   if (!sb || !e?.remoteId) return { ok: false, skipped: true };
   try {
     const body = { estimateId: e.remoteId, event };
+    if (opts.followUp) body.followUp = true;
     const choice = hubspotChoice(e);
     if (choice) body.choice = choice;
     const { data, error } = await sb.functions.invoke('hubspot-sync', { body });
@@ -401,18 +406,56 @@ export async function preparePresented(e) {
   return { ok: true, ready: false, matches, autoId: preview.data?.autoId || null };
 }
 
-export async function markPresented(e) {
+export async function markPresented(e, opts = {}) {
   if (!e.customer?.name && !(e.lines || []).length) { toast('Add a customer or a window first.'); return { ok: false }; }
   ensureRemote(e);
+  if (e.status === 'signed') {
+    estimates.save(e);
+    return { ok: true, signed: true };
+  }
   e.status = 'presented';
   e.presentedAt = e.presentedAt || new Date().toISOString();
   estimates.save(e);
-  addOps(e.remoteId, ['presented']);
+  addOps(e.remoteId, opts.followUp ? ['presented', 'followup'] : ['presented']);
   const hub = await flushFocused(e.remoteId);
-  if (hub?.ok && hub.data?.note_error) toast('Marked presented. HubSpot deal updated, but the note was not attached.');
-  else if (hub?.ok) toast('Marked presented. HubSpot deal updated.');
-  else toast('Marked presented and saved. HubSpot sync is not available yet.');
+  if (!opts.quiet) {
+    if (hub?.ok && hub.data?.task_error) toast('Marked presented. The follow-up task was not created.');
+    else if (hub?.ok && hub.data?.note_error) toast('Marked presented. HubSpot deal updated, but the note was not attached.');
+    else if (hub?.ok) toast('Marked presented. HubSpot deal updated.');
+    else toast('Marked presented and saved. HubSpot sync is not available yet.');
+  }
   return hub || { ok: false, skipped: true };
+}
+
+export async function sendEstimateEmail(e, pdfBase64) {
+  const email = String(e.customer?.email || '').trim();
+  if (!email || !email.includes('@')) return { ok: false, error: 'Enter the client email before sending.' };
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'Sign in to email an estimate.' };
+  ensureRemote(e);
+  estimates.save(e);
+  await flush();
+  let data = null;
+  let error = null;
+  try {
+    const result = await sb.functions.invoke('send-estimate', {
+      body: { estimateId: e.remoteId, pdfBase64, filename: `Noble-estimate-${e.number || 'estimate'}.pdf` },
+    });
+    data = result.data;
+    error = result.error;
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Email failed. The estimate was not marked presented.' };
+  }
+  if (error || !data?.ok) {
+    let message = data?.error;
+    if (!message && error?.context?.json) {
+      try { message = (await error.context.json())?.error; } catch { /* body already read */ }
+    }
+    return { ok: false, error: message || 'Email failed. The estimate was not marked presented.' };
+  }
+  e.sentAt = data.sent_at || new Date().toISOString();
+  e.sentTo = data.sent_to || email;
+  return { ok: true, data };
 }
 
 export async function recordSigned(e) {
