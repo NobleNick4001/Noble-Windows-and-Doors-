@@ -15,7 +15,7 @@ const lines = validation.lines || [];
 const errs = [];
 const check = (ok, msg) => { if (!ok) errs.push(msg); };
 
-check(lines.length === 160, `expected 160 validation lines, got ${lines.length}`);
+check(lines.length === 169, `expected 169 validation lines, got ${lines.length}`);
 
 for (const line of lines) {
   const unit = materialUnitPrice(line);
@@ -28,6 +28,18 @@ for (const line of lines) {
   const shown = priceWindow({ ...line, qty: 1 });
   check(shown && shown.unit === unit, where + ' priceWindow diverged from materialUnitPrice');
 }
+
+// Janice Williams V300 White Z-bar quote: Z-bar comes from the frame type, not a checkbox.
+const jw = { brand: 'milgard', series: 'V300', type: 'hslider', color: 'ww', w: 45, h: 37.75, addons: [] };
+check(materialUnitPrice({ ...jw, install: { frameType: 'zbar' } }) >= 677.06, 'V300 white HV with Z-bar clears the quote');
+check(Math.abs(materialUnitPrice({ ...jw, install: { frameType: 'zbar' } }) - materialUnitPrice({ ...jw, install: { frameType: 'block' } }) - 38.17) <= 0.02, 'Z-bar adds $5.40 + $0.396/UI');
+check(materialUnitPrice({ ...jw, addons: ['zbar'] }) === materialUnitPrice(jw), 'Z-bar cannot be checked by hand');
+const sh = { brand: 'milgard', series: 'V300', type: 'vslider', color: 'ww', w: 28.25, h: 57, install: { frameType: 'zbar' } };
+check(materialUnitPrice({ ...sh, addons: ['tempered', 'tempered_lower'] }) === materialUnitPrice({ ...sh, addons: ['tempered'] }), 'full tempered covers lower sash');
+check(materialUnitPrice({ ...sh, addons: ['tempered_lower'] }) < materialUnitPrice({ ...sh, addons: ['tempered'] }), 'lower sash tempered is cheaper');
+const jwTotal = [1,2,3,5,6].length * materialUnitPrice({ ...jw, install: { frameType: 'zbar' } }) + materialUnitPrice({ ...jw, w: 29, install: { frameType: 'zbar' } })
+  + materialUnitPrice({ ...sh, w: 12.25, h: 38.25, addons: ['tempered', 'obscure'] }) + 2 * materialUnitPrice({ ...sh, addons: ['tempered_lower'] });
+check(jwTotal >= 6095.78, 'Janice Williams material subtotal ' + jwTotal);
 
 // Spot checks called out in the spec.
 const spot = (line, expect, label) => {
@@ -109,4 +121,5 @@ if (errs.length) {
   for (const e of errs) console.log(' -', e);
   process.exit(1);
 }
-console.log(`ok  ${lines.length} validation lines  Andersen XO white 70x60 $1,032.63  labor $360 separate`);
+let minOver = Infinity; for (const l of lines) minOver = Math.min(minOver, materialUnitPrice(l) - l.expectedMinUnitPrice);
+console.log(`ok  ${lines.length} validation lines, all >= quote (min margin $${minOver.toFixed(2)})  Andersen XO white 70x60 $1,032.63  labor $360 separate`);

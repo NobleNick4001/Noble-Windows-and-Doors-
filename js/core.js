@@ -104,9 +104,11 @@ export function optionPrice(opt, base, w, h) {
 
 // ---------- variable material model (data/variable-rates.json) ----------
 // Values in that file are already selling prices at 45%. Do not apply marginFactor().
-const GLASS_IDS = ['tempered', 'laminated', 'obscure'];
+const GLASS_IDS = ['tempered', 'tempered_lower', 'laminated', 'obscure'];
 const ADDON_NAMES = {
   tempered: 'Tempered (safety) glass',
+  tempered_lower: 'Tempered (lower sash only)',
+  zbar: 'Standard Z-Bar (retrofit frame)',
   laminated: 'Laminated glass',
   obscure: 'Obscured glass',
   grids: 'Grids (flat colonial)',
@@ -139,7 +141,8 @@ function classifyLine(line) {
     const S = vr.milgard?.[series];
     const typeDef = S?.types?.[type];
     if (typeDef && (S.colorsFitted || []).includes(line.color)) {
-      return { mode: 'variable', family: 'milgard', typeDef, colorDef: { ratio: 1, adjustPerUnit: 0 }, addons: S.addons || {} };
+      const adj = Number(S.colorAdjust?.[line.color]?.[type]) || 0;
+      return { mode: 'variable', family: 'milgard', typeDef, colorDef: { ratio: 1, adjustPerUnit: adj }, addons: S.addons || {} };
     }
     return { mode: 'fallback' };
   }
@@ -174,7 +177,8 @@ export function addonPriceHint(def) {
   if (def.type === 'perWindow') return `+${fmt(def.amount)}`;
   if (def.type === 'perUI') return `+$${def.amount}/UI`;
   if (def.type === 'perSqFt') return `+$${def.amount}/sq ft`;
-  if (def.type === 'perWindowPlusPerSqFt') return `+${fmt(def.amount)} + $${def.perSqFt}/sq ft`;
+  if (def.type === 'perWindowPlusPerSqFt') return `+${fmt(def.amount)} + $${def.perSqFt}/sq ft` + (def.max ? ` (max ${fmt(def.max)})` : '');
+  if (def.type === 'perWindowPlusPerUI') return `+${fmt(def.amount)} + $${def.perUI}/UI`;
   return '';
 }
 export function fittedIncludes(line) {
@@ -212,15 +216,24 @@ export function setLineAddon(line, id, on) {
   }
 }
 
+const lineFrameType = (line) => line?.install?.frameType || line?.frameType || null;
+// Add-ons with auto:"frameType:<id>" are charged from the frame choice, never from a checkbox.
+export function isAutoAddon(def) { return typeof def?.auto === 'string'; }
 function chosenAddonIds(line, addonDefs) {
   const ids = new Set();
-  for (const id of line.addons || []) if (addonDefs[id]) ids.add(id);
+  for (const id of line.addons || []) if (addonDefs[id] && !isAutoAddon(addonDefs[id])) ids.add(id);
   for (const id of line.options || []) {
     if (addonDefs[id]) ids.add(id);
     if (id === 'grids-colonial' && addonDefs.grids) ids.add('grids');
   }
+  for (const id of [...ids]) if (isAutoAddon(addonDefs[id])) ids.delete(id);
+  const ft = lineFrameType(line);
+  for (const [id, def] of Object.entries(addonDefs)) if (isAutoAddon(def) && ft && def.auto === `frameType:${ft}`) ids.add(id);
+  // Full-unit tempered covers the lower sash.
+  if (ids.has('tempered')) ids.delete('tempered_lower');
   return [...ids];
 }
+const capAddon = (A, v) => (A.max > 0 ? Math.min(v, A.max) : v);
 function variableRaw(model, line) {
   const w = finite(line.w), h = finite(line.h);
   const ui = w + h, sqft = w * h / 144;
@@ -234,8 +247,9 @@ function variableRaw(model, line) {
     if (A.type === 'perUI' && A.scaledByColor) scaledPerUI += A.amount || 0;
     else if (A.type === 'perUI') extra += (A.amount || 0) * ui;
     else if (A.type === 'perWindow') extra += A.amount || 0;
-    else if (A.type === 'perSqFt') extra += (A.amount || 0) * sqft;
-    else if (A.type === 'perWindowPlusPerSqFt') extra += (A.amount || 0) + (A.perSqFt || 0) * sqft;
+    else if (A.type === 'perSqFt') extra += capAddon(A, (A.amount || 0) * sqft);
+    else if (A.type === 'perWindowPlusPerSqFt') extra += capAddon(A, (A.amount || 0) + (A.perSqFt || 0) * sqft);
+    else if (A.type === 'perWindowPlusPerUI') extra += capAddon(A, (A.amount || 0) + (A.perUI || 0) * ui);
     else if (A.type === 'percentOfWindow') extra += (A.amount || 0) / 100 * core * ratio;
   }
   const colored = (core + scaledPerUI * ui) * ratio + adjust;
