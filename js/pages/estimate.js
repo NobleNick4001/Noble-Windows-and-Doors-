@@ -1,4 +1,5 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, toast, uid, addonName } from '../core.js';
+import { markPresented, userId, refreshEstimates } from '../cloud.js';
 import { contractPay } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
@@ -32,11 +33,13 @@ export function render(root) {
   const save = () => { estimates.persist(); };
   const rerender = () => render(root);
 
-  const signed = e.contract?.signatures?.p1a && e.contract?.signatures?.p1b;
-  wrap.append(h('div', { class: 'row between wrap' }, h('div', {}, h('h1', {}, 'Estimate'), h('div', { class: 'muted' }, `${e.number} · ${fdate(e.created)}`), signed ? h('div', { class: 'fine', id: 'agreement-signed' }, 'Agreement signed') : null),
+  const signed = e.status === 'signed' || (e.contract?.signatures?.p1a && e.contract?.signatures?.p1b);
+  const statusWord = e.status === 'signed' ? 'Signed' : e.status === 'presented' ? 'Presented' : 'Draft';
+  wrap.append(h('div', { class: 'row between wrap' }, h('div', {}, h('h1', {}, 'Estimate'), h('div', { class: 'muted' }, `${e.number} · ${fdate(e.created)} · ${statusWord}`), signed ? h('div', { class: 'fine', id: 'agreement-signed' }, 'Agreement signed') : null),
     h('div', { class: 'row wrap gap' },
       h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, '+ New'),
       h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
+      h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' ? true : null, onclick: async () => { await markPresented(estimates.current()); rerender(); } }, 'Mark presented'),
       h('a', { class: 'btn primary', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
       h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
 
@@ -205,12 +208,17 @@ export function renderPrint(root) {
 }
 
 export function renderList(root) {
-  const all = estimates.list(); const cur = estimates.currentId();
-  const wrap = h('div', { class: 'page' }, h('div', { class: 'row between' }, h('h1', {}, 'Saved estimates'), h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate')));
-  if (!all.length) wrap.append(h('div', { class: 'card muted' }, 'No saved estimates yet. They save automatically on this device as you build them.'));
-  all.forEach((x) => { const t = totals(x); wrap.append(h('div', { class: 'card lineitem' + (x.id === cur ? ' current' : '') },
-    h('div', { class: 'li-main' }, h('div', { class: 'li-text' }, h('b', {}, x.customer.name || '(no name)'), h('div', { class: 'muted' }, `${x.number} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}${x.promoCode ? ' · ' + x.promoCode : ''}${x.contract?.signatures?.p1a && x.contract?.signatures?.p1b ? ' · signed agreement' : ''}`), h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
+  const uid = userId();
+  const all = estimates.list().filter((x) => !x.deletedAt && (!uid || !x.ownerId || x.ownerId === uid));
+  const cur = estimates.currentId();
+  const wrap = h('div', { class: 'page' }, h('div', { class: 'row between wrap gap' }, h('h1', {}, 'My estimates'), h('div', { class: 'row gap' },
+    h('button', { class: 'btn', id: 'btn-refresh-estimates', onclick: async () => { await refreshEstimates(); renderList(root); } }, 'Refresh'),
+    h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate'))));
+  wrap.append(h('p', { class: 'fine' }, 'Every estimate and signed agreement saves on this device and to your account, including when you are offline. Open one here on any device after you sign in.'));
+  if (!all.length) wrap.append(h('div', { class: 'card muted' }, 'No estimates yet. They show up here as you build them.'));
+  all.forEach((x) => { const t = totals(x); const statusWord = x.status === 'signed' ? 'Signed' : x.status === 'presented' ? 'Presented' : 'Draft'; wrap.append(h('div', { class: 'card lineitem' + (x.id === cur ? ' current' : '') },
+    h('div', { class: 'li-main' }, h('div', { class: 'li-text' }, h('b', {}, x.customer.name || '(no name)'), h('div', { class: 'muted' }, `${x.number} · ${statusWord} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}${x.promoCode ? ' · ' + x.promoCode : ''}`), h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
     h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'), h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
-      h('button', { class: 'btn sm danger', onclick: () => { if (confirm('Delete this estimate?')) { estimates.remove(x.id); renderList(root); } } }, 'Delete')))); });
+      h('button', { class: 'btn sm danger', onclick: () => { if (confirm('Remove this estimate from your list? It is archived, not erased.')) { estimates.remove(x.id); renderList(root); } } }, 'Remove')))); });
   root.replaceChildren(wrap);
 }

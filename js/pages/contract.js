@@ -1,6 +1,7 @@
 import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast } from '../core.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
+import { recordSigned } from '../cloud.js';
 
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -210,6 +211,7 @@ async function send(e, c, a) {
     const estimateBlob = await makeEstimatePdf(e);
     c.snapshot = { at: Date.now(), total: pay.total, deposit: pay.deposit, balance: pay.balance, customer: { ...e.customer }, specifications: c.specifications, submittedBy: c.submittedBy };
     estimates.save(e);
+    await recordSigned(e);
     await deliver(e, contractBlob, estimateBlob, pay);
   } catch (err) {
     console.error(err);
