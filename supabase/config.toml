@@ -1,0 +1,5 @@
+# Supabase project for Noble Windows & Doors sales.
+project_id = "nmyatpcjqfokmfbssimc"
+
+[functions.hubspot-sync]
+verify_jwt = true

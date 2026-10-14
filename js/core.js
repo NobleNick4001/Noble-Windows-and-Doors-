@@ -392,6 +392,14 @@ export const estimates = {
     const c = JSON.parse(JSON.stringify(src)); c.id = uid(); c.number = this.nextNumber(); c.created = Date.now();
     c.lines.forEach((l) => (l.id = uid())); c.customer.name = c.customer.name ? c.customer.name + ' (copy)' : '';
     delete c.contract;
+    delete c.remoteId;
+    delete c.ownerId;
+    delete c.hubspotContactId;
+    delete c.hubspotDealId;
+    delete c.presentedAt;
+    delete c.signedAt;
+    delete c.contractRowId;
+    c.status = 'draft';
     this.save(c); this._cur = c; this.setCurrent(c.id); return c;
   },
 };
