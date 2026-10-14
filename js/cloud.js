@@ -75,8 +75,16 @@ export function toRow(e, ownerId) {
     presented_at: e.presentedAt || null,
     signed_at: e.signedAt || null,
   };
-  if (e.hubspotContactId) row.hubspot_contact_id = e.hubspotContactId;
-  if (e.hubspotDealId) row.hubspot_deal_id = e.hubspotDealId;
+  if (e.hubspotChoice === 'new') {
+    row.hubspot_contact_id = null;
+    row.hubspot_deal_id = null;
+  } else if (e.hubspotChoice === 'existing') {
+    row.hubspot_contact_id = e.hubspotContactId || null;
+    row.hubspot_deal_id = e.hubspotDealId || null;
+  } else {
+    if (e.hubspotContactId) row.hubspot_contact_id = e.hubspotContactId;
+    if (e.hubspotDealId) row.hubspot_deal_id = e.hubspotDealId;
+  }
   return row;
 }
 
@@ -301,23 +309,96 @@ async function pull(sb) {
 
 export async function refreshEstimates() { await flush(); }
 
+function hubspotChoice(e) {
+  if (e?.hubspotChoice === 'new' && !e.hubspotContactId) return { createNew: true };
+  if (e?.hubspotContactId || e?.hubspotChoice === 'existing') {
+    return { contactId: e.hubspotContactId || null, dealId: e.hubspotDealId || null };
+  }
+  return null;
+}
+
 export async function syncHubspot(e, event, opts = {}) {
   const sb = await getSupabase();
   if (!sb || !e?.remoteId) return { ok: false, skipped: true };
   try {
-    const { data, error } = await sb.functions.invoke('hubspot-sync', { body: { estimateId: e.remoteId, event } });
+    const body = { estimateId: e.remoteId, event };
+    const choice = hubspotChoice(e);
+    if (choice) body.choice = choice;
+    const { data, error } = await sb.functions.invoke('hubspot-sync', { body });
     if (error || !data?.ok) {
       if (!opts.quiet) toast('Saved. HubSpot sync is not available yet.');
       return { ok: false, skipped: true };
     }
     if (data.hubspot_contact_id) e.hubspotContactId = data.hubspot_contact_id;
     if (data.hubspot_deal_id) e.hubspotDealId = data.hubspot_deal_id;
+    if (e.hubspotContactId) e.hubspotChoice = 'existing';
+    if (Array.isArray(data.possible_matches) && data.possible_matches.length) e.hubspotPossibleMatch = data.possible_matches;
+    else delete e.hubspotPossibleMatch;
     origSave(e);
     return { ok: true, data };
   } catch {
     if (!opts.quiet) toast('Saved. HubSpot sync is not available yet.');
     return { ok: false, skipped: true };
   }
+}
+
+export async function previewHubspot(e) {
+  const sb = await getSupabase();
+  if (!sb || !e?.remoteId) return { ok: false, skipped: true };
+  try {
+    const { data, error } = await sb.functions.invoke('hubspot-sync', {
+      body: { estimateId: e.remoteId, event: 'presented', mode: 'preview' },
+    });
+    if (error || !data?.ok) return { ok: false, skipped: true };
+    if (data.mode !== 'preview') {
+      if (data.hubspot_contact_id) e.hubspotContactId = data.hubspot_contact_id;
+      if (data.hubspot_deal_id) e.hubspotDealId = data.hubspot_deal_id;
+      if (e.hubspotContactId) e.hubspotChoice = 'existing';
+      return { ok: true, legacy: true, data };
+    }
+    return { ok: true, data };
+  } catch {
+    return { ok: false, skipped: true };
+  }
+}
+
+export function applyHubspotChoice(e, choice) {
+  if (choice?.createNew) {
+    e.hubspotChoice = 'new';
+    delete e.hubspotContactId;
+    delete e.hubspotDealId;
+    e.hubspotPossibleMatch = (choice.matches || []).map((m) => ({
+      id: m.id, name: m.name || '', phone: m.phone || '', email: m.email || '',
+    }));
+    return;
+  }
+  e.hubspotChoice = 'existing';
+  e.hubspotContactId = choice.match.id;
+  if (choice.match.deal?.id) e.hubspotDealId = choice.match.deal.id;
+  else delete e.hubspotDealId;
+  delete e.hubspotPossibleMatch;
+}
+
+export async function preparePresented(e) {
+  if (!e.customer?.name && !(e.lines || []).length) {
+    toast('Add a customer or a window first.');
+    return { ok: false };
+  }
+  ensureRemote(e);
+  if ((e.hubspotChoice === 'existing' || e.hubspotChoice === 'new') && (e.hubspotContactId || e.hubspotChoice === 'new')) {
+    return { ok: true, ready: true };
+  }
+  estimates.save(e);
+  await flush();
+  const preview = await previewHubspot(e);
+  if (!preview.ok) return { ok: true, ready: true, skipped: true };
+  if (preview.legacy) return { ok: true, ready: true, legacy: true };
+  const matches = preview.data?.matches || [];
+  if (!matches.length) {
+    e.hubspotChoice = 'new';
+    return { ok: true, ready: true };
+  }
+  return { ok: true, ready: false, matches, autoId: preview.data?.autoId || null };
 }
 
 export async function markPresented(e) {
@@ -328,7 +409,8 @@ export async function markPresented(e) {
   estimates.save(e);
   addOps(e.remoteId, ['presented']);
   const hub = await flushFocused(e.remoteId);
-  if (hub?.ok) toast('Marked presented. HubSpot deal updated.');
+  if (hub?.ok && hub.data?.note_error) toast('Marked presented. HubSpot deal updated, but the note was not attached.');
+  else if (hub?.ok) toast('Marked presented. HubSpot deal updated.');
   else toast('Marked presented and saved. HubSpot sync is not available yet.');
   return hub || { ok: false, skipped: true };
 }
