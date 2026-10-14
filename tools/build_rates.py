@@ -54,18 +54,20 @@ d['_readme'] = ("RATE TABLE (material only). Stored p75/max are quoted customer 
   "Selling rate = stored x 0.60 / (1 - grossMargin). grossMargin is the one margin to edit (0.45 = 45%) and is applied in the app, not baked into these numbers. "
   "Labor, tax, shipping, and flat add-ons are not scaled. 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. "
   "'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). "
-  "Andersen 100 Series is active and is NOT rebuilt by this script (customer-pricing quotes; Sandtone = White per Nick; Dark Bronze is dark-bronze exterior / white interior; thin types n < 3 are estimated). "
-  "IWC is still coming_soon. See README.md.")
+  "Andersen 100 Series is active and is NOT rebuilt by this script. Fitted selling prices live in data/variable-rates.json (Sandtone is priced like Black; Dark Bronze / White is the two-tone; Dark Bronze / Dark Bronze is the same-color tier). "
+  "IWC is active for 8200 windows and 8900 doors. See README.md.")
 d.pop('laborIncludedPerWindow', None); d.pop('marginIncludedPct', None)
 d['laborIncluded'] = False; d['version'] = 2
 d['grossMargin'] = d.get('grossMargin', 0.45)
 # This script only replaces Milgard (brands[0]) rates. Other brands, and colors/types added for them, stay.
-for cid in ('sandtone', 'terratone', 'dkbronze'):
+for cid in ('sandtone', 'terratone', 'dkbronze', 'dkbronze_dkbronze'):
     if not any(c['id'] == cid for c in d['colors']): raise SystemExit('missing color ' + cid)
-for tid in ('awning', 'xox'):
+for tid in ('awning', 'xox', 'hvb', 'custom_supplier'):
     if not any(t['id'] == tid for t in d['types']): raise SystemExit('missing type ' + tid)
 andersen = next((b for b in d['brands'] if b['id'] == 'andersen'), None)
 if not andersen or andersen.get('status') != 'active' or not andersen.get('rates'): raise SystemExit('Andersen 100 rates missing from rates.json')
+iwc = next((b for b in d['brands'] if b['id'] == 'iwc'), None)
+if not iwc or iwc.get('status') != 'active': raise SystemExit('IWC should stay active')
 json.dump(d, open('data/rates.json', 'w'), indent=1)
 with open('data/milgard_material_rates.csv', 'w', newline='') as f:
     w = csv.writer(f)

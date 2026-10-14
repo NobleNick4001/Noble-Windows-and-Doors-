@@ -1,4 +1,4 @@
-import { h, data, settings, getRate, saveSettings, loadSettings, store, estimates, toast, colorName, typeName, fmt } from '../core.js';
+import { h, data, settings, getRate, saveSettings, loadSettings, store, estimates, toast, colorName, typeName, fmt, variableRateInfo, isCustomLine } from '../core.js';
 
 let unlocked = false;
 export function render(root) {
@@ -20,7 +20,7 @@ export function render(root) {
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Tax applies to'), h('select', { onchange: (e) => { s.taxOn = e.target.value; commit(); } }, h('option', { value: 'windows', selected: s.taxOn === 'windows' ? 'selected' : null }, 'Windows (materials) only'), h('option', { value: 'all', selected: s.taxOn === 'all' ? 'selected' : null }, 'Everything (windows, install, add-ons, stucco, and extras)'))),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: s.roundToDollar ? 'checked' : null, onchange: (e) => { s.roundToDollar = e.target.checked; commit(); } }), h('span', {}, 'Round prices to whole dollars')),
     f('Estimate valid for (days)', () => s.validDays, (v) => (s.validDays = parseInt(v) || 30), 'number'),
-    h('p', { class: 'fine' }, `Window rates are materials only and include Noble’s ${Math.round((Number(data.rates.grossMargin) || 0) * 100)}% margin. Change `, h('code', {}, 'grossMargin'), ' in ', h('code', {}, 'data/rates.json'), ' to reprice every window. Installation stays a separate line (', h('code', {}, 'data/install.json'), ').')));
+    h('p', { class: 'fine' }, `Fitted series use selling prices from `, h('code', {}, 'data/variable-rates.json'), ' (already at 45%). ', h('code', {}, 'grossMargin'), ' in ', h('code', {}, 'data/rates.json'), ' reprices only the combinations that file does not cover. Installation stays a separate line (', h('code', {}, 'data/install.json'), ').')));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Company info (shown on estimates)'),
     f('Salesperson (Submitted by on the purchase agreement)', () => s.salesperson || '', (v) => (s.salesperson = v), 'text', 's-salesperson'),
     f('Company name', () => s.company.name, (v) => (s.company.name = v)), f('Address', () => s.company.address, (v) => (s.company.address = v)), f('Phone', () => s.company.phone, (v) => (s.company.phone = v), 'tel'),
@@ -36,20 +36,36 @@ export function render(root) {
     h('button', { class: 'btn', onclick: () => { const blob = new Blob([JSON.stringify({ estimates: estimates.all(), settings: s }, null, 1)], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(blob), download: 'noble-estimates-backup.json' }); document.body.append(a); a.click(); a.remove(); } }, 'Export estimates (JSON)'),
     h('label', { class: 'btn' }, 'Import backup', h('input', { type: 'file', accept: 'application/json', hidden: true, onchange: async (e) => { try { const j = JSON.parse(await e.target.files[0].text()); store.set('nwd.estimates', { ...estimates.all(), ...(j.estimates || {}) }); toast('Imported'); } catch { toast('Bad file'); } } })),
     h('button', { class: 'btn danger', onclick: () => { if (confirm('Reset settings to defaults?')) { localStorage.removeItem('nwd.settings'); loadSettings(); render(root); } } }, 'Reset settings'))));
-  // rate table viewer (admin) — shows estimated flag, one table per active brand
+  // rate table viewer (admin). Fitted cells are selling prices from the quote model.
+  const trimNum = (n) => String(Math.round(Number(n) * 10000) / 10000);
   const activeBrands = data.rates.brands.filter((x) => x.status === 'active' && x.series?.length);
   for (const b of activeBrands) {
     const typeIds = [...new Set(b.series.flatMap((se) => se.types))];
     const rows = [];
     for (const se of b.series) for (const c of se.colors) rows.push(h('tr', {}, h('td', {}, se.id), h('td', {}, colorName(c)), ...typeIds.map((t) => {
       if (!se.types.includes(t)) return h('td', {}, '—');
+      const info = variableRateInfo(b.id, se.id, c, t);
+      if (info) {
+        const bits = [];
+        if (info.base) bits.push(info.base.toFixed(2));
+        if (info.perUI) bits.push(trimNum(info.perUI) + '/UI');
+        if (info.perSqFt) bits.push(trimNum(info.perSqFt) + '/sqft');
+        if (!bits.length) bits.push('0');
+        let text = bits.join(' + ');
+        if (info.ratio !== 1) text += ` × ${info.ratio}`;
+        if (info.adjustPerUnit) text += ` ${info.adjustPerUnit < 0 ? '−' : '+'} ${Math.abs(info.adjustPerUnit).toFixed(2)}`;
+        return h('td', { class: 'from-quotes' }, text, h('div', { class: 'fine' }, info.provisional ? 'from quotes · provisional' : 'from quotes'));
+      }
+      if (isCustomLine({ brand: b.id, series: se.id, color: c, type: t })) return h('td', { class: 'custom-rate' }, 'Custom', h('div', { class: 'fine' }, 'enter supplier price'));
       const r = getRate(b.id, se.id, c, t, s.rateSet);
       return h('td', { class: r?.estimated ? 'est' : '' }, r ? r.rate.toFixed(2) + (r.estimated ? ' E' : '') : '—');
     })));
     const note = b.id === 'milgard'
-      ? 'E = estimated (not from a real quote). Internal only — never shown to customers. Adobe = white/white × the multiplier in rates.json (brands[0].derivedColors.adobe.multiplier).'
-      : 'E = thin sample (fewer than 3 quote lines) or otherwise estimated. Internal only — never shown to customers. Sandtone uses the same rates as White. Dark Bronze is a dark-bronze exterior with a white interior.';
-    wrap.append(h('div', { class: 'card' }, h('h3', {}, `${b.name} rates in use ($ per inch of W+H, materials only, ${Math.round((Number(data.rates.grossMargin) || 0) * 100)}% margin, ${s.rateSet === 'max' ? 'MAX' : 'P75'})`), h('div', { class: 'scroll' }, h('table', { class: 'rates' }, h('thead', {}, h('tr', {}, h('th', {}, 'Series'), h('th', {}, 'Color'), ...typeIds.map((t) => h('th', {}, typeName(t))))), h('tbody', {}, rows))),
+      ? 'from quotes = selling price fitted from quotes (base, $ per UI, $ per sq ft), already at 45%. No extra margin. E = stored $/inch for a color or series the fit does not cover. V300 White and Adobe, and A250 Bronze, use the fit. V250 Adobe is still white/white × the multiplier.'
+      : b.id === 'iwc'
+        ? '8200 windows and 8900 doors in Bronze Anodized are from quotes. Clear Anodized, Mojave Beige, and White use the custom supplier-price line.'
+        : 'from quotes = selling price (base, $ per UI, $ per sq ft), already at 45%. Sandtone is priced like Black. White/White subtracts $191.71 per unit. Dark Bronze / White, Terratone, and Black/White use × 1.003. E marks the old $/inch table, used for awning.';
+    wrap.append(h('div', { class: 'card' }, h('h3', {}, `${b.name} material rates`), h('div', { class: 'scroll' }, h('table', { class: 'rates' }, h('thead', {}, h('tr', {}, h('th', {}, 'Series'), h('th', {}, 'Color'), ...typeIds.map((t) => h('th', {}, typeName(t))))), h('tbody', {}, rows))),
       h('p', { class: 'fine' }, note)));
   }
   root.replaceChildren(wrap);

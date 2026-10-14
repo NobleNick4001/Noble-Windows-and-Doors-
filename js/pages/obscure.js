@@ -209,7 +209,9 @@ export function view() {
   const pct = obscurePrice?.price?.type === 'percent' ? obscurePrice.price.amount : 0;
   return h('div', { class: 'og' },
     data.obscureGlass?.pageNote ? h('p', { class: 'og-lead' }, data.obscureGlass.pageNote) : null,
-    pct ? h('p', { class: 'fine', id: 'obscure-price-note' }, `Obscured glass adds ${pct}% of the window price. The pattern you pick does not add a second charge. It stacks with laminated and tempered glass.`) : null,
+    h('p', { class: 'fine', id: 'obscure-price-note' }, pct
+      ? `Obscured glass is an upcharge. Andersen and unfitted series add ${pct}% of the window price. Fitted Milgard series use their own obscure price. The pattern does not add a second charge, and it stacks with laminated and tempered glass.`
+      : 'The pattern you pick does not add a second charge.'),
     settings.showPlaceholders && h('p', { class: 'fine' }, 'Privacy ratings are still placeholders. The site does not publish them. Reed is 3 and Satin Etch is 5 from the old generic list; every other pattern is blank. Edit ', h('code', {}, 'data/obscure-glass.json'), '.'),
     ...blocks);
 }
@@ -223,7 +225,7 @@ function savePattern(p, statusEl, btn) {
     line.options = (line.options || []).filter((x) => !ids.has(x));
     if (!line.options.includes('obscure')) line.options.push('obscure');
     line.options.push(p.id);
-    const priced = priceWindow({ brand: line.brand, series: line.series, color: line.color, type: line.type, w: line.w, h: line.h, qty: line.qty, options: line.options });
+    const priced = priceWindow(line);
     if (priced) {
       line.unitBase = priced.unitBase; line.optionsEach = priced.optionsEach; line.unit = priced.unit;
       line.rate = priced.rate; line.rateSet = settings.rateSet; line.estimated = priced.estimated;

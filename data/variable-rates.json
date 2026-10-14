@@ -1,0 +1,326 @@
+{
+ "_readme": "Selling (customer) MATERIAL prices at 45% margin. Do NOT apply marginFactor to anything in this file. Labor stays in data/install.json.",
+ "version": "2026-10-13",
+ "grossMarginBasis": 0.45,
+ "formula": "unit = (base + perUI*UI + perSqFt*sqft + sum(perUI addons scaledByColor)*UI) * color.ratio + color.adjustPerUnit + flat/perSqFt/perWindow addons; percent addons = % of (base+perUI*UI+perSqFt*sqft)*ratio. UI = W+H, sqft = W*H/144, net frame/unit size in inches. Line = unit * qty * unitsPerLine(mull).",
+ "andersen": {
+  "series": "100",
+  "types": {
+   "casement": {
+    "base": 124.07,
+    "perUI": 14.1714,
+    "perSqFt": 0
+   },
+   "picture": {
+    "base": 167.26,
+    "perUI": 7.0841,
+    "perSqFt": 0
+   },
+   "hslider": {
+    "base": 115.53,
+    "perUI": 8.5293,
+    "perSqFt": 0
+   },
+   "vslider": {
+    "base": 108.29,
+    "perUI": 7.9928,
+    "perSqFt": 0,
+    "provisional": true
+   },
+   "xox": {
+    "base": 131.2,
+    "perUI": 9.6859,
+    "perSqFt": 0,
+    "provisional": true
+   },
+   "arch": {
+    "base": 425.69,
+    "perUI": 12.2867,
+    "perSqFt": 0,
+    "note": "equal-leg arch and half circle"
+   }
+  },
+  "keepExisting": [
+   "awning"
+  ],
+  "colors": {
+   "bb": {
+    "ratio": 1.0,
+    "adjustPerUnit": 0,
+    "tier": "same_color_both_sides"
+   },
+   "sandtone": {
+    "ratio": 1.0,
+    "adjustPerUnit": 0,
+    "tier": "same_color_both_sides"
+   },
+   "dkbronze_dkbronze": {
+    "ratio": 1.0,
+    "adjustPerUnit": 0,
+    "tier": "same_color_both_sides",
+    "new": true,
+    "name": "Dark Bronze / Dark Bronze"
+   },
+   "terratone": {
+    "ratio": 1.003,
+    "adjustPerUnit": 0,
+    "tier": "dark_ext_white_int"
+   },
+   "dkbronze": {
+    "ratio": 1.003,
+    "adjustPerUnit": 0,
+    "tier": "dark_ext_white_int",
+    "name": "Dark Bronze / White"
+   },
+   "bw": {
+    "ratio": 1.003,
+    "adjustPerUnit": 0,
+    "tier": "dark_ext_white_int",
+    "inferred": true
+   },
+   "ww": {
+    "ratio": 1.0,
+    "adjustPerUnit": -191.71,
+    "tier": "white_white"
+   }
+  },
+  "addons": {
+   "flush_fin_trim": {
+    "type": "perUI",
+    "amount": 1.6181,
+    "scaledByColor": true,
+    "name": "Flush fin + interior trim"
+   },
+   "grilles_gbg": {
+    "type": "perUI",
+    "amount": 2.1798,
+    "scaledByColor": true,
+    "name": "Grilles between the glass (any pattern/color)"
+   },
+   "truscene": {
+    "type": "perWindow",
+    "amount": 130,
+    "scaledByColor": false,
+    "name": "TruScene screen"
+   },
+   "tempered": {
+    "type": "percentOfWindow",
+    "amount": 12,
+    "name": "Tempered (Andersen keeps 12%)"
+   },
+   "laminated": {
+    "type": "percentOfWindow",
+    "amount": 12
+   },
+   "obscure": {
+    "type": "percentOfWindow",
+    "amount": 12
+   }
+  },
+  "mull": "A factory-mulled unit = N units, each priced on its own unit size; no mull charge."
+ },
+ "milgard": {
+  "V300": {
+   "colorsFitted": [
+    "ww",
+    "adobe"
+   ],
+   "types": {
+    "picture": {
+     "base": 206.58,
+     "perUI": 0.7544,
+     "perSqFt": 19.4531
+    },
+    "vslider": {
+     "base": 257.13,
+     "perUI": 4.6896,
+     "perSqFt": 0
+    },
+    "hslider": {
+     "base": 404.6,
+     "perUI": 0,
+     "perSqFt": 18.6447
+    },
+    "xox": {
+     "base": 515.63,
+     "perUI": 0,
+     "perSqFt": 21.5875,
+     "provisional": true,
+     "new": true
+    },
+    "casement": {
+     "base": 0,
+     "perUI": 10.4309,
+     "perSqFt": 0,
+     "provisional": true
+    },
+    "hvb": {
+     "base": 0,
+     "perUI": 10.2675,
+     "perSqFt": 0,
+     "new": true,
+     "name": "Half vent below picture"
+    },
+    "arch": {
+     "base": 0,
+     "perUI": 9.2283,
+     "perSqFt": 0,
+     "note": "half round"
+    }
+   },
+   "addons": {
+    "tempered": {
+     "type": "perWindow",
+     "amount": 264.98
+    },
+    "obscure": {
+     "type": "perWindow",
+     "amount": 497.37,
+     "note": "on top of tempered (obscure glass ships tempered here)"
+    },
+    "grids": {
+     "type": "perUI",
+     "amount": 0.773,
+     "name": "Grids (flat colonial)"
+    },
+    "laminated": {
+     "type": "percentOfWindow",
+     "amount": 12,
+     "note": "no Milgard data; keep 12%"
+    }
+   },
+   "warranty": "Glass Breakage + Full Lifetime Warranty is included in these rates (quotes without it are ~$79.61 cheaper on a 71x59; no credit modeled)."
+  },
+  "A250": {
+   "colorsFitted": [
+    "bronze"
+   ],
+   "types": {
+    "hslider": {
+     "base": 0.02,
+     "perUI": 8.3946,
+     "perSqFt": 14.7437
+    },
+    "xox": {
+     "base": 675.05,
+     "perUI": 0,
+     "perSqFt": 37.26,
+     "provisional": true,
+     "new": true
+    },
+    "picture": {
+     "base": 219.24,
+     "perUI": 0,
+     "perSqFt": 37.0078
+    },
+    "vslider": {
+     "base": 339.52,
+     "perUI": 0,
+     "perSqFt": 45.976
+    },
+    "casement": {
+     "base": 572.92,
+     "perUI": 0,
+     "perSqFt": 53.3802,
+     "provisional": true
+    }
+   },
+   "addons": {
+    "tempered": {
+     "type": "perWindowPlusPerSqFt",
+     "amount": 60.41,
+     "perSqFt": 22.39
+    },
+    "obscure": {
+     "type": "perSqFt",
+     "amount": 45.1,
+     "note": "on top of tempered"
+    },
+    "grids": {
+     "type": "perUI",
+     "amount": 0.773,
+     "note": "V300 value, unverified on A250"
+    },
+    "laminated": {
+     "type": "percentOfWindow",
+     "amount": 12
+    }
+   }
+  },
+  "V400": {
+   "note": "No non-composite V400 data; keep existing rates. Composites -> custom supplier-price line."
+  },
+  "otherSeriesColors": "keep existing rates (rates.json p75 x margin factor)"
+ },
+ "iwc": {
+  "windows": {
+   "8200": {
+    "colorsFitted": [
+     "bronze-anodized"
+    ],
+    "frame": "block",
+    "types": {
+     "hslider": {
+      "base": 0,
+      "perUI": 11.104,
+      "perSqFt": 0,
+      "provisional": true,
+      "includes": "standard screen"
+     },
+     "picture": {
+      "base": 0,
+      "perUI": 8.9487,
+      "perSqFt": 0,
+      "provisional": true
+     }
+    }
+   }
+  },
+  "doors": {
+   "8900": {
+    "model": "8985SD",
+    "frame": "block_deluxe",
+    "colorsFitted": [
+     "bronze-anodized"
+    ],
+    "includes": [
+     "deluxe screen (Series 1500)",
+     "stainless rollers",
+     "flush handle black",
+     "tempered argon glass"
+    ],
+    "configs": {
+     "2panel": {
+      "configs": [
+       "OX",
+       "XO"
+      ],
+      "base": 1609.96,
+      "perUI": 18.3328,
+      "perSqFt": 0
+     },
+     "4panel": {
+      "configs": [
+       "OXXO"
+      ],
+      "base": 1204.17,
+      "perUI": 35.0716,
+      "perSqFt": 0
+     }
+    }
+   }
+  },
+  "colors": {
+   "bronze-anodized": 1.0,
+   "clear-anodized": null,
+   "mojave-beige": null,
+   "white": null
+  },
+  "note": "IWC colors other than Bronze Anodized, other frames, other configs: not priceable yet; show 'enter supplier price' (custom line)."
+ },
+ "custom": {
+  "id": "custom_supplier",
+  "name": "Custom unit (enter supplier price)",
+  "note": "composites/specials: salesperson enters supplier customer price; promos do not apply unless code says so"
+ }
+}
