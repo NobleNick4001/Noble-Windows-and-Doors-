@@ -246,7 +246,7 @@ export async function makeEstimatePdf(e) {
     w.text('Additional items subtotal  ' + fmt(t.extras), { size: 10, bold: true, gap: 4 });
   }
 
-  summaryLines(t).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
+  summaryLines(t, { includeMaterials: false }).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
   w.text('TOTAL  ' + fmt(t.total), { size: 13, bold: true, gap: 2 });
   const pct = Number(data.agreement?.depositPct) || 60;
   const pay = contractPay(t.total, pct);
