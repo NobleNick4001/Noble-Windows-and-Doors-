@@ -74,7 +74,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v27'" in sw, 'service worker cache should be nwd-sales-v27')
+check("const CACHE = 'nwd-sales-v28'" in sw, 'service worker cache should be nwd-sales-v28')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
 check('data/purchase-agreement.json' in sw, 'purchase agreement should be precached')

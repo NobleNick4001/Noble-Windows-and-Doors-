@@ -221,6 +221,228 @@ function writeCompactWindows(w, lines) {
   }
 }
 
+// Every emailed line drawing sits in this same box. The window's own W:H
+// decides the shape inside the box. Frame and sash thickness follow real inches.
+export const ELEVATION_BOX = { w: 62, h: 48 };
+export const FRAME_FACE_IN = 2.75;
+export const SASH_FACE_IN = 1.25;
+const ELEVATION_BLOCK = ELEVATION_BOX.h + 14;
+
+export function fitElevation(wIn, hIn, box = ELEVATION_BOX) {
+  const w = Math.max(1, Number(wIn) || 1);
+  const h = Math.max(1, Number(hIn) || 1);
+  const aspect = w / h;
+  let dw = box.w;
+  let dh = dw / aspect;
+  if (dh > box.h) {
+    dh = box.h;
+    dw = dh * aspect;
+  }
+  return { wIn: w, hIn: h, dw, dh, scale: dw / w };
+}
+
+function glassFlags(line) {
+  const ids = new Set([...(line?.options || []), ...(line?.addons || [])]);
+  const colonial = ids.has('grids') || ids.has('grids-colonial');
+  const prairie = !colonial && ids.has('grids-prairie');
+  return { obscure: ids.has('obscure'), grid: colonial ? 'colonial' : prairie ? 'prairie' : '' };
+}
+
+function archOutline(w, h, inset) {
+  const x = inset;
+  const y = inset;
+  const iw = Math.max(1, w - inset * 2);
+  const ih = Math.max(1, h - inset * 2);
+  const r = Math.min(iw / 2, ih * 0.48);
+  const bodyTop = y + r;
+  const cx = x + iw / 2;
+  const steps = 12;
+  const pts = [[x, y + ih], [x, bodyTop]];
+  for (let i = 1; i < steps; i++) {
+    const a = Math.PI * (1 - i / steps);
+    pts.push([cx + r * Math.cos(a), bodyTop - r * Math.sin(a)]);
+  }
+  pts.push([x + iw, bodyTop], [x + iw, y + ih]);
+  return { pts, body: { x, y: bodyTop, w: iw, h: Math.max(1, ih - r) }, apex: { x: cx, y: bodyTop - r } };
+}
+
+export function elevationModel(line, box = ELEVATION_BOX) {
+  const fit = fitElevation(line?.w, line?.h, box);
+  const { dw, dh, scale } = fit;
+  const type = line?.type || 'picture';
+  let face = scale * FRAME_FACE_IN;
+  const faceCap = Math.min(dw, dh) * 0.22;
+  if (face > faceCap) face = faceCap;
+  if (face < 0.55) face = 0.55;
+  const ix = face;
+  const iy = face;
+  const iw = Math.max(1, dw - face * 2);
+  const ih = Math.max(1, dh - face * 2);
+  let sash = Math.min(scale * SASH_FACE_IN, face * 0.85, iw / 7, ih / 7);
+  if (!(sash > 0.4)) sash = 0.4;
+  const panes = [];
+  const add = (x, y, w, h, op) => {
+    if (w > 0.8 && h > 0.8) panes.push({ x, y, w, h, op: op || '' });
+  };
+  let arch = null;
+  if (type === 'arch') {
+    arch = { outer: archOutline(dw, dh, 0), inner: archOutline(dw, dh, face) };
+    const body = arch.inner.body;
+    add(body.x, body.y, body.w, body.h, '');
+  } else if (type === 'hslider' || type === '2panel') {
+    const each = (iw - sash) / 2;
+    add(ix, iy, each, ih, '');
+    add(ix + each + sash, iy, each, ih, 'slide-left');
+  } else if (type === 'xox') {
+    const each = (iw - sash * 2) / 3;
+    add(ix, iy, each, ih, 'slide-right');
+    add(ix + each + sash, iy, each, ih, '');
+    add(ix + (each + sash) * 2, iy, each, ih, 'slide-left');
+  } else if (type === '4panel') {
+    const each = (iw - sash * 3) / 4;
+    add(ix, iy, each, ih, '');
+    add(ix + (each + sash), iy, each, ih, 'slide-right');
+    add(ix + (each + sash) * 2, iy, each, ih, 'slide-left');
+    add(ix + (each + sash) * 3, iy, each, ih, '');
+  } else if (type === 'vslider') {
+    const each = (ih - sash) / 2;
+    add(ix, iy, iw, each, '');
+    add(ix, iy + each + sash, iw, each, 'slide-up');
+  } else if (type === 'hvb') {
+    const vent = (ih - sash) / 3;
+    const picture = vent * 2;
+    add(ix, iy, iw, picture, '');
+    add(ix, iy + picture + sash, iw, vent, 'awning');
+  } else if (type === 'casement') {
+    add(ix, iy, iw, ih, 'casement');
+  } else if (type === 'awning') {
+    add(ix, iy, iw, ih, 'awning');
+  } else {
+    add(ix, iy, iw, ih, '');
+  }
+  return { dw, dh, scale, face, sash, type, frameRatio: face / dw, panes, arch, flags: glassFlags(line) };
+}
+
+function drawPoly(doc, pts, ox, oy) {
+  if (!pts || pts.length < 2) return;
+  const rel = [];
+  for (let i = 1; i < pts.length; i++) rel.push([pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]]);
+  doc.lines(rel, ox + pts[0][0], oy + pts[0][1], [1, 1], 'S', true);
+}
+
+function hatchRect(doc, x, y, w, h) {
+  if (w < 3 || h < 3) return;
+  const step = 3.4;
+  doc.setDrawColor(176, 184, 192);
+  doc.setLineWidth(0.25);
+  for (let d = -h + step; d < w; d += step) {
+    const x1 = Math.max(0, d);
+    const x2 = Math.min(w, h + d);
+    if (x2 - x1 < 0.5) continue;
+    doc.line(x + x1, y + (x1 - d), x + x2, y + (x2 - d));
+  }
+}
+
+function drawGrids(doc, pane, kind, scale, ox, oy) {
+  const x = ox + pane.x;
+  const y = oy + pane.y;
+  if (pane.w < 5 || pane.h < 5) return;
+  doc.setDrawColor(35, 35, 35);
+  doc.setLineWidth(0.32);
+  if (kind === 'prairie') {
+    const inset = Math.min(scale * 3.5, pane.w * 0.28, pane.h * 0.28);
+    if (inset < 1 || pane.w - inset * 2 < 2 || pane.h - inset * 2 < 2) return;
+    doc.rect(x + inset, y + inset, pane.w - inset * 2, pane.h - inset * 2);
+    return;
+  }
+  const cols = Math.max(2, Math.round((pane.w / scale) / 14));
+  const rows = Math.max(2, Math.round((pane.h / scale) / 16));
+  for (let c = 1; c < cols; c++) {
+    const lx = x + (pane.w * c) / cols;
+    doc.line(lx, y, lx, y + pane.h);
+  }
+  for (let r = 1; r < rows; r++) {
+    const ly = y + (pane.h * r) / rows;
+    doc.line(x, ly, x + pane.w, ly);
+  }
+}
+
+function arrow(doc, x1, y1, x2, y2) {
+  doc.setLineDashPattern([], 0);
+  doc.setDrawColor(25, 25, 25);
+  doc.setLineWidth(0.55);
+  doc.line(x1, y1, x2, y2);
+  const ang = Math.atan2(y2 - y1, x2 - x1);
+  const len = Math.min(3.2, Math.hypot(x2 - x1, y2 - y1) * 0.55);
+  doc.line(x2, y2, x2 - len * Math.cos(ang - 0.5), y2 - len * Math.sin(ang - 0.5));
+  doc.line(x2, y2, x2 - len * Math.cos(ang + 0.5), y2 - len * Math.sin(ang + 0.5));
+}
+
+function chevron(doc, ax, ay, bx, by, cx, cy) {
+  doc.setDrawColor(25, 25, 25);
+  doc.setLineWidth(0.5);
+  doc.setLineDashPattern([1.5, 1.15], 0);
+  doc.line(ax, ay, bx, by);
+  doc.line(ax, ay, cx, cy);
+  doc.setLineDashPattern([], 0);
+}
+
+function drawMark(doc, pane, ox, oy) {
+  const x = ox + pane.x;
+  const y = oy + pane.y;
+  const pad = Math.min(1.6, pane.w * 0.1, pane.h * 0.1);
+  if (pane.op === 'slide-left' || pane.op === 'slide-right' || pane.op === 'slide-up') {
+    const cx = x + pane.w / 2;
+    const cy = y + pane.h / 2;
+    const len = pane.op === 'slide-up' ? Math.min(pane.h * 0.34, 11) : Math.min(pane.w * 0.34, 11);
+    if (len < 2.4) return;
+    if (pane.op === 'slide-left') arrow(doc, cx + len / 2, cy, cx - len / 2, cy);
+    else if (pane.op === 'slide-right') arrow(doc, cx - len / 2, cy, cx + len / 2, cy);
+    else arrow(doc, cx, cy + len / 2, cx, cy - len / 2);
+    return;
+  }
+  if (pane.op === 'casement' && pane.w > 6 && pane.h > 6) {
+    chevron(doc, x + pane.w - pad, y + pane.h / 2, x + pad, y + pad, x + pad, y + pane.h - pad);
+  } else if (pane.op === 'awning' && pane.w > 6 && pane.h > 6) {
+    chevron(doc, x + pane.w / 2, y + pane.h - pad, x + pad, y + pad, x + pane.w - pad, y + pad);
+  }
+}
+
+function drawElevation(doc, colX, colW, top, line, sizeText) {
+  const model = elevationModel(line);
+  const ox = colX + (colW - model.dw) / 2;
+  const oy = top + (ELEVATION_BOX.h - model.dh) / 2;
+  doc.setDrawColor(20, 20, 20);
+  doc.setLineWidth(0.8);
+  doc.setLineDashPattern([], 0);
+  if (model.arch) drawPoly(doc, model.arch.outer.pts, ox, oy);
+  else doc.rect(ox, oy, model.dw, model.dh);
+  if (model.flags.obscure) {
+    model.panes.forEach((pane) => hatchRect(doc, ox + pane.x, oy + pane.y, pane.w, pane.h));
+  }
+  doc.setDrawColor(20, 20, 20);
+  doc.setLineWidth(0.6);
+  doc.setLineDashPattern([], 0);
+  if (model.arch) {
+    drawPoly(doc, model.arch.inner.pts, ox, oy);
+    const body = model.arch.inner.body;
+    doc.line(ox + body.x, oy + body.y, ox + body.x + body.w, oy + body.y);
+    doc.line(ox + model.arch.inner.apex.x, oy + model.arch.inner.apex.y, ox + model.arch.inner.apex.x, oy + body.y);
+  } else {
+    model.panes.forEach((pane) => doc.rect(ox + pane.x, oy + pane.y, pane.w, pane.h));
+  }
+  if (model.flags.grid) {
+    model.panes.forEach((pane) => drawGrids(doc, pane, model.flags.grid, model.scale, ox, oy));
+  }
+  model.panes.forEach((pane) => drawMark(doc, pane, ox, oy));
+  doc.setLineDashPattern([], 0);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(70, 70, 70);
+  const cap = plain(sizeText || '');
+  if (cap) doc.text(cap, colX + colW / 2, top + ELEVATION_BOX.h + 9, { align: 'center', maxWidth: colW - 2 });
+}
+
 const QUOTE_ROC = 'ROC #364772 / #364771';
 
 function salesRep(explicit) {
@@ -243,12 +465,13 @@ export async function makeEstimatePdf(e, opts = {}) {
   const right = pageW - margin;
   const width = right - margin;
   const cols = [
-    { key: 'num', label: '#', w: 26, align: 'center' },
-    { key: 'location', label: 'Location', w: 86, align: 'left' },
-    { key: 'desc', label: 'Description', w: 214, align: 'left' },
-    { key: 'size', label: 'Size', w: 86, align: 'left' },
-    { key: 'qty', label: 'Qty', w: 34, align: 'center' },
-    { key: 'price', label: 'Price', w: width - 26 - 86 - 214 - 86 - 34, align: 'right' },
+    { key: 'num', label: '#', w: 22, align: 'center' },
+    { key: 'elev', label: '', w: 84, align: 'center' },
+    { key: 'location', label: 'Location', w: 72, align: 'left' },
+    { key: 'desc', label: 'Description', w: 196, align: 'left' },
+    { key: 'size', label: 'Size', w: 72, align: 'left' },
+    { key: 'qty', label: 'Qty', w: 28, align: 'center' },
+    { key: 'price', label: 'Price', w: width - 22 - 84 - 72 - 196 - 72 - 28, align: 'right' },
   ];
   const t = totals(e);
   const co = settings.company || {};
@@ -338,7 +561,7 @@ export async function makeEstimatePdf(e, opts = {}) {
   await drawLetterhead();
   headerRow();
 
-  const items = (e.lines || []).map((line, i) => ({ n: i + 1, ...quoteLine(line, { ascii: true }) }));
+  const items = (e.lines || []).map((line, i) => ({ n: i + 1, line, ...quoteLine(line, { ascii: true }) }));
   (e.extras || []).forEach((extra) => {
     items.push({
       n: items.length + 1,
@@ -352,12 +575,12 @@ export async function makeEstimatePdf(e, opts = {}) {
   });
 
   function rowHeight(item) {
-    const descW = cols[2].w - 6;
+    const descW = cols[3].w - 6;
     const title = wrapped(item.title, descW, 9, true);
     const rest = item.details.flatMap((d) => wrapped(d, descW, 8, false));
-    const loc = wrapped(item.location || '', cols[1].w - 4, 8, false);
-    const size = wrapped(item.size || '', cols[3].w - 4, 8, false);
-    const h = Math.max(24, title.length * 11 + rest.length * 10 + 10, loc.length * 10 + 10, size.length * 10 + 10);
+    const loc = wrapped(item.location || '', cols[2].w - 4, 8, false);
+    const size = wrapped(item.size || '', cols[4].w - 4, 8, false);
+    const h = Math.max(item.line ? ELEVATION_BLOCK : 24, title.length * 11 + rest.length * 10 + 10, loc.length * 10 + 10, size.length * 10 + 10);
     return { title, rest, loc, size, h };
   }
 
@@ -379,17 +602,19 @@ export async function makeEstimatePdf(e, opts = {}) {
     };
     paint(String(item.n), cols[0], base, 8, false, 'center');
     x += cols[0].w;
-    drawn.loc.forEach((line, i) => paint(line, cols[1], base + i * 10, 8, false, 'left'));
+    if (item.line) drawElevation(doc, x, cols[1].w, y + 2, item.line, item.size);
     x += cols[1].w;
-    let dy = 0;
-    drawn.title.forEach((line) => { paint(line, cols[2], base + dy, 9, true, 'left'); dy += 11; });
-    drawn.rest.forEach((line) => { paint(line, cols[2], base + dy, 8, false, 'left'); dy += 10; });
+    drawn.loc.forEach((line, i) => paint(line, cols[2], base + i * 10, 8, false, 'left'));
     x += cols[2].w;
-    drawn.size.forEach((line, i) => paint(line, cols[3], base + i * 10, 8, false, 'left'));
+    let dy = 0;
+    drawn.title.forEach((line) => { paint(line, cols[3], base + dy, 9, true, 'left'); dy += 11; });
+    drawn.rest.forEach((line) => { paint(line, cols[3], base + dy, 8, false, 'left'); dy += 10; });
     x += cols[3].w;
-    paint(String(item.qty), cols[4], base, 8, false, 'center');
+    drawn.size.forEach((line, i) => paint(line, cols[4], base + i * 10, 8, false, 'left'));
     x += cols[4].w;
-    paint(fmt(item.price), cols[5], base, 8, true, 'right');
+    paint(String(item.qty), cols[5], base, 8, false, 'center');
+    x += cols[5].w;
+    paint(fmt(item.price), cols[6], base, 8, true, 'right');
     y += drawn.h;
     rule(y, 0.4, [197, 205, 214]);
     y += 4;
