@@ -1,5 +1,5 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
-import { fmt, totals, summaryLines, settings, data, brandById, typeName, colorName, installUnit, addonUnit, addonNames, installLabel, optionDef } from './core.js';
+import { fmt, totals, summaryLines, settings, data, brandById, typeName, colorName, installUnit, addonUnit, addonNames, installLabel, optionDef, addonName } from './core.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -187,8 +187,11 @@ export async function makeContractPdf(model) {
 
 function lineDesc(l) {
   const opts = (l.options || []).map((id) => optionDef(id)?.name).filter(Boolean);
+  const adds = (l.addons || []).map((id) => addonName(id)).filter((n) => n && !opts.includes(n));
+  const names = [...adds, ...opts];
+  const custom = l.customDescription ? l.customDescription + ' — ' : '';
   const base = `${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${colorName(l.color)}`;
-  return opts.length ? base + ' (' + opts.join(', ') + ')' : base;
+  return custom + (names.length ? base + ' (' + names.join(', ') + ')' : base);
 }
 
 export async function makeEstimatePdf(e) {

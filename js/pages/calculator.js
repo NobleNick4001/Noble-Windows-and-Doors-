@@ -1,7 +1,7 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines, lineAddonDefs, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine } from '../core.js';
 import { frameSVG } from '../frames.js';
 
-const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, label: '', options: null, details: false, install: null }, store.get('nwd.calc', {}));
+const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
 const persist = () => store.set('nwd.calc', calc);
 
 function knownOptionIds() {
@@ -19,10 +19,14 @@ function normalize() {
   const known = knownOptionIds();
   if (!calc.options) calc.options = defaultOptions();
   else calc.options = calc.options.filter((id) => known.has(id));
+  if (!Array.isArray(calc.addons)) calc.addons = [];
+  if (!(Number(calc.unitsPerLine) > 0)) calc.unitsPerLine = 1;
   if (!b.series.length) return b;
   let s = b.series.find((x) => x.id === calc.series); if (!s) { s = b.series[0]; calc.series = s.id; }
-  if (!s.types.includes(calc.type)) calc.type = s.types[0];
+  if (calc.type !== 'custom_supplier' && !s.types.includes(calc.type)) calc.type = s.types[0];
   if (!s.colors.includes(calc.color)) calc.color = s.colors[0];
+  const defs = lineAddonDefs(calc);
+  if (defs) calc.addons = calc.addons.filter((id) => defs[id]);
   return b;
 }
 
@@ -53,6 +57,64 @@ export function applyFrameType(frameId) {
   persist();
 }
 export function currentFrameType() { return calc.install?.frameType || null; }
+
+function legacyOptionCheck(line, o, onChange, idp) {
+  return h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + o.id, checked: (line.options || []).includes(o.id) ? 'checked' : null, onchange: (e) => {
+    line.options = e.target.checked ? [...(line.options || []), o.id] : (line.options || []).filter((x) => x !== o.id);
+    if (o.id === 'obscure' && !e.target.checked) {
+      const ids = new Set((data.obscureGlass?.patterns || []).map((p) => p.id));
+      line.options = line.options.filter((id) => !ids.has(id));
+    }
+    onChange();
+  } }), h('span', {}, o.name), o.price?.type !== 'included' && o.price?.amount ? h('em', {}, ' +' + (o.price.type === 'percent' ? o.price.amount + '%' : fmt(o.price.amount))) : null);
+}
+export function upgradeEditor(line, onChange, idp = 'opt-') {
+  if (line.type === 'custom_supplier' || (isCustomLine(line) && !lineAddonDefs(line))) {
+    return h('p', { class: 'fine' }, 'Custom unit: the supplier price is the material price. Glass and grid upcharges are not added.');
+  }
+  const defs = lineAddonDefs(line);
+  if (!defs) {
+    return h('div', { class: 'cols2' },
+      h('div', {}, h('b', {}, 'Glass'), data.options.glass.map((o) => legacyOptionCheck(line, o, onChange, idp))),
+      h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map((o) => legacyOptionCheck(line, o, onChange, idp))));
+  }
+  const entries = Object.entries(defs);
+  if (!entries.length) return h('p', { class: 'fine' }, fittedIncludes(line) || 'No extra glass upcharges on this series.');
+  const glass = entries.filter(([id]) => id === 'tempered' || id === 'laminated' || id === 'obscure');
+  const extra = entries.filter(([id]) => id !== 'tempered' && id !== 'laminated' && id !== 'obscure');
+  const mk = ([id, def]) => {
+    const on = (line.addons || []).includes(id) || (line.options || []).includes(id) || (id === 'grids' && (line.options || []).includes('grids-colonial'));
+    return h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + id, checked: on ? 'checked' : null, onchange: (e) => { setLineAddon(line, id, e.target.checked); onChange(); } }), h('span', {}, addonName(id, def)), h('em', {}, ' ' + addonPriceHint(def)));
+  };
+  return h('div', {},
+    h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), glass.map(mk)), h('div', {}, h('b', {}, 'Upgrades'), extra.map(mk))),
+    fittedIncludes(line) ? h('p', { class: 'fine' }, fittedIncludes(line)) : null);
+}
+export function customPriceFields(line, onChange, idp = 'in') {
+  if (line.type !== 'custom_supplier' && !isCustomLine(line)) return null;
+  return h('div', { class: 'custom-price' },
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Unit description'), h('input', { type: 'text', id: idp + '-custom-desc', value: line.customDescription || '', placeholder: 'e.g. V400 Tuscany composite slider', oninput: (e) => { line.customDescription = e.target.value; onChange(); } })),
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Supplier price ($ per unit)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-supplier', value: line.supplierPrice ?? '', placeholder: 'customer price from the supplier', oninput: (e) => { line.supplierPrice = e.target.value.replace(/[^0-9.]/g, ''); onChange(); } })),
+    h('p', { class: 'fine' }, 'Used as the customer material price. No extra margin. Promo codes do not discount this line unless the code says so.'));
+}
+function mathText(p, w, h) {
+  if (p.mode === 'custom') return 'Supplier price, used as entered.';
+  if (p.mode !== 'variable' || !p.detail) {
+    return `(${w} + ${h}) = ${p.wh}" × $${p.rate.toFixed(4)}/in = ${fmt(p.unitBase)}` + (p.optionsEach ? ` + glass ${fmt(p.optionsEach)}` : '');
+  }
+  const d = p.detail, t = d.typeDef;
+  const bits = [];
+  if (t.base) bits.push(fmt(t.base));
+  if (t.perUI) bits.push(`$${t.perUI} × ${d.ui}"`);
+  if (t.perSqFt) bits.push(`$${t.perSqFt} × ${(d.sqft).toFixed(2)} sq ft`);
+  let s = bits.join(' + ') || '$0';
+  if (d.scaledPerUI) s = `(${s} + $${d.scaledPerUI}/UI × ${d.ui}")`;
+  if (d.ratio !== 1) s = `(${s}) × ${d.ratio}`;
+  if (d.adjust) s += ` ${d.adjust < 0 ? '−' : '+'} ${fmt(Math.abs(d.adjust))}`;
+  if (d.extra) s += ` + add-ons ${fmt(d.extra)}`;
+  if (d.units !== 1) s += ` × ${d.units} units`;
+  return `${s} = ${fmt(p.unit)}`;
+}
 
 export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', id } = {}) {
   const input = h('input', { type: 'text', inputmode: 'decimal', id, value: value ?? '', placeholder: '0', 'aria-label': label,
@@ -101,17 +163,22 @@ export function render(root) {
     root.replaceChildren(wrap); return;
   }
   const series = brand.series.find((s) => s.id === calc.series);
-  const args = () => ({ brand: calc.brand, series: calc.series, color: calc.color, type: calc.type, w: parseFloat(calc.w), h: parseFloat(calc.h), qty: parseInt(calc.qty) || 1, options: calc.options });
+  const args = () => ({ brand: calc.brand, series: calc.series, color: calc.color, type: calc.type, w: parseFloat(calc.w), h: parseFloat(calc.h), qty: parseInt(calc.qty) || 1, unitsPerLine: Number(calc.unitsPerLine) || 1, options: calc.options, addons: calc.addons, supplierPrice: calc.supplierPrice, customDescription: calc.customDescription });
 
   const left = h('div', { class: 'col' });
   left.append(
     h('div', { class: 'card' }, h('h3', {}, 'Series'), h('div', { class: 'chips' }, brand.series.map((s) => h('button', { class: 'chip' + (s.id === calc.series ? ' on' : ''), onclick: () => { calc.series = s.id; persist(); rerender(); } }, s.name)))),
-    h('div', { class: 'card' }, h('h3', {}, 'Window type'), h('div', { class: 'tiles' }, series.types.map((t) => h('button', { class: 'tile' + (t === calc.type ? ' on' : ''), onclick: () => { calc.type = t; persist(); rerender(); } }, icon(t, frameKeyFor(calc.color)), h('span', {}, typeName(t)))))),
+    h('div', { class: 'card' }, h('h3', {}, series.id === '8900' ? 'Door type' : 'Window type'), h('div', { class: 'tiles' }, [...series.types, 'custom_supplier'].map((t) => h('button', { class: 'tile' + (t === calc.type ? ' on' : ''), onclick: () => { calc.type = t; persist(); rerender(); } }, icon(t, frameKeyFor(calc.color)), h('span', {}, typeName(t)))))),
     h('div', { class: 'card' }, h('h3', {}, 'Frame color'), h('div', { class: 'swatches' }, series.colors.map((c) => { const cd = colorById(c); return h('button', { class: 'swatch' + (c === calc.color ? ' on' : ''), onclick: () => { calc.color = c; persist(); rerender(); } }, h('i', { style: `background:${cd.swatch}` }), h('span', {}, cd.name)); }))),
     h('div', { class: 'card' }, h('h3', {}, 'Size'),
       h('div', { class: 'grid3' }, stepper('Width', calc.w, (v) => { calc.w = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-w' }), stepper('Height', calc.h, (v) => { calc.h = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-h' }), stepper('Qty', calc.qty, (v) => { calc.qty = v; persist(); update(); }, { step: 1, min: 1, id: 'in-q' })),
+      stepper('Units in this line', calc.unitsPerLine, (v) => { calc.unitsPerLine = v; persist(); update(); }, { step: 1, min: 1, id: 'in-units' }),
+      h('p', { class: 'fine' }, 'A factory mull is this many units, each priced at this size. There is no separate mull charge.'),
+      customPriceFields(calc, () => { persist(); update(); }),
       h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', { type: 'text', id: 'in-label', value: calc.label, placeholder: 'e.g. Master bedroom, Kitchen sink', oninput: (e) => { calc.label = e.target.value; persist(); } }))),
-    optionsCard(),
+    h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Glass & upgrades')),
+      upgradeEditor(calc, () => { persist(); update(); }, 'opt-'),
+      calc.series === 'V400' ? h('p', { class: 'fine' }, 'Composite units: choose Custom unit and enter the supplier price.') : null),
     h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Installation / labor')),
       installEditor(calc.install, (rerenderNeeded) => { persist(); rerenderNeeded ? rerender() : update(); }, 'calc-inst')),
   );
@@ -121,21 +188,22 @@ export function render(root) {
   wrap.append(h('div', { class: 'two' }, left, right));
   root.replaceChildren(wrap);
 
-  function optionsCard() {
-    const mk = (o) => h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'opt-' + o.id, checked: calc.options.includes(o.id) ? 'checked' : null, onchange: (e) => { calc.options = e.target.checked ? [...calc.options, o.id] : calc.options.filter((x) => x !== o.id); if (o.id === 'obscure' && !e.target.checked) calc.options = calc.options.filter((id) => !obscureIds().has(id)); persist(); update(); } }), h('span', {}, o.name), o.price.type !== 'included' && o.price.amount ? h('em', {}, ' +' + (o.price.type === 'percent' ? o.price.amount + '%' : fmt(o.price.amount))) : null);
-    return h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Glass & frame options')),
-      h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), data.options.glass.map(mk)), h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map(mk))));
-  }
-
   function update() {
     const p = priceWindow(args());
     priceBox.replaceChildren();
     const summary = `${brand.name} ${calc.series} · ${typeName(calc.type)} · ${colorById(calc.color).name}`;
     priceBox.append(h('div', { class: 'eyebrow' }, summary));
-    if (!p) { priceBox.append(h('div', { class: 'big muted' }, '—'), h('p', { class: 'muted' }, 'Enter width and height to see the price.')); return; }
+    if (!p) {
+      const needsPrice = calc.type === 'custom_supplier' || isCustomLine(calc);
+      const sized = parseFloat(calc.w) > 0 && parseFloat(calc.h) > 0;
+      priceBox.append(h('div', { class: 'big muted' }, '—'), h('p', { class: 'muted' }, needsPrice ? 'Enter the supplier’s customer price.' : sized ? 'No fitted rate for this combination. Choose Custom unit and enter the supplier price.' : 'Enter width and height to see the price.'));
+      return;
+    }
     const qty = parseInt(calc.qty) || 1, inst = installUnit(calc.install), add = addonUnit(calc.install);
     const each = p.unit + inst + add;
-    const warn = (parseFloat(calc.w) < 12 || parseFloat(calc.h) < 12 || parseFloat(calc.w) > 144 || parseFloat(calc.h) > 144);
+    const width = parseFloat(calc.w), height = parseFloat(calc.h);
+    const warn = (width < 12 || height < 12 || width > 144 || height > 144);
+    const doorWidth = calc.series === '8900' && width > 0 && (width < 59 || width > 192);
     priceBox.append(...[
       h('div', { class: 'big', id: 'price-window' }, fmt(p.unit)), h('div', { class: 'sub' }, p.optionsEach ? 'window price (materials, incl. glass) · each' : 'window price (materials) · each'),
       h('div', { class: 'line' }, h('span', {}, 'Installation / labor (each)'), h('b', { id: 'price-install' }, fmt(inst))),
@@ -143,17 +211,20 @@ export function render(root) {
       h('div', { class: 'line strong' }, h('span', {}, add ? 'Window + install + add-ons, each' : 'Window + install, each'), h('b', { id: 'price-each' }, fmt(each))),
       qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} windows`), h('b', { id: 'price-total' }, fmt(each * qty))),
       h('div', { class: 'fine' }, 'Before tax'),
-      warn && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
+      warn && calc.series !== '8900' && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
+      doorWidth && h('p', { class: 'warn' }, '8900 doors are quoted for widths of about 59"–192".'),
       h('button', { class: 'link', onclick: () => { calc.details = !calc.details; persist(); update(); } }, calc.details ? 'Hide math' : 'Show math'),
-      calc.details && h('div', { class: 'math' }, `(${calc.w} + ${calc.h}) = ${p.wh}" × $${p.rate.toFixed(4)}/in = ${fmt(p.unitBase)}`, p.optionsEach ? ` + glass ${fmt(p.optionsEach)}` : '', ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`, add ? ` · add-ons ${fmt(add)}` : ''),
+      calc.details && h('div', { class: 'math' }, mathText(p, calc.w, calc.h), ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`, add ? ` · add-ons ${fmt(add)}` : ''),
       h('button', { class: 'btn primary xl', id: 'btn-add', onclick: addToEstimate }, '+ Add to estimate'),
-      h('p', { class: 'fine' }, 'Window price includes glass upcharges. Installation and add-ons are separate. Sales tax not included.')].filter(Boolean));
+      h('p', { class: 'fine' }, p.mode === 'custom'
+        ? 'Supplier price is the material price. Installation is separate. Promo codes do not discount this line. Sales tax not included.'
+        : 'Window price includes glass upcharges. Installation and add-ons are separate. Sales tax not included.')].filter(Boolean));
   }
   function addToEstimate() {
     const a = args(); const p = priceWindow(a);
     if (!p) return;
     const e = estimates.current();
-    e.lines.push({ id: uid(), label: calc.label || `Window ${e.lines.length + 1}`, brand: calc.brand, series: calc.series, type: calc.type, color: calc.color, w: a.w, h: a.h, qty: a.qty, options: [...calc.options], unitBase: p.unitBase, optionsEach: p.optionsEach, unit: p.unit, rate: p.rate, rateSet: settings.rateSet, estimated: p.estimated,
+    e.lines.push({ id: uid(), label: calc.label || (calc.type === 'custom_supplier' || String(typeName(calc.type)).toLowerCase().includes('door') ? `Unit ${e.lines.length + 1}` : `Window ${e.lines.length + 1}`), brand: calc.brand, series: calc.series, type: calc.type, color: calc.color, w: a.w || 0, h: a.h || 0, qty: a.qty, unitsPerLine: a.unitsPerLine, options: [...(calc.options || [])], addons: [...(calc.addons || [])], supplierPrice: calc.type === 'custom_supplier' || isCustomLine(calc) ? calc.supplierPrice : null, customDescription: calc.customDescription || '', unitBase: p.unitBase, optionsEach: p.optionsEach, unit: p.unit, rate: p.rate, rateSet: settings.rateSet, estimated: p.estimated, pricingMode: p.mode,
       install: JSON.parse(JSON.stringify(calc.install)), installUnit: installUnit(calc.install) });
     estimates.persist(); calc.label = ''; persist(); toast(`Added to ${e.number}`); rerender();
   }

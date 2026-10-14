@@ -39,14 +39,14 @@ export function toast(msg) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null };
+export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null };
 export let settings = {};
 
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'),
+  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'),
   ]);
   if (data.obscureGlass?.sections) {
     data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
@@ -101,6 +101,197 @@ export function optionPrice(opt, base, w, h) {
   if (p.type === 'perSqFt') return (w * h / 144) * (p.amount || 0);
   return 0;
 }
+
+// ---------- variable material model (data/variable-rates.json) ----------
+// Values in that file are already selling prices at 45%. Do not apply marginFactor().
+const GLASS_IDS = ['tempered', 'laminated', 'obscure'];
+const ADDON_NAMES = {
+  tempered: 'Tempered (safety) glass',
+  laminated: 'Laminated glass',
+  obscure: 'Obscured glass',
+  grids: 'Grids (flat colonial)',
+  flush_fin_trim: 'Flush fin + interior trim',
+  grilles_gbg: 'Grilles between the glass',
+  truscene: 'TruScene screen',
+};
+const finite = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const lineUnits = (line) => { const n = Number(line?.unitsPerLine ?? line?.units ?? 1); return n > 0 ? n : 1; };
+
+function classifyLine(line) {
+  if (!line || line.type === 'custom_supplier' || line.customSupplier) return { mode: 'custom' };
+  const vr = data.variableRates;
+  if (!vr) return { mode: 'fallback' };
+  let brand = line.brand;
+  let series = line.series;
+  let type = line.type;
+  if (brand === 'iwc_window') { brand = 'iwc'; series = series || '8200'; }
+  if (brand === 'iwc_door') { brand = 'iwc'; series = series || '8900'; }
+  if (brand === 'andersen') {
+    const A = vr.andersen;
+    if (!A || series !== A.series) return { mode: 'fallback' };
+    if ((A.keepExisting || []).includes(type)) return { mode: 'fallback' };
+    const typeDef = A.types?.[type];
+    const colorDef = A.colors?.[line.color];
+    if (!typeDef || !colorDef) return { mode: 'fallback' };
+    return { mode: 'variable', family: 'andersen', typeDef, colorDef, addons: A.addons || {} };
+  }
+  if (brand === 'milgard') {
+    const S = vr.milgard?.[series];
+    const typeDef = S?.types?.[type];
+    if (typeDef && (S.colorsFitted || []).includes(line.color)) {
+      return { mode: 'variable', family: 'milgard', typeDef, colorDef: { ratio: 1, adjustPerUnit: 0 }, addons: S.addons || {} };
+    }
+    return { mode: 'fallback' };
+  }
+  if (brand === 'iwc') {
+    const win = vr.iwc?.windows?.[series];
+    if (win?.types?.[type] && (win.colorsFitted || []).includes(line.color)) {
+      return { mode: 'variable', family: 'iwc', typeDef: win.types[type], colorDef: { ratio: 1, adjustPerUnit: 0 }, addons: {}, includes: win.types[type].includes || null };
+    }
+    const door = vr.iwc?.doors?.[series];
+    const cfg = line.doorConfig || type;
+    if (door?.configs?.[cfg] && (door.colorsFitted || []).includes(line.color)) {
+      return { mode: 'variable', family: 'iwc', typeDef: door.configs[cfg], colorDef: { ratio: 1, adjustPerUnit: 0 }, addons: {}, includes: door.includes || null };
+    }
+    return { mode: 'custom' };
+  }
+  return { mode: 'fallback' };
+}
+
+export function isCustomLine(line) {
+  if (!line) return false;
+  if (line.type === 'custom_supplier' || line.customSupplier) return true;
+  return classifyLine(line).mode === 'custom';
+}
+export function lineAddonDefs(line) {
+  const model = classifyLine(line);
+  return model.mode === 'variable' ? (model.addons || {}) : null;
+}
+export function addonName(id, def) { return def?.name || ADDON_NAMES[id] || id; }
+export function addonPriceHint(def) {
+  if (!def) return '';
+  if (def.type === 'percentOfWindow') return `+${def.amount}%`;
+  if (def.type === 'perWindow') return `+${fmt(def.amount)}`;
+  if (def.type === 'perUI') return `+$${def.amount}/UI`;
+  if (def.type === 'perSqFt') return `+$${def.amount}/sq ft`;
+  if (def.type === 'perWindowPlusPerSqFt') return `+${fmt(def.amount)} + $${def.perSqFt}/sq ft`;
+  return '';
+}
+export function fittedIncludes(line) {
+  const inc = classifyLine(line).includes;
+  if (!inc) return '';
+  return 'Included in the price: ' + (Array.isArray(inc) ? inc.join(', ') : inc) + '.';
+}
+export function variableRateInfo(brand, series, color, type) {
+  const model = classifyLine({ brand, series, color, type });
+  if (model.mode !== 'variable') return null;
+  const t = model.typeDef;
+  const c = model.colorDef || {};
+  return {
+    base: t.base || 0, perUI: t.perUI || 0, perSqFt: t.perSqFt || 0,
+    ratio: c.ratio ?? 1, adjustPerUnit: c.adjustPerUnit || 0, provisional: !!t.provisional,
+  };
+}
+export function setLineAddon(line, id, on) {
+  line.addons ||= [];
+  line.options ||= [];
+  const glass = GLASS_IDS.includes(id);
+  if (on) {
+    if (!line.addons.includes(id)) line.addons.push(id);
+    if (glass && !line.options.includes(id)) line.options.push(id);
+  } else {
+    line.addons = line.addons.filter((x) => x !== id);
+    if (glass) {
+      line.options = line.options.filter((x) => x !== id);
+      if (id === 'obscure') {
+        const ids = new Set((data.obscureGlass?.patterns || []).map((p) => p.id));
+        line.options = line.options.filter((x) => !ids.has(x));
+      }
+    }
+    if (id === 'grids') line.options = line.options.filter((x) => x !== 'grids-colonial');
+  }
+}
+
+function chosenAddonIds(line, addonDefs) {
+  const ids = new Set();
+  for (const id of line.addons || []) if (addonDefs[id]) ids.add(id);
+  for (const id of line.options || []) {
+    if (addonDefs[id]) ids.add(id);
+    if (id === 'grids-colonial' && addonDefs.grids) ids.add('grids');
+  }
+  return [...ids];
+}
+function variableRaw(model, line) {
+  const w = finite(line.w), h = finite(line.h);
+  const ui = w + h, sqft = w * h / 144;
+  const t = model.typeDef;
+  const ratio = model.colorDef?.ratio ?? 1;
+  const adjust = model.colorDef?.adjustPerUnit || 0;
+  const core = (t.base || 0) + (t.perUI || 0) * ui + (t.perSqFt || 0) * sqft;
+  let scaledPerUI = 0, extra = 0;
+  for (const id of chosenAddonIds(line, model.addons)) {
+    const A = model.addons[id];
+    if (A.type === 'perUI' && A.scaledByColor) scaledPerUI += A.amount || 0;
+    else if (A.type === 'perUI') extra += (A.amount || 0) * ui;
+    else if (A.type === 'perWindow') extra += A.amount || 0;
+    else if (A.type === 'perSqFt') extra += (A.amount || 0) * sqft;
+    else if (A.type === 'perWindowPlusPerSqFt') extra += (A.amount || 0) + (A.perSqFt || 0) * sqft;
+    else if (A.type === 'percentOfWindow') extra += (A.amount || 0) / 100 * core * ratio;
+  }
+  const colored = (core + scaledPerUI * ui) * ratio + adjust;
+  const units = lineUnits(line);
+  return { raw: (colored + extra) * units, core, ui, sqft, ratio, adjust, colored, extra, units, typeDef: t, scaledPerUI };
+}
+function strayOptionExtra(line, model, base, w, h) {
+  const opts = line.options || [];
+  if (!opts.length || !data.options) return 0;
+  const consumed = new Set(chosenAddonIds(line, model.addons));
+  if (consumed.has('grids')) consumed.add('grids-colonial');
+  // Glass percents are charged only from this series' addon map.
+  // IWC prices already include tempered glass, so a leftover 12% must not stack.
+  let extra = 0;
+  for (const id of opts) {
+    if (consumed.has(id) || GLASS_IDS.includes(id)) continue;
+    extra += optionPrice(optionDef(id), base, w, h) || 0;
+  }
+  return extra * lineUnits(line);
+}
+// One material unit (factory-mull units included, quantity not included).
+// Rounded once, to the cent, or to the dollar when that setting is on.
+function buildMaterial(line) {
+  line = line || {};
+  const model = classifyLine(line);
+  const w = finite(line.w), h = finite(line.h);
+  if (model.mode === 'custom') {
+    if (line.supplierPrice === '' || line.supplierPrice == null) return null;
+    const n = Number(line.supplierPrice);
+    if (!Number.isFinite(n)) return null;
+    const unit = roundMoney(n * lineUnits(line));
+    return { mode: 'custom', unit, unitBase: unit, optionsEach: 0, rate: null, estimated: false, wh: w + h, fromQuotes: false, detail: null };
+  }
+  if (!(w > 0) || !(h > 0)) return null;
+  if (model.mode === 'variable') {
+    const d = variableRaw(model, line);
+    const unit = roundMoney(d.raw + strayOptionExtra(line, model, d.colored, w, h));
+    const coreRounded = roundMoney(d.colored);
+    return {
+      mode: 'variable', unit, unitBase: coreRounded, optionsEach: roundMoney(unit - coreRounded),
+      rate: null, estimated: false, wh: d.ui, fromQuotes: true, provisional: !!model.typeDef.provisional, detail: d,
+    };
+  }
+  const rr = getRate(line.brand, line.series, line.color, line.type);
+  if (!rr) return null;
+  const wh = w + h;
+  const unitBase = roundMoney(wh * rr.rate);
+  const optionsEach = roundMoney((line.options || []).reduce((s, id) => s + optionPrice(optionDef(id), unitBase, w, h), 0));
+  const units = lineUnits(line);
+  const unit = units === 1 ? roundMoney(unitBase + optionsEach) : roundMoney((unitBase + optionsEach) * units);
+  return { mode: 'fallback', unit, unitBase, optionsEach, rate: rr.rate, estimated: !!rr.estimated, wh, fromQuotes: false, detail: null };
+}
+export function materialUnitPrice(line) {
+  const built = buildMaterial(line);
+  return built ? built.unit : null;
+}
 // ---------- installation / labor (separate from window price and from add-ons) ----------
 export const installType = (id) => data.install.types.find((t) => t.id === id) || data.install.types[0];
 export const defaultInstall = () => ({ type: data.install.defaultType, surcharges: [], override: null, custom: null, frameType: null });
@@ -141,15 +332,12 @@ export function stuccoState(e) {
   const unit = Number(def.price) || 0;
   return { on, follows: on && follows, name: def.name, unit, qty, total: r2(unit * qty) };
 }
-// Returns {unitBase, optionsEach, unit, total, rate, wh}
-export function priceWindow({ brand, series, color, type, w, h, qty = 1, options = [] }) {
-  const rr = getRate(brand, series, color, type);
-  if (!rr || !(w > 0) || !(h > 0)) return null;
-  const wh = w + h;
-  const unitBase = roundMoney(wh * rr.rate);
-  const optionsEach = roundMoney(options.reduce((s, id) => s + optionPrice(optionDef(id), unitBase, w, h), 0));
-  const unit = roundMoney(unitBase + optionsEach);
-  return { rate: rr.rate, estimated: rr.estimated, wh, unitBase, optionsEach, unit, total: roundMoney(unit * qty) };
+// Returns {unitBase, optionsEach, unit, total, rate, wh, mode}
+export function priceWindow(line) {
+  const built = buildMaterial(line || {});
+  if (!built) return null;
+  const qty = parseInt(line?.qty, 10) || 1;
+  return { ...built, total: roundMoney(built.unit * qty) };
 }
 
 // ---------- estimates ----------
@@ -207,19 +395,22 @@ export function promoResult(e, windows = 0, install = 0) {
   const promo = findPromo(entered);
   if (!promo) return { ...empty, invalid: true, error: 'That code is not valid.' };
   const lines = e.lines || [];
+  const eligible = (l) => promo.appliesToCustom || !isCustomLine(l);
+  const priced = lines.filter(eligible);
   let windowAmount = 0, laborAmount = 0, note = '';
   if (promo.type === 'percent') {
     const pct = Number(promo.percent) || 0;
-    windowAmount = r2(windows * pct / 100);
+    const base = r2(priced.reduce((s, l) => s + (Number(l.unit) || 0) * (Number(l.qty) || 0), 0));
+    windowAmount = r2(base * pct / 100);
     if (promo.appliesToLabor) laborAmount = r2(install * pct / 100);
   } else if (promo.type === 'bogo') {
     const buy = Number(promo.buy) || 0, get = Number(promo.get) || 0, group = buy + get;
-    const count = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+    const count = priced.reduce((s, l) => s + (Number(l.qty) || 0), 0);
     const freeN = group > 0 && get > 0 ? Math.floor(count / group) * get : 0;
     if (freeN < 1) note = `Needs ${group} or more windows. One free window per ${group} (the cheapest window price, including glass).`;
     else {
       const units = [];
-      for (const l of lines) for (let i = 0; i < (Number(l.qty) || 0); i++) units.push({ material: Number(l.unit) || 0, labor: installUnit(l.install) });
+      for (const l of priced) for (let i = 0; i < (Number(l.qty) || 0); i++) units.push({ material: Number(l.unit) || 0, labor: installUnit(l.install) });
       units.sort((a, b) => a.material - b.material);
       for (const u of units.slice(0, freeN)) { windowAmount += u.material; if (promo.appliesToLabor) laborAmount += u.labor; }
       windowAmount = r2(windowAmount); laborAmount = r2(laborAmount);

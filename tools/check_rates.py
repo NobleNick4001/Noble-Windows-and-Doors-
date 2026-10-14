@@ -16,13 +16,18 @@ brand = next(b for b in rates['brands'] if b['id'] == 'andersen')
 check(brand.get('status') == 'active', 'Andersen should be active')
 series = brand['series'][0]
 check(series['id'] == '100', 'series id')
-check(series['colors'] == ['ww', 'sandtone', 'terratone', 'bw', 'dkbronze', 'bb'], 'Andersen colors ' + str(series['colors']))
+check(series['colors'] == ['ww', 'sandtone', 'terratone', 'bw', 'dkbronze', 'dkbronze_dkbronze', 'bb'], 'Andersen colors ' + str(series['colors']))
 check(series['types'] == ['hslider', 'xox', 'vslider', 'picture', 'casement', 'arch', 'awning'], 'Andersen types ' + str(series['types']))
 color_ids = {c['id'] for c in rates['colors']}
 type_ids = {t['id'] for t in rates['types']}
-check({'sandtone', 'terratone', 'dkbronze'} <= color_ids, 'new colors missing from colors[]')
-check({'awning', 'xox'} <= type_ids, 'new types missing from types[]')
-check(next(b for b in rates['brands'] if b['id'] == 'iwc')['status'] == 'coming_soon', 'IWC should stay coming soon')
+names = {c['id']: c['name'] for c in rates['colors']}
+check({'sandtone', 'terratone', 'dkbronze', 'dkbronze_dkbronze'} <= color_ids, 'new colors missing from colors[]')
+check({'awning', 'xox', 'hvb', 'custom_supplier'} <= type_ids, 'new types missing from types[]')
+check(names.get('dkbronze') == 'Dark Bronze / White', 'dkbronze display name')
+check(names.get('dkbronze_dkbronze') == 'Dark Bronze / Dark Bronze', 'same-color dark bronze')
+iwc = next(b for b in rates['brands'] if b['id'] == 'iwc')
+check(iwc['status'] == 'active', 'IWC should be active')
+check({s['id'] for s in iwc['series']} >= {'8200', '8900'}, 'IWC 8200 windows and 8900 doors')
 
 for color in series['colors']:
     for typ in series['types']:
@@ -33,18 +38,29 @@ for color in series['colors']:
         check(bool(rec['estimated']) == (rec['n'] < 3), f'{key} estimated={rec["estimated"]} n={rec["n"]}')
         check(rec['max'] + 1e-9 >= rec['p75'], key + ' max < p75')
 
-for typ in series['types']:
-    w, s = brand['rates'][f'100|ww|{typ}'], brand['rates'][f'100|sandtone|{typ}']
-    check(w['p75'] == s['p75'] and w['max'] == s['max'] and w['n'] == s['n'], 'Sandtone should match White for ' + typ)
+vr = json.load(open('data/variable-rates.json'))
+sand, black, white = (vr['andersen']['colors'][k] for k in ('sandtone', 'bb', 'ww'))
+check(sand['ratio'] == black['ratio'] == 1.0 and sand['adjustPerUnit'] == black['adjustPerUnit'] == 0, 'Sandtone is priced like Black')
+check(white['adjustPerUnit'] == -191.71 and white['ratio'] == 1.0, 'White/White credit')
+
+def variable_sell(color, typ='hslider', w=70, h=60):
+    t = vr['andersen']['types'][typ]
+    c = vr['andersen']['colors'][color]
+    core = t['base'] + t['perUI'] * (w + h) + t['perSqFt'] * w * h / 144
+    return money(core * c['ratio'] + c['adjustPerUnit'])
+
+check(variable_sell('sandtone') == variable_sell('bb'), 'Sandtone selling price equals Black')
+check(variable_sell('sandtone') != variable_sell('ww'), 'Sandtone is no longer priced like White')
 
 xo = brand['rates']['100|ww|hslider']
 check(abs(xo['p75'] - 9.5609) < 1e-9, 'white XO stored p75 stays the 40% quote rate')
 check(rates.get('grossMargin') == 0.45, 'grossMargin should be the one 45% selling margin')
 factor = 0.60 / (1 - rates['grossMargin'])
-material = money((70 + 60) * xo['p75'] * factor)
 check(abs(factor - (0.60 / 0.55)) < 1e-12, '45% margin factor')
-check(material == 1355.91, f'70x60 white XO material {material} != 1355.91')
-check(abs((70 + 60) * xo['p75'] * factor - 1356) < 1, 'about $1,356')
+# Selling price is the variable model, not stored p75 × marginFactor.
+material = variable_sell('ww')
+check(material == 1032.63, f'70x60 white XO material {material} != 1032.63')
+check(abs((115.53 + 8.5293 * 130) - 191.71 - 1032.63) < 0.01, 'Andersen XO white formula')
 check(xo['estimated'] is False and xo['n'] >= 3, 'white XO should not be a thin-sample estimate')
 check(brand['rates']['100|ww|awning']['estimated'] is True, 'awning n<3 should be estimated')
 check(brand['rates']['100|ww|xox']['estimated'] is True, 'xox n<3 should be estimated')
@@ -58,7 +74,8 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v16'" in sw, 'service worker cache should be nwd-sales-v16')
+check("const CACHE = 'nwd-sales-v18'" in sw, 'service worker cache should be nwd-sales-v18')
+check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
 check('data/purchase-agreement.json' in sw, 'purchase agreement should be precached')
 check('js/pages/contract.js' in sw and 'js/pdf.js' in sw and 'js/sign.js' in sw and 'js/vendor/jspdf.umd.min.js' in sw, 'contract scripts should be precached')
@@ -101,10 +118,10 @@ check('C650' not in public_text(glass) and 'C700' not in public_text(glass), 'do
 
 gallery = json.load(open('assets/gallery/gallery.json'))
 gs = gallery['slides']
-check(len(gs) == 39, 'gallery should have 39 photos')
-check(all(s.get('source') == 'nick' for s in gs[:14]), 'first 14 slides are Nick photos')
-check(all(s.get('group') == 'noble-projects' for s in gs[14:]), 'website photos follow as Noble projects')
-check([g['label'] for g in gallery['groups']] == ['Milgard V300', 'Andersen 100', 'Andersen 100 Retrofit', 'Noble projects'], 'filter labels')
+check(len(gs) == 48, 'gallery should have 48 photos')
+check(all(s.get('source') == 'nick' for s in gs[:23]), 'first 23 slides are Nick photos')
+check(all(s.get('group') == 'noble-projects' for s in gs[23:]), 'website photos follow as Noble projects')
+check([g['label'] for g in gallery['groups']] == ['Milgard V300', 'Milgard V400 Tuscany', 'Andersen 100', 'Andersen 100 Retrofit', 'Multi Slides', 'Noble projects'], 'filter labels')
 check(all(os.path.isfile('assets/gallery/' + s['src']) for s in gs), 'a gallery file is missing')
 check(sum(1 for s in gs if s.get('lowRes')) == 16, '760px site photos should be flagged lowRes')
 check(not any(s.get('placeholder') for s in gs), 'placeholders should be gone')

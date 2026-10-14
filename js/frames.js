@@ -77,6 +77,26 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
       body += rect(gx, gy, gw, st, i) + rect(gx, gy + gh - st, gw, st, i) + rect(gx, gy, st, gh, i) + rect(gx + gw - st, gy, st, gh, i);
       body += `<path d="M${gx + gw / 2},${gy + gh - st} L${gx + st},${gy + st} M${gx + gw / 2},${gy + gh - st} L${gx + gw - st},${gy + st}" stroke="${e}" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".6"/>`;
       body += `<rect x="${gx + gw / 2 - 14}" y="${gy + gh - st - 6}" width="28" height="9" rx="3" fill="${e}" opacity=".7"/>`;
+    } else if (type === 'hvb') {
+      const split = gy + gh * 0.58;
+      body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
+      body += rect(gx, gy, gw, st, i) + rect(gx, gy, st, split - gy, i) + rect(gx + gw - st, gy, st, split - gy, i);
+      body += rect(gx, split - st / 2, gw, st * 1.2, f);
+      body += rect(gx, split + st / 2, gw, st, i) + rect(gx, gy + gh - st, gw, st, i) + rect(gx, split, st, gy + gh - split, i) + rect(gx + gw - st, split, st, gy + gh - split, i);
+      body += `<path d="M${gx + gw / 2},${gy + gh - st} L${gx + st},${split + st} M${gx + gw / 2},${gy + gh - st} L${gx + gw - st},${split + st}" stroke="${e}" stroke-width="2" stroke-dasharray="7 5" fill="none" opacity=".6"/>`;
+    } else if (type === '2panel' || type === '4panel') {
+      const n = type === '4panel' ? 4 : 2;
+      body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
+      body += rect(gx, gy, gw, st, i) + rect(gx, gy + gh - st, gw, st, i);
+      for (let k = 0; k < n; k++) {
+        const x = gx + (gw / n) * k;
+        body += rect(x, gy, st, gh, i);
+        if (k > 0) body += rect(x - st * 0.35, gy, st * 1.15, gh, f);
+      }
+      body += rect(gx + gw - st, gy, st, gh, i);
+    } else if (type === 'custom_supplier') {
+      body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5" stroke-dasharray="8 6"/>`;
+      body += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" font-family="Helvetica,Arial" font-size="${Math.max(14, W * 0.08)}" fill="${e}">$</text>`;
     } else if (type === 'xox') {
       const third = gw / 3;
       body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;

@@ -1,25 +1,27 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, toast, uid } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, toast, uid, addonName } from '../core.js';
 import { contractPay } from '../pdf.js';
-import { icon, frameKeyFor, stepper, installEditor } from './calculator.js';
+import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
 const open = new Set(); // line ids being edited
 const promoUi = { forId: null, draft: '', dirty: false, error: '' };
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-function lineDesc(l) { return `${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${colorById(l.color)?.name || l.color}`; }
-function optNames(l) { return (l.options || []).map((id) => optionDef(id)?.name).filter(Boolean); }
+function lineDesc(l) {
+  const custom = l.customDescription ? `${l.customDescription} — ` : '';
+  const mull = Number(l.unitsPerLine) > 1 ? ` · ${l.unitsPerLine} units` : '';
+  return `${custom}${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${colorById(l.color)?.name || l.color}${mull}`;
+}
+function optNames(l) {
+  const fromOpt = (l.options || []).map((id) => optionDef(id)?.name).filter(Boolean);
+  const fromAdd = (l.addons || []).map((id) => addonName(id)).filter((n) => n && !fromOpt.includes(n));
+  return [...fromAdd, ...fromOpt];
+}
 function reprice(l) {
-  const p = priceWindow({ brand: l.brand, series: l.series, color: l.color, type: l.type, w: l.w, h: l.h, qty: l.qty, options: l.options });
-  if (p) { l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; }
+  const p = priceWindow(l);
+  if (p) { l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; }
+  else { l.unitBase = 0; l.optionsEach = 0; l.unit = 0; }
   l.installUnit = installUnit(l.install);
 }
-function optionTag(o) {
-  const p = o?.price || {};
-  if (p.type === 'percent' && p.amount) return ` +${p.amount}%`;
-  if (p.type !== 'included' && p.amount) return ` +${fmt(p.amount)}`;
-  return '';
-}
-
 export function render(root) {
   const e = estimates.current();
   e.extras ||= [];
@@ -62,17 +64,18 @@ export function render(root) {
       row.append(h('div', { class: 'edit' },
         h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', { type: 'text', value: l.label, oninput: (ev) => { l.label = ev.target.value; save(); } })),
         h('div', { class: 'grid3' }, stepper('Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 })),
+        stepper('Units in this line', l.unitsPerLine || 1, (v) => { l.unitsPerLine = parseInt(v, 10) || 1; reprice(l); save(); refreshTotals(); }, { min: 1 }),
+        customPriceFields(l, () => { reprice(l); save(); refreshTotals(); }, 'li-' + l.id),
         seriesDef && h('b', {}, 'Window type'),
-        seriesDef && h('div', { class: 'chips' }, seriesDef.types.map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
+        seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
         seriesDef && h('b', {}, 'Frame color'),
         seriesDef && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
-        h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), data.options.glass.map((o) => optCheck(l, o))), h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map((o) => optCheck(l, o)))),
+        upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
         h('b', {}, 'Installation'), installEditor(l.install, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id),
         h('button', { class: 'btn primary', onclick: () => { reprice(l); save(); open.delete(l.id); rerender(); } }, 'Save line')));
     }
     lines.append(row);
   });
-  function optCheck(l, o) { return h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'opt-' + l.id + '-' + o.id, checked: l.options.includes(o.id) ? 'checked' : null, onchange: (ev) => { l.options = ev.target.checked ? [...l.options, o.id] : l.options.filter((x) => x !== o.id); if (o.id === 'obscure' && !ev.target.checked) { const ids = new Set((data.obscureGlass?.patterns || []).map((p) => p.id)); l.options = l.options.filter((id) => !ids.has(id)); } reprice(l); save(); rerender(); } }), h('span', {}, o.name + optionTag(o))); }
   lines.append(h('a', { class: 'btn', href: '#/calculator' }, '+ Add window'));
   wrap.append(lines);
 
@@ -141,7 +144,7 @@ export function render(root) {
     promoError && h('p', { class: 'warn', id: 'promo-error' }, promoError),
     applied && h('div', { class: 'row between wrap gap', id: 'promo-applied' }, h('span', {}, `${applied.code} · ${applied.label}`), h('button', { type: 'button', class: 'btn sm', id: 'promo-remove', onclick: removePromo }, 'Remove')),
     applied && promoNote && h('p', { class: 'fine', id: 'promo-note' }, promoNote),
-    h('p', { class: 'fine' }, 'Applies to the window price, including glass. Does not apply to installation, add-ons, or stucco repair.')));
+    h('p', { class: 'fine' }, 'Applies to the window price, including glass. Does not apply to installation, add-ons, stucco repair, or a custom unit entered at the supplier price.')));
 
   // totals
   const tot = h('div', { class: 'card totals', id: 'totals' });

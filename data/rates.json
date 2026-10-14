@@ -1,5 +1,5 @@
 {
- "_readme": "RATE TABLE (material only). Stored p75/max are quoted customer $/inch and already include a 40% margin (customer = cost / 0.60). Selling rate = stored x 0.60 / (1 - grossMargin). grossMargin is the one margin to edit (0.45 = 45%). That scales every series, color, and type, including estimated and derived rates (Adobe is white/white x its multiplier, then the same margin). Labor, tax, shipping, and flat add-ons are not scaled. A percent-of-window add-on follows the selling price. 'p75' = recommended (75th percentile of quoted $/in), 'max' = highest observed. 'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). Andersen 100 Series is active and is NOT rebuilt by tools/build_rates.py (customer-pricing quotes; Sandtone = White per Nick; Dark Bronze is dark-bronze exterior / white interior; thin types n < 3 are estimated). IWC is still coming_soon. See README.md.",
+ "_readme": "RATE TABLE (material only, fallback). Stored p75/max are quoted customer $/inch and already include a 40% margin (customer = cost / 0.60). Selling rate on this path = stored x 0.60 / (1 - grossMargin). grossMargin (0.45) applies ONLY to combinations that are not in data/variable-rates.json. Fitted quote prices (Andersen 100 except awning, Milgard V300 White/Adobe, Milgard A250 Bronze, IWC 8200 and 8900 Bronze Anodized) live in data/variable-rates.json and are already selling prices at 45%. Do not run those through marginFactor. Labor, tax, shipping, and flat add-ons are not scaled. 'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). Sandtone selling price matches Black (variable model). Dark Bronze / White is the two-tone exterior. Dark Bronze / Dark Bronze is the same-color tier. IWC is active for 8200 windows and 8900 doors in Bronze Anodized. Other IWC colors use the custom supplier-price line. See README.md.",
  "version": 2,
  "generated": "2026-10-11",
  "formula": "(width + height) * storedRate * 0.60 / (1 - grossMargin)",
@@ -32,6 +32,22 @@
   {
    "id": "xox",
    "name": "XOX Horizontal Slider"
+  },
+  {
+   "id": "hvb",
+   "name": "Half Vent Below Picture"
+  },
+  {
+   "id": "2panel",
+   "name": "2-Panel Sliding Door (OX/XO)"
+  },
+  {
+   "id": "4panel",
+   "name": "4-Panel Sliding Door (OXXO)"
+  },
+  {
+   "id": "custom_supplier",
+   "name": "Custom unit (enter supplier price)"
   }
  ],
  "colors": [
@@ -79,9 +95,39 @@
   },
   {
    "id": "dkbronze",
-   "name": "Dark Bronze",
+   "name": "Dark Bronze / White",
    "swatch": "#4a3b2f",
    "frame": "dkbronze"
+  },
+  {
+   "id": "dkbronze_dkbronze",
+   "name": "Dark Bronze / Dark Bronze",
+   "swatch": "#3d2e24",
+   "frame": "dkbronze"
+  },
+  {
+   "id": "bronze-anodized",
+   "name": "Bronze Anodized",
+   "swatch": "#5b4636",
+   "frame": "bronze"
+  },
+  {
+   "id": "clear-anodized",
+   "name": "Clear Anodized",
+   "swatch": "linear-gradient(135deg,#e4e7eb 30%,#9aa3ad 70%)",
+   "frame": "white"
+  },
+  {
+   "id": "mojave-beige",
+   "name": "Mojave Beige",
+   "swatch": "#c2a878",
+   "frame": "sandtone"
+  },
+  {
+   "id": "white",
+   "name": "White",
+   "swatch": "#f7f7f5",
+   "frame": "white"
   }
  ],
  "brands": [
@@ -121,7 +167,9 @@
       "vslider",
       "picture",
       "casement",
-      "arch"
+      "arch",
+      "xox",
+      "hvb"
      ]
     },
     {
@@ -155,7 +203,8 @@
       "vslider",
       "picture",
       "casement",
-      "arch"
+      "arch",
+      "xox"
      ]
     }
    ],
@@ -572,6 +621,7 @@
       "terratone",
       "bw",
       "dkbronze",
+      "dkbronze_dkbronze",
       "bb"
      ],
      "types": [
@@ -844,14 +894,85 @@
      "max": 16.7115,
      "estimated": true,
      "n": 2
+    },
+    "100|dkbronze_dkbronze|hslider": {
+     "p75": 11.8807,
+     "max": 12.519,
+     "estimated": false,
+     "n": 3
+    },
+    "100|dkbronze_dkbronze|xox": {
+     "p75": 13.5297,
+     "max": 13.5297,
+     "estimated": true,
+     "n": 1
+    },
+    "100|dkbronze_dkbronze|vslider": {
+     "p75": 12.1333,
+     "max": 12.519,
+     "estimated": true,
+     "n": 2
+    },
+    "100|dkbronze_dkbronze|picture": {
+     "p75": 9.2694,
+     "max": 9.5307,
+     "estimated": true,
+     "n": 2
+    },
+    "100|dkbronze_dkbronze|casement": {
+     "p75": 16.1479,
+     "max": 16.7115,
+     "estimated": true,
+     "n": 2
+    },
+    "100|dkbronze_dkbronze|arch": {
+     "p75": 17.5739,
+     "max": 18.6272,
+     "estimated": false,
+     "n": 3
+    },
+    "100|dkbronze_dkbronze|awning": {
+     "p75": 15.8643,
+     "max": 15.8643,
+     "estimated": true,
+     "n": 1
     }
    }
   },
   {
    "id": "iwc",
    "name": "IWC",
-   "status": "coming_soon",
-   "series": [],
+   "status": "active",
+   "series": [
+    {
+     "id": "8200",
+     "name": "8200",
+     "colors": [
+      "bronze-anodized",
+      "clear-anodized",
+      "mojave-beige",
+      "white"
+     ],
+     "types": [
+      "hslider",
+      "picture"
+     ]
+    },
+    {
+     "id": "8900",
+     "name": "8900 Doors",
+     "colors": [
+      "bronze-anodized",
+      "clear-anodized",
+      "mojave-beige",
+      "white"
+     ],
+     "types": [
+      "2panel",
+      "4panel"
+     ]
+    }
+   ],
    "rates": {}
   }
  ],
