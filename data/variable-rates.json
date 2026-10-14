@@ -1,6 +1,6 @@
 {
  "_readme": "Selling (customer) MATERIAL prices at 45% margin. Do NOT apply marginFactor to anything in this file. Labor stays in data/install.json.",
- "version": "2026-10-13",
+ "version": "2026-10-13b",
  "grossMarginBasis": 0.45,
  "formula": "unit = (base + perUI*UI + perSqFt*sqft + sum(perUI addons scaledByColor)*UI) * color.ratio + color.adjustPerUnit + flat/perSqFt/perWindow addons; percent addons = % of (base+perUI*UI+perSqFt*sqft)*ratio. UI = W+H, sqft = W*H/144, net frame/unit size in inches. Line = unit * qty * unitsPerLine(mull).",
  "andersen": {
@@ -170,13 +170,18 @@
    },
    "addons": {
     "tempered": {
-     "type": "perWindow",
-     "amount": 264.98
+     "type": "perWindowPlusPerSqFt",
+     "amount": 8.0,
+     "perSqFt": 16.1,
+     "max": 264.98,
+     "name": "Tempered (full unit)",
+     "note": "Size-scaled $8 + $16.10/sq ft, capped at $264.98 (reached at 16 sq ft; 48x48 Adobe and 71x59 quotes both price full tempered at $264.98)."
     },
     "obscure": {
-     "type": "perWindow",
-     "amount": 497.37,
-     "note": "on top of tempered (obscure glass ships tempered here)"
+     "type": "perSqFt",
+     "amount": 31.1,
+     "max": 497.37,
+     "note": "on top of tempered; $31.10/sq ft capped at $497.37 (48x48 Adobe quote = $497.37)."
     },
     "grids": {
      "type": "perUI",
@@ -187,9 +192,33 @@
      "type": "percentOfWindow",
      "amount": 12,
      "note": "no Milgard data; keep 12%"
+    },
+    "tempered_lower": {
+     "type": "perWindowPlusPerSqFt",
+     "amount": 4.0,
+     "perSqFt": 8.02,
+     "max": 132.49,
+     "name": "Tempered (lower sash only)",
+     "glass": true,
+     "note": "Half the full-unit rate. Ignored if full tempered is also checked."
+    },
+    "zbar": {
+     "type": "perWindowPlusPerUI",
+     "amount": 5.4,
+     "perUI": 0.396,
+     "auto": "frameType:zbar",
+     "name": "Standard Z-Bar (retrofit frame)",
+     "note": "Milgard charges Z-bar as a material line (V250/V300/V400 quotes $25-68). Fitted V300 rates are block-frame, so it is added when the frame type is Retrofit/Z-bar."
     }
    },
-   "warranty": "Glass Breakage + Full Lifetime Warranty is included in these rates (quotes without it are ~$79.61 cheaper on a 71x59; no credit modeled)."
+   "warranty": "Glass Breakage + Full Lifetime Warranty is included in these rates (quotes without it are ~$79.61 cheaper on a 71x59; no credit modeled).",
+   "colorAdjust": {
+    "ww": {
+     "hslider": 27.0,
+     "vslider": 27.0,
+     "note": "Cushion: V300 HV/SH were fitted on Adobe block-frame quotes; White Z-bar quote SQPHZQ000617_1 ran $14-27 over the fit after Z-bar."
+    }
+   }
   },
   "A250": {
    "colorsFitted": [
@@ -250,7 +279,8 @@
   "V400": {
    "note": "No non-composite V400 data; keep existing rates. Composites -> custom supplier-price line."
   },
-  "otherSeriesColors": "keep existing rates (rates.json p75 x margin factor)"
+  "otherSeriesColors": "keep existing rates (rates.json p75 x margin factor)",
+  "zbarNote": "V250/V400 have no fitted variable model; their stored rates.json rates came from Z-bar quotes and already include it, so Z-bar is not added there (it would double-charge). Add the zbar addon to any future fitted V250/V400 block-frame model."
  },
  "iwc": {
   "windows": {

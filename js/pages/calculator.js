@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines, lineAddonDefs, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine } from '../core.js';
 import { frameSVG } from '../frames.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
@@ -78,16 +78,19 @@ export function upgradeEditor(line, onChange, idp = 'opt-') {
       h('div', {}, h('b', {}, 'Glass'), data.options.glass.map((o) => legacyOptionCheck(line, o, onChange, idp))),
       h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map((o) => legacyOptionCheck(line, o, onChange, idp))));
   }
-  const entries = Object.entries(defs);
+  const autoOn = Object.entries(defs).filter(([, d]) => isAutoAddon(d) && d.auto === `frameType:${line.install?.frameType}`);
+  const entries = Object.entries(defs).filter(([, d]) => !isAutoAddon(d));
   if (!entries.length) return h('p', { class: 'fine' }, fittedIncludes(line) || 'No extra glass upcharges on this series.');
-  const glass = entries.filter(([id]) => id === 'tempered' || id === 'laminated' || id === 'obscure');
-  const extra = entries.filter(([id]) => id !== 'tempered' && id !== 'laminated' && id !== 'obscure');
+  const GL = ['tempered', 'tempered_lower', 'laminated', 'obscure'];
+  const glass = entries.filter(([id]) => GL.includes(id));
+  const extra = entries.filter(([id]) => !GL.includes(id));
   const mk = ([id, def]) => {
     const on = (line.addons || []).includes(id) || (line.options || []).includes(id) || (id === 'grids' && (line.options || []).includes('grids-colonial'));
     return h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + id, checked: on ? 'checked' : null, onchange: (e) => { setLineAddon(line, id, e.target.checked); onChange(); } }), h('span', {}, addonName(id, def)), h('em', {}, ' ' + addonPriceHint(def)));
   };
   return h('div', {},
     h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), glass.map(mk)), h('div', {}, h('b', {}, 'Upgrades'), extra.map(mk))),
+    autoOn.length ? h('p', { class: 'fine', id: idp + '-auto-addons' }, 'Added for the frame type: ' + autoOn.map(([id, d]) => `${addonName(id, d)} ${addonPriceHint(d)}`).join(', ') + '.') : null,
     fittedIncludes(line) ? h('p', { class: 'fine' }, fittedIncludes(line)) : null);
 }
 export function customPriceFields(line, onChange, idp = 'in') {
@@ -163,7 +166,7 @@ export function render(root) {
     root.replaceChildren(wrap); return;
   }
   const series = brand.series.find((s) => s.id === calc.series);
-  const args = () => ({ brand: calc.brand, series: calc.series, color: calc.color, type: calc.type, w: parseFloat(calc.w), h: parseFloat(calc.h), qty: parseInt(calc.qty) || 1, unitsPerLine: Number(calc.unitsPerLine) || 1, options: calc.options, addons: calc.addons, supplierPrice: calc.supplierPrice, customDescription: calc.customDescription });
+  const args = () => ({ brand: calc.brand, series: calc.series, color: calc.color, type: calc.type, w: parseFloat(calc.w), h: parseFloat(calc.h), qty: parseInt(calc.qty) || 1, unitsPerLine: Number(calc.unitsPerLine) || 1, options: calc.options, addons: calc.addons, supplierPrice: calc.supplierPrice, customDescription: calc.customDescription, install: calc.install });
 
   const left = h('div', { class: 'col' });
   left.append(

@@ -29,7 +29,7 @@
    "h": 11.5,
    "addons": [],
    "modelUnitPrice": 516.41,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V2 #10001098",
@@ -44,7 +44,7 @@
    "h": 59.5,
    "addons": [],
    "modelUnitPrice": 723.74,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V2 #10001098",
@@ -59,7 +59,7 @@
    "h": 59.5,
    "addons": [],
    "modelUnitPrice": 1748.75,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V2 #10001098",
@@ -74,7 +74,7 @@
    "h": 39.5,
    "addons": [],
    "modelUnitPrice": 857.58,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V3 #10019279",
@@ -89,7 +89,7 @@
    "h": 39.5,
    "addons": [],
    "modelUnitPrice": 931.84,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V3 #10019279",
@@ -104,7 +104,7 @@
    "h": 39.5,
    "addons": [],
    "modelUnitPrice": 931.84,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V3 #10019279",
@@ -119,7 +119,7 @@
    "h": 39.5,
    "addons": [],
    "modelUnitPrice": 783.58,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V3 #10019279",
@@ -213,7 +213,7 @@
    "h": 59.5,
    "addons": [],
    "modelUnitPrice": 1217.04,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V3 #10019279",
@@ -228,7 +228,7 @@
    "h": 59.5,
    "addons": [],
    "modelUnitPrice": 1217.04,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V3 #10019279",
@@ -243,7 +243,7 @@
    "h": 59.5,
    "addons": [],
    "modelUnitPrice": 1144.87,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Lupler V3 #10019279",
@@ -288,7 +288,7 @@
    "h": 11.5,
    "addons": [],
    "modelUnitPrice": 516.41,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -307,7 +307,7 @@
    ],
    "note": "mulled pair: price each unit on its own size",
    "modelUnitPrice": 2001.8,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -326,7 +326,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1334.52,
-   "overPct": 2.0
+   "overPct": 2
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -345,7 +345,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1334.52,
-   "overPct": 2.0
+   "overPct": 2
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -364,7 +364,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1334.52,
-   "overPct": 2.0
+   "overPct": 2
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -421,7 +421,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1718.49,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -440,7 +440,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 2484.52,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -478,7 +478,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1392.94,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -497,7 +497,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1392.94,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 bb",
@@ -535,7 +535,7 @@
    ],
    "note": "mulled pair: price each unit on its own size",
    "modelUnitPrice": 2001.8,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -554,7 +554,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1334.52,
-   "overPct": 2.0
+   "overPct": 2
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -573,7 +573,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1334.52,
-   "overPct": 2.0
+   "overPct": 2
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -592,7 +592,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1334.52,
-   "overPct": 2.0
+   "overPct": 2
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -649,7 +649,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1718.49,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -668,7 +668,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 2484.52,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -706,7 +706,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1392.94,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -725,7 +725,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1392.94,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 sandtone",
@@ -896,7 +896,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 2491.97,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 terratone",
@@ -991,7 +991,7 @@
    ],
    "note": "mulled pair: price each unit on its own size",
    "modelUnitPrice": 1618.38,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 ww",
@@ -1238,7 +1238,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 1334.52,
-   "overPct": 2.0
+   "overPct": 2
   },
   {
    "source": "Andersen Rastegar #9972960 dkbronze",
@@ -1352,7 +1352,7 @@
     "grilles_gbg"
    ],
    "modelUnitPrice": 2491.97,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Andersen Rastegar #9972960 dkbronze",
@@ -1445,8 +1445,8 @@
     "tempered",
     "grids"
    ],
-   "modelUnitPrice": 1084.76,
-   "overPct": 0.61
+   "modelUnitPrice": 1106.59,
+   "overPct": 2.64
   },
   {
    "source": "Milgard Crowley SQPHZQ000614_1 (white, block)",
@@ -1462,8 +1462,8 @@
    "addons": [
     "grids"
    ],
-   "modelUnitPrice": 754.23,
-   "overPct": 0.48
+   "modelUnitPrice": 781.23,
+   "overPct": 4.08
   },
   {
    "source": "Milgard Crowley SQPHZQ000614_1 (white, block)",
@@ -1479,8 +1479,8 @@
    "addons": [
     "tempered"
    ],
-   "modelUnitPrice": 1005.14,
-   "overPct": 0.66
+   "modelUnitPrice": 1026.97,
+   "overPct": 2.85
   },
   {
    "source": "Milgard Crowley SQPHZQ000614_1 (white, block)",
@@ -1494,8 +1494,8 @@
    "w": 31.5,
    "h": 59.5,
    "addons": [],
-   "modelUnitPrice": 683.88,
-   "overPct": 0.0
+   "modelUnitPrice": 710.88,
+   "overPct": 3.95
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1521,8 +1521,8 @@
    "series": "V300",
    "type": "vslider",
    "color": "adobe",
-   "w": 35.0,
-   "h": 71.0,
+   "w": 35,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 754.23,
    "overPct": 6.28
@@ -1536,11 +1536,11 @@
    "series": "V300",
    "type": "arch",
    "color": "adobe",
-   "w": 70.0,
-   "h": 35.0,
+   "w": 70,
+   "h": 35,
    "addons": [],
    "modelUnitPrice": 968.97,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1551,8 +1551,8 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 35.0,
-   "h": 71.0,
+   "w": 35,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 622.25,
    "overPct": 2.21
@@ -1566,8 +1566,8 @@
    "series": "V300",
    "type": "vslider",
    "color": "adobe",
-   "w": 35.0,
-   "h": 71.0,
+   "w": 35,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 754.23,
    "overPct": 6.28
@@ -1596,7 +1596,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 23.0,
+   "w": 23,
    "h": 70.5,
    "addons": [],
    "modelUnitPrice": 496.17,
@@ -1611,11 +1611,11 @@
    "series": "V300",
    "type": "vslider",
    "color": "adobe",
-   "w": 47.0,
-   "h": 71.0,
+   "w": 47,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 810.5,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1626,11 +1626,11 @@
    "series": "V300",
    "type": "vslider",
    "color": "adobe",
-   "w": 47.0,
-   "h": 71.0,
+   "w": 47,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 810.5,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1641,13 +1641,13 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 23.0,
-   "h": 71.0,
+   "w": 23,
+   "h": 71,
    "addons": [
     "tempered"
    ],
-   "modelUnitPrice": 763.08,
-   "overPct": 12.83
+   "modelUnitPrice": 688.68,
+   "overPct": 1.83
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1658,7 +1658,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 23.0,
+   "w": 23,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 291.51,
@@ -1673,7 +1673,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 47.0,
+   "w": 47,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 366.35,
@@ -1688,7 +1688,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 47.0,
+   "w": 47,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 366.35,
@@ -1703,7 +1703,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 23.0,
+   "w": 23,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 291.51,
@@ -1718,7 +1718,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 59.0,
+   "w": 59,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 403.77,
@@ -1737,7 +1737,7 @@
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 498.89,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1763,7 +1763,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 59.0,
+   "w": 59,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 403.77,
@@ -1778,13 +1778,13 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 23.0,
-   "h": 71.0,
+   "w": 23,
+   "h": 71,
    "addons": [
     "tempered"
    ],
-   "modelUnitPrice": 763.08,
-   "overPct": 12.83
+   "modelUnitPrice": 688.68,
+   "overPct": 1.83
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1795,7 +1795,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 23.0,
+   "w": 23,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 291.51,
@@ -1810,7 +1810,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 59.0,
+   "w": 59,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 403.77,
@@ -1825,8 +1825,8 @@
    "series": "V300",
    "type": "hslider",
    "color": "adobe",
-   "w": 59.0,
-   "h": 71.0,
+   "w": 59,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 946.98,
    "overPct": 1.63
@@ -1836,7 +1836,7 @@
    "line": 24,
    "brand": "milgard",
    "qty": 1,
-   "expectedMinUnitPrice": 1019.0,
+   "expectedMinUnitPrice": 1019,
    "series": "V300",
    "type": "hvb",
    "color": "adobe",
@@ -1844,7 +1844,7 @@
    "h": 52.5,
    "addons": [],
    "modelUnitPrice": 1019.05,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard Apolinar SQPHZQ000615_1 (adobe, 1 3/8 setback)",
@@ -1855,7 +1855,7 @@
    "series": "V300",
    "type": "hvb",
    "color": "adobe",
-   "w": 47.0,
+   "w": 47,
    "h": 52.5,
    "addons": [],
    "modelUnitPrice": 1021.62,
@@ -1885,7 +1885,7 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 47.0,
+   "w": 47,
    "h": 17.5,
    "addons": [],
    "modelUnitPrice": 366.35,
@@ -1901,7 +1901,7 @@
    "type": "vslider",
    "color": "adobe",
    "w": 35.125,
-   "h": 71.0,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 754.81,
    "overPct": 6.36
@@ -1931,7 +1931,7 @@
    "type": "vslider",
    "color": "adobe",
    "w": 35.125,
-   "h": 71.0,
+   "h": 71,
    "addons": [],
    "modelUnitPrice": 754.81,
    "overPct": 6.36
@@ -1979,7 +1979,7 @@
    "h": 47.5,
    "addons": [],
    "modelUnitPrice": 583.05,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2005,11 +2005,11 @@
    "series": "V300",
    "type": "hslider",
    "color": "adobe",
-   "w": 71.0,
-   "h": 59.0,
+   "w": 71,
+   "h": 59,
    "addons": [],
    "modelUnitPrice": 946.98,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2020,11 +2020,11 @@
    "series": "V300",
    "type": "hslider",
    "color": "adobe",
-   "w": 48.0,
-   "h": 12.0,
+   "w": 48,
+   "h": 12,
    "addons": [],
    "modelUnitPrice": 479.18,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2035,8 +2035,8 @@
    "series": "V300",
    "type": "hslider",
    "color": "adobe",
-   "w": 60.0,
-   "h": 60.0,
+   "w": 60,
+   "h": 60,
    "addons": [],
    "modelUnitPrice": 870.72,
    "overPct": 2.36
@@ -2050,11 +2050,11 @@
    "series": "V300",
    "type": "xox",
    "color": "adobe",
-   "w": 96.0,
-   "h": 59.0,
+   "w": 96,
+   "h": 59,
    "addons": [],
    "modelUnitPrice": 1364.74,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2065,11 +2065,11 @@
    "series": "V300",
    "type": "xox",
    "color": "adobe",
-   "w": 84.0,
-   "h": 36.0,
+   "w": 84,
+   "h": 36,
    "addons": [],
    "modelUnitPrice": 968.97,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2080,8 +2080,8 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 48.0,
-   "h": 12.0,
+   "w": 48,
+   "h": 12,
    "addons": [],
    "modelUnitPrice": 329.66,
    "overPct": 1.12
@@ -2095,8 +2095,8 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 71.0,
-   "h": 59.0,
+   "w": 71,
+   "h": 59,
    "addons": [
     "tempered"
    ],
@@ -2112,8 +2112,8 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 18.0,
-   "h": 18.0,
+   "w": 18,
+   "h": 18,
    "addons": [],
    "modelUnitPrice": 277.51,
    "overPct": 1.95
@@ -2127,11 +2127,11 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 12.0,
-   "h": 12.0,
+   "w": 12,
+   "h": 12,
    "addons": [],
    "modelUnitPrice": 244.14,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2142,8 +2142,8 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 71.0,
-   "h": 59.0,
+   "w": 71,
+   "h": 59,
    "addons": [
     "tempered"
    ],
@@ -2159,14 +2159,14 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 48.0,
-   "h": 48.0,
+   "w": 48,
+   "h": 48,
    "addons": [
     "tempered",
     "obscure"
    ],
    "modelUnitPrice": 1352.6,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2177,13 +2177,13 @@
    "series": "V300",
    "type": "picture",
    "color": "adobe",
-   "w": 48.0,
-   "h": 48.0,
+   "w": 48,
+   "h": 48,
    "addons": [
     "tempered"
    ],
    "modelUnitPrice": 855.23,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2194,8 +2194,8 @@
    "series": "V300",
    "type": "vslider",
    "color": "adobe",
-   "w": 24.0,
-   "h": 48.0,
+   "w": 24,
+   "h": 48,
    "addons": [],
    "modelUnitPrice": 594.78,
    "overPct": 12.71
@@ -2209,8 +2209,8 @@
    "series": "V300",
    "type": "vslider",
    "color": "adobe",
-   "w": 24.0,
-   "h": 24.0,
+   "w": 24,
+   "h": 24,
    "addons": [],
    "modelUnitPrice": 482.23,
    "overPct": 9.28
@@ -2224,8 +2224,8 @@
    "series": "V300",
    "type": "vslider",
    "color": "adobe",
-   "w": 35.0,
-   "h": 59.0,
+   "w": 35,
+   "h": 59,
    "addons": [],
    "modelUnitPrice": 697.95,
    "overPct": 3.09
@@ -2239,11 +2239,11 @@
    "series": "V300",
    "type": "casement",
    "color": "adobe",
-   "w": 18.0,
-   "h": 48.0,
+   "w": 18,
+   "h": 48,
    "addons": [],
    "modelUnitPrice": 688.44,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2254,13 +2254,13 @@
    "series": "V300",
    "type": "casement",
    "color": "adobe",
-   "w": 24.0,
-   "h": 59.0,
+   "w": 24,
+   "h": 59,
    "addons": [
     "tempered"
    ],
-   "modelUnitPrice": 1130.74,
-   "overPct": 17.62
+   "modelUnitPrice": 1032.08,
+   "overPct": 7.36
   },
   {
    "source": "Milgard V300 Adobe block SQPHZQ000616_3",
@@ -2271,8 +2271,8 @@
    "series": "V300",
    "type": "casement",
    "color": "adobe",
-   "w": 30.0,
-   "h": 47.0,
+   "w": 30,
+   "h": 47,
    "addons": [],
    "modelUnitPrice": 803.18,
    "overPct": 22.89
@@ -2282,7 +2282,7 @@
    "line": 1,
    "brand": "milgard",
    "qty": 8,
-   "expectedMinUnitPrice": 748.0,
+   "expectedMinUnitPrice": 748,
    "series": "A250",
    "type": "picture",
    "color": "bronze",
@@ -2305,7 +2305,7 @@
    "h": 47.5,
    "addons": [],
    "modelUnitPrice": 1028.52,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2316,11 +2316,11 @@
    "series": "A250",
    "type": "hslider",
    "color": "bronze",
-   "w": 71.0,
-   "h": 59.0,
+   "w": 71,
+   "h": 59,
    "addons": [],
    "modelUnitPrice": 1520.22,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2331,8 +2331,8 @@
    "series": "A250",
    "type": "hslider",
    "color": "bronze",
-   "w": 48.0,
-   "h": 12.0,
+   "w": 48,
+   "h": 12,
    "addons": [],
    "modelUnitPrice": 562.67,
    "overPct": 3.76
@@ -2346,8 +2346,8 @@
    "series": "A250",
    "type": "hslider",
    "color": "bronze",
-   "w": 60.0,
-   "h": 60.0,
+   "w": 60,
+   "h": 60,
    "addons": [],
    "modelUnitPrice": 1375.96,
    "overPct": 2.03
@@ -2361,11 +2361,11 @@
    "series": "A250",
    "type": "xox",
    "color": "bronze",
-   "w": 96.0,
-   "h": 59.0,
+   "w": 96,
+   "h": 59,
    "addons": [],
    "modelUnitPrice": 2140.61,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2376,11 +2376,11 @@
    "series": "A250",
    "type": "xox",
    "color": "bronze",
-   "w": 84.0,
-   "h": 36.0,
+   "w": 84,
+   "h": 36,
    "addons": [],
    "modelUnitPrice": 1457.51,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2391,8 +2391,8 @@
    "series": "A250",
    "type": "picture",
    "color": "bronze",
-   "w": 48.0,
-   "h": 12.0,
+   "w": 48,
+   "h": 12,
    "addons": [],
    "modelUnitPrice": 367.27,
    "overPct": 2.1
@@ -2406,11 +2406,11 @@
    "series": "A250",
    "type": "picture",
    "color": "bronze",
-   "w": 71.0,
-   "h": 59.0,
+   "w": 71,
+   "h": 59,
    "addons": [],
    "modelUnitPrice": 1295.81,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2421,23 +2421,23 @@
    "series": "A250",
    "type": "picture",
    "color": "bronze",
-   "w": 18.0,
-   "h": 18.0,
+   "w": 18,
+   "h": 18,
    "addons": [],
    "modelUnitPrice": 302.51,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
    "line": 11,
    "brand": "milgard",
    "qty": 1,
-   "expectedMinUnitPrice": 231.0,
+   "expectedMinUnitPrice": 231,
    "series": "A250",
    "type": "picture",
    "color": "bronze",
-   "w": 12.0,
-   "h": 12.0,
+   "w": 12,
+   "h": 12,
    "addons": [],
    "modelUnitPrice": 256.25,
    "overPct": 10.93
@@ -2451,13 +2451,13 @@
    "series": "A250",
    "type": "picture",
    "color": "bronze",
-   "w": 71.0,
-   "h": 59.0,
+   "w": 71,
+   "h": 59,
    "addons": [
     "tempered"
    ],
    "modelUnitPrice": 2007.55,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2468,8 +2468,8 @@
    "series": "A250",
    "type": "picture",
    "color": "bronze",
-   "w": 48.0,
-   "h": 48.0,
+   "w": 48,
+   "h": 48,
    "addons": [
     "tempered",
     "obscure"
@@ -2486,8 +2486,8 @@
    "series": "A250",
    "type": "picture",
    "color": "bronze",
-   "w": 48.0,
-   "h": 48.0,
+   "w": 48,
+   "h": 48,
    "addons": [
     "tempered"
    ],
@@ -2503,11 +2503,11 @@
    "series": "A250",
    "type": "vslider",
    "color": "bronze",
-   "w": 24.0,
-   "h": 48.0,
+   "w": 24,
+   "h": 48,
    "addons": [],
    "modelUnitPrice": 707.33,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2518,8 +2518,8 @@
    "series": "A250",
    "type": "vslider",
    "color": "bronze",
-   "w": 24.0,
-   "h": 24.0,
+   "w": 24,
+   "h": 24,
    "addons": [],
    "modelUnitPrice": 523.42,
    "overPct": 0.18
@@ -2533,11 +2533,11 @@
    "series": "A250",
    "type": "vslider",
    "color": "bronze",
-   "w": 35.0,
-   "h": 59.0,
+   "w": 35,
+   "h": 59,
    "addons": [],
    "modelUnitPrice": 998.83,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2548,11 +2548,11 @@
    "series": "A250",
    "type": "casement",
    "color": "bronze",
-   "w": 18.0,
-   "h": 48.0,
+   "w": 18,
+   "h": 48,
    "addons": [],
    "modelUnitPrice": 893.2,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "Milgard A250 test SQPHZQ000616_3",
@@ -2563,8 +2563,8 @@
    "series": "A250",
    "type": "casement",
    "color": "bronze",
-   "w": 24.0,
-   "h": 59.0,
+   "w": 24,
+   "h": 59,
    "addons": [
     "tempered"
    ],
@@ -2580,11 +2580,11 @@
    "series": "A250",
    "type": "casement",
    "color": "bronze",
-   "w": 30.0,
-   "h": 47.0,
+   "w": 30,
+   "h": 47,
    "addons": [],
    "modelUnitPrice": 1095.6,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "IWC windows 2026/77",
@@ -2600,7 +2600,7 @@
    "h": 47.5,
    "addons": [],
    "modelUnitPrice": 1054.88,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "IWC windows 2026/77",
@@ -2616,7 +2616,7 @@
    "h": 47.5,
    "addons": [],
    "modelUnitPrice": 850.13,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "IWC doors 2026/76",
@@ -2632,7 +2632,7 @@
    "h": 80.5,
    "addons": [],
    "modelUnitPrice": 9060.21,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "IWC doors 2026/76",
@@ -2648,7 +2648,7 @@
    "h": 79.5,
    "addons": [],
    "modelUnitPrice": 4149.05,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "IWC doors 2026/78",
@@ -2664,7 +2664,7 @@
    "h": 83.5,
    "addons": [],
    "modelUnitPrice": 10848.86,
-   "overPct": 0.0
+   "overPct": 0
   },
   {
    "source": "IWC doors 2026/78",
@@ -2680,7 +2680,194 @@
    "h": 79,
    "addons": [],
    "modelUnitPrice": 4364.46,
-   "overPct": 0.0
+   "overPct": 0
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 1,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 677.06,
+   "series": "V300",
+   "type": "hslider",
+   "color": "ww",
+   "w": 45,
+   "h": 37.75,
+   "addons": [],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 689.72,
+   "overPct": 1.87
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 2,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 677.06,
+   "series": "V300",
+   "type": "hslider",
+   "color": "ww",
+   "w": 45,
+   "h": 37.75,
+   "addons": [],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 689.72,
+   "overPct": 1.87
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 3,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 677.06,
+   "series": "V300",
+   "type": "hslider",
+   "color": "ww",
+   "w": 45,
+   "h": 37.75,
+   "addons": [],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 689.72,
+   "overPct": 1.87
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 4,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 605.03,
+   "series": "V300",
+   "type": "hslider",
+   "color": "ww",
+   "w": 29,
+   "h": 37.75,
+   "addons": [],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 605.18,
+   "overPct": 0.02
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 5,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 677.06,
+   "series": "V300",
+   "type": "hslider",
+   "color": "ww",
+   "w": 45,
+   "h": 37.75,
+   "addons": [],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 689.72,
+   "overPct": 1.87
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 6,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 677.06,
+   "series": "V300",
+   "type": "hslider",
+   "color": "ww",
+   "w": 45,
+   "h": 37.75,
+   "addons": [],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 689.72,
+   "overPct": 1.87
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 7,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 601.24,
+   "series": "V300",
+   "type": "vslider",
+   "color": "ww",
+   "w": 12.25,
+   "h": 38.25,
+   "addons": [
+    "tempered",
+    "obscure"
+   ],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 707.94,
+   "overPct": 17.75
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 8,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 752.12,
+   "series": "V300",
+   "type": "vslider",
+   "color": "ww",
+   "w": 28.25,
+   "h": 57,
+   "addons": [
+    "tempered_lower"
+   ],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 816.76,
+   "overPct": 8.59
+  },
+  {
+   "source": "Milgard V300 White Z-Bar SQPHZQ000617_1 (Janice Williams)",
+   "line": 9,
+   "brand": "milgard",
+   "qty": 1,
+   "expectedMinUnitPrice": 752.12,
+   "series": "V300",
+   "type": "vslider",
+   "color": "ww",
+   "w": 28.25,
+   "h": 57,
+   "addons": [
+    "tempered_lower"
+   ],
+   "install": {
+    "type": "standard",
+    "surcharges": [],
+    "frameType": "zbar"
+   },
+   "modelUnitPrice": 816.76,
+   "overPct": 8.59
   }
  ],
  "composites_customLine": [
@@ -2688,7 +2875,7 @@
    "source": "Milgard Apolinar SQPHZQ000615_1",
    "line": 16,
    "w": 89.5,
-   "h": 89.0,
+   "h": 89,
    "price": 3352.06,
    "desc": "V400 Tuscany composite"
   },
