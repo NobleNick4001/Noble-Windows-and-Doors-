@@ -82,7 +82,12 @@ check(t.windows === 2240, 'window material ' + t.windows);
 check(t.discount === 224, 'NOBLE10 material discount ' + t.discount);
 check(t.install === 720, 'labor untouched ' + t.install);
 check(t.addons === 75, 'add-on untouched ' + t.addons);
-check(t.subtotal === 2811, 'spot-check subtotal ' + t.subtotal);
+check(t.labor === 795, 'client labor is install plus add-on ' + t.labor);
+check(t.shipping === 150, 'shipping stays $150 with a promo ' + t.shipping);
+check(t.taxable === 2016, 'tax base excludes labor and shipping ' + t.taxable);
+check(t.tax === 183.46, 'sales tax 9.1% ' + t.tax);
+check(t.subtotal === 2961, 'pre-tax subtotal ' + t.subtotal);
+check(t.total === 3144.46, 'total with shipping and tax ' + t.total);
 
 const mixed = {
   lines: [
@@ -95,6 +100,9 @@ const tm = totals(mixed);
 check(tm.windows === 6000, 'custom still counts as material ' + tm.windows);
 check(tm.discount === 100, 'NOBLE10 skips the custom unit ' + tm.discount);
 check(tm.install === 720, 'custom labor still priced ' + tm.install);
+check(tm.taxable === 5900, 'custom unit stays in the tax base ' + tm.taxable);
+check(tm.tax === 536.9, 'tax on custom materials ' + tm.tax);
+check(tm.shipping === 150, 'shipping on a custom-unit estimate ' + tm.shipping);
 
 if (errs.length) {
   console.log('FAILED');

@@ -1,5 +1,5 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
-import { fmt, totals, summaryLines, settings, data, brandById, typeName, colorName, installUnit, addonUnit, addonNames, installLabel, optionDef, addonName } from './core.js';
+import { fmt, totals, summaryLines, settings, data, brandById, typeName, colorName, optionDef, addonName } from './core.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -217,30 +217,6 @@ export async function makeEstimatePdf(e) {
   w.text('Windows subtotal  ' + fmt(t.windows), { size: 10, bold: true, gap: 2 });
   if (t.promo?.windowAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.windowAmount), { size: 10, bold: true, gap: 4 });
 
-  w.text('Installation / labor', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
-  (e.lines || []).forEach((l) => {
-    const each = installUnit(l.install);
-    w.text(`${l.label || 'Window'}  ·  ${installLabel(l.install)}`, { size: 9, gap: 0 });
-    w.text(`Qty ${l.qty}    ${fmt(each)} each    ${fmt(each * l.qty)}`, { size: 9, gap: 3 });
-  });
-  w.text('Installation / labor subtotal  ' + fmt(t.install), { size: 10, bold: true, gap: 4 });
-  if (t.promo?.laborAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.laborAmount), { size: 10, gap: 4 });
-
-  const addRows = (e.lines || []).filter((l) => addonUnit(l.install));
-  if (addRows.length) {
-    w.text('Add-ons', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
-    addRows.forEach((l) => {
-      const each = addonUnit(l.install);
-      w.text(`${l.label || 'Window'}  ·  ${addonNames(l.install).join(', ')}`, { size: 9, gap: 0 });
-      w.text(`Qty ${l.qty}    ${fmt(each)} each    ${fmt(each * l.qty)}`, { size: 9, gap: 3 });
-    });
-    w.text('Add-ons subtotal  ' + fmt(t.addons), { size: 10, bold: true, gap: 4 });
-  }
-  if (t.stuccoOn) {
-    w.text(t.stuccoName, { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
-    w.text(`Qty ${t.stuccoQty}    ${fmt(t.stuccoUnit)} each    ${fmt(t.stucco)}`, { size: 10, gap: 4 });
-  }
-
   if ((e.extras || []).length) {
     w.text('Additional items', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
     e.extras.forEach((x) => w.text(`${x.label}  ${fmt(Number(x.amount) || 0)}`, { size: 10, gap: 2 }));
@@ -248,14 +224,11 @@ export async function makeEstimatePdf(e) {
   }
 
   summaryLines(t).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
-  w.text('Subtotal  ' + fmt(t.subtotal), { size: 11, bold: true, gap: 1 });
-  if (e.taxPct) w.text(`Tax (${e.taxPct}%)  ${fmt(t.tax)}`, { size: 11, gap: 1 });
-  w.text((e.taxPct ? 'TOTAL  ' : 'TOTAL (before tax)  ') + fmt(t.total), { size: 13, bold: true, gap: 2 });
+  w.text('TOTAL  ' + fmt(t.total), { size: 13, bold: true, gap: 2 });
   const pct = Number(data.agreement?.depositPct) || 65;
   const pay = contractPay(t.total, pct);
   w.text(`Deposit (${pct}%)  ${fmt(pay.deposit)}`, { size: 11, gap: 1 });
   w.text(`Final (${100 - pct}%)  ${fmt(pay.balance)}`, { size: 11, gap: 4 });
-  if (!e.taxPct) w.text('Sales tax not included.', { size: 8, gap: 6 });
   if (e.notes) { w.text('Notes', { size: 11, bold: true, gap: 1 }); w.text(e.notes, { size: 9, gap: 6 }); }
   w.text('Terms', { size: 11, bold: true, gap: 1 });
   w.text(settings.terms || '', { size: 8, gap: 4 });

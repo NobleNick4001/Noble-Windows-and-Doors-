@@ -210,15 +210,15 @@ export function render(root) {
       add ? h('div', { class: 'line' }, h('span', { id: 'price-addon-lbl' }, 'Add-ons (each) · ' + addonNames(calc.install).join(', ')), h('b', { id: 'price-addons' }, fmt(add))) : null,
       h('div', { class: 'line strong' }, h('span', {}, add ? 'Window + install + add-ons, each' : 'Window + install, each'), h('b', { id: 'price-each' }, fmt(each))),
       qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} windows`), h('b', { id: 'price-total' }, fmt(each * qty))),
-      h('div', { class: 'fine' }, 'Before tax'),
+      h('div', { class: 'fine' }, 'Material price. The estimate adds Installation / Labor, $150 shipping, and 9.1% sales tax on materials.'),
       warn && calc.series !== '8900' && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
       doorWidth && h('p', { class: 'warn' }, '8900 doors are quoted for widths of about 59"–192".'),
       h('button', { class: 'link', onclick: () => { calc.details = !calc.details; persist(); update(); } }, calc.details ? 'Hide math' : 'Show math'),
       calc.details && h('div', { class: 'math' }, mathText(p, calc.w, calc.h), ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`, add ? ` · add-ons ${fmt(add)}` : ''),
       h('button', { class: 'btn primary xl', id: 'btn-add', onclick: addToEstimate }, '+ Add to estimate'),
       h('p', { class: 'fine' }, p.mode === 'custom'
-        ? 'Supplier price is the material price. Installation is separate. Promo codes do not discount this line. Sales tax not included.'
-        : 'Window price includes glass upcharges. Installation and add-ons are separate. Sales tax not included.')].filter(Boolean));
+        ? 'Supplier price is the material price. Installation is separate and rolls into the estimate’s Installation / Labor line. Promo codes do not discount this line.'
+        : 'Window price includes glass upcharges. Installation and add-ons stay off this price and roll into the estimate’s Installation / Labor line.')].filter(Boolean));
   }
   function addToEstimate() {
     const a = args(); const p = priceWindow(a);
@@ -231,7 +231,7 @@ export function render(root) {
   function miniEstimate() {
     const e = estimates.current(); const t = totals(e);
     return h('div', { class: 'card mini' }, h('div', { class: 'row between' }, h('b', {}, 'Current estimate'), h('span', { class: 'muted' }, e.number)),
-      e.lines.length ? h('div', {}, ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', {}, row.id === 'windows' ? `${t.count} window${t.count === 1 ? '' : 's'} · windows` : row.label), h('b', {}, fmt(row.amount)))), h('div', { class: 'line strong' }, h('span', {}, 'Subtotal (before tax)'), h('b', {}, fmt(t.subtotal))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
+      e.lines.length ? h('div', {}, ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', {}, row.id === 'windows' ? `${t.count} window${t.count === 1 ? '' : 's'} · windows` : row.label), h('b', {}, fmt(row.amount)))), h('div', { class: 'line strong' }, h('span', {}, 'Total'), h('b', {}, fmt(t.total))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
   }
   const rerender = () => render(root);
   update();
