@@ -2,6 +2,7 @@ import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, i
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
 import { recordSigned } from '../cloud.js';
+import { compactWindowList } from './estimate.js';
 
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -129,6 +130,7 @@ export function render(root) {
     field('Email Address:', e.customer.email, { id: 'ag-email', edit: true, type: 'email', oninput: (ev) => { e.customer.email = ev.target.value; save(); } }),
     spec,
     h('button', { type: 'button', class: 'link', id: 'spec-rebuild', onclick: () => { c.specsEdited = false; c.specifications = buildSpec(e); const box = document.getElementById('contract-spec'); if (box) box.value = c.specifications; save(); } }, 'Rebuild summary from the estimate'),
+    (e.lines || []).length ? h('div', { id: 'agreement-windows' }, h('div', { class: 'ag-lbl' }, 'Windows'), compactWindowList(e.lines, { always: true, id: 'agreement-window-lines' })) : null,
     field('Estimated completion date:', c.completionDate, { id: 'ag-complete', edit: true, type: 'date', oninput: (ev) => { c.completionDate = ev.target.value; save(); } }),
     h('div', { class: 'ag-money', id: 'contract-money' },
       ...summaryLines(totals(e)).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: 'contract-' + row.id }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
@@ -205,7 +207,7 @@ async function send(e, c, a) {
     const model = {
       agreement: a, company: settings.company, number: e.number, customer: e.customer,
       submittedBy: c.submittedBy, specifications: c.specifications, completionDate: c.completionDate,
-      pay, summary: summaryLines(totals(e)), words: moneyWords(pay.total), initials: c.initials, signatures: sig, signedOn: c.signedOn,
+      pay, summary: summaryLines(totals(e)), words: moneyWords(pay.total), initials: c.initials, signatures: sig, signedOn: c.signedOn, lines: e.lines,
     };
     const contractBlob = await makeContractPdf(model);
     const estimateBlob = await makeEstimatePdf(e);

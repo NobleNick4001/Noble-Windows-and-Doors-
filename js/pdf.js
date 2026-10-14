@@ -1,5 +1,5 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
-import { fmt, totals, summaryLines, settings, data, brandById, typeName, colorName, optionDef, addonName } from './core.js';
+import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections } from './core.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -92,7 +92,27 @@ function writer(doc) {
     try { doc.addImage(dataUrl, 'PNG', margin, y, w, h); } catch { return; }
     y += h + 4;
   }
-  return { text, rule, image, need, newPage, get y() { return y; }, set y(v) { y = v; }, margin, maxW, pageW, pageH, doc };
+  function pair(left, right, { size = 10, bold = false, gap = 0, color = [17, 17, 17] } = {}) {
+    const leftBody = plain(left);
+    const rightBody = plain(right);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(size);
+    const rightW = rightBody ? doc.getTextWidth(rightBody) + 10 : 0;
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    const lines = leftBody ? doc.splitTextToSize(leftBody, Math.max(40, maxW - rightW)) : [''];
+    const lh = size + 2.5;
+    if (y + lines.length * lh > pageH - 36) newPage();
+    doc.setTextColor(...color);
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(size);
+    if (leftBody) doc.text(lines, margin, y + size);
+    if (rightBody) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(rightBody, pageW - margin, y + size, { align: 'right' });
+    }
+    y += Math.max(lines.length, 1) * lh + gap;
+  }
+  return { text, pair, rule, image, need, newPage, get y() { return y; }, set y(v) { y = v; }, margin, maxW, pageW, pageH, doc };
 }
 
 async function drawHeader(w, company) {
@@ -149,6 +169,10 @@ export async function makeContractPdf(model) {
   row('Email Address:', model.customer.email);
   w.text('Specifications of work needed:', { size: 11, bold: true, gap: 1 });
   w.text(model.specifications || '—', { size: 11, gap: 6 });
+  if ((model.lines || []).length) {
+    w.text('Windows', { size: 11, bold: true, gap: 2 });
+    writeCompactWindows(w, model.lines);
+  }
   row('Estimated completion date:', model.completionDate ? fdate(model.completionDate + 'T12:00:00') : '');
   (model.summary || []).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
   w.text('Project Total Cost  ' + fmt(model.pay.total), { size: 12, bold: true, gap: 3 });
@@ -185,13 +209,15 @@ export async function makeContractPdf(model) {
   return doc.output('blob');
 }
 
-function lineDesc(l) {
-  const opts = (l.options || []).map((id) => optionDef(id)?.name).filter(Boolean);
-  const adds = (l.addons || []).map((id) => addonName(id)).filter((n) => n && !opts.includes(n));
-  const names = [...adds, ...opts];
-  const custom = l.customDescription ? l.customDescription + ' — ' : '';
-  const base = `${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${colorName(l.color)}`;
-  return custom + (names.length ? base + ' (' + names.join(', ') + ')' : base);
+function writeCompactWindows(w, lines) {
+  for (const section of windowSections(lines)) {
+    w.text(section.brandName, { size: 11, bold: true, gap: 2, color: [29, 117, 188] });
+    for (const l of section.lines) {
+      const row = compactWindowLine(l, { includeBrand: false, ascii: true });
+      w.pair(row.title, fmt(row.price), { size: 10, bold: true, gap: 0 });
+      w.text(row.detail, { size: 8, gap: 4, color: [92, 101, 112] });
+    }
+  }
 }
 
 export async function makeEstimatePdf(e) {
@@ -209,11 +235,7 @@ export async function makeEstimatePdf(e) {
   w.text([e.customer?.name, e.customer?.address, e.customer?.phone, e.customer?.email].filter(Boolean).join('\n') || '—', { size: 10, gap: 8 });
 
   w.text('Windows (materials, including glass)', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
-  (e.lines || []).forEach((l) => {
-    w.text(`${l.label || 'Window'}  ·  ${lineDesc(l)}`, { size: 9, bold: true, gap: 0 });
-    const glass = l.optionsEach ? `    glass ${fmt(l.optionsEach)}` : '';
-    w.text(`${l.w}" x ${l.h}"    Qty ${l.qty}    ${fmt(l.unit)} each${glass}    ${fmt(l.unit * l.qty)}`, { size: 9, gap: 3 });
-  });
+  writeCompactWindows(w, e.lines);
   w.text('Windows subtotal  ' + fmt(t.windows), { size: 10, bold: true, gap: 2 });
   if (t.promo?.windowAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.windowAmount), { size: 10, bold: true, gap: 2 });
   if (t.percentDiscountAmount) w.text(t.percentDiscountLabel + '  ' + fmt(-t.percentDiscountAmount), { size: 10, bold: true, gap: 4 });

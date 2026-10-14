@@ -171,6 +171,76 @@ export function lineAddonDefs(line) {
   return model.mode === 'variable' ? (model.addons || {}) : null;
 }
 export function addonName(id, def) { return def?.name || ADDON_NAMES[id] || id; }
+export function lineOptionNames(line) {
+  const fromOpt = (line?.options || []).map((id) => optionDef(id)?.name).filter(Boolean);
+  const fromAdd = (line?.addons || []).map((id) => addonName(id)).filter((n) => n && !fromOpt.includes(n));
+  return [...fromAdd, ...fromOpt];
+}
+
+const EIGHTH_UNI = ['', '⅛', '¼', '⅜', '½', '⅝', '¾', '⅞'];
+const EIGHTH_ASCII = ['', '1/8', '1/4', '3/8', '1/2', '5/8', '3/4', '7/8'];
+// 37.75 → 37¾″. Eighths that are not a clean fraction stay as a short decimal.
+export function formatInches(value, { ascii = false } = {}) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  const mark = ascii ? '"' : '″';
+  const glyphs = ascii ? EIGHTH_ASCII : EIGHTH_UNI;
+  let whole = Math.floor(abs + 1e-9);
+  const frac = abs - whole;
+  const eighth = Math.round(frac * 8);
+  if (Math.abs(frac * 8 - eighth) < 0.02) {
+    if (eighth === 8) return `${sign}${whole + 1}${mark}`;
+    if (eighth === 0) return `${sign}${whole}${mark}`;
+    const glyph = glyphs[eighth];
+    if (ascii) return `${sign}${whole ? whole + ' ' : ''}${glyph}${mark}`;
+    return `${sign}${whole || ''}${glyph}${mark}`;
+  }
+  const rounded = Math.round(abs * 100) / 100;
+  return `${sign}${rounded}${mark}`;
+}
+// "White / White" → "White". "Black / White" stays so the two sides stay distinct.
+export function shortColorName(name) {
+  const raw = String(name ?? '').trim();
+  const parts = raw.split('/').map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 2 && parts.every((p) => p.toLowerCase() === parts[0].toLowerCase())) return parts[0];
+  return raw;
+}
+function seriesLabel(line) {
+  const brand = brandById(line?.brand);
+  return brand?.series?.find((s) => s.id === line?.series)?.name || line?.series || '';
+}
+export function compactWindowLine(line, { includeBrand = false, ascii = false } = {}) {
+  line = line || {};
+  const brandName = brandById(line.brand)?.name || line.brand || '';
+  const custom = String(line.customDescription || '').trim();
+  const product = [includeBrand ? brandName : '', custom, seriesLabel(line), typeName(line.type)].filter(Boolean).join(' ');
+  const title = `${line.label || 'Window'} — ${product}`.trim();
+  const times = ascii ? 'x' : '×';
+  const bits = [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, shortColorName(colorName(line.color)), ...lineOptionNames(line)];
+  if (Number(line.unitsPerLine) > 1) bits.push(`${line.unitsPerLine} units`);
+  bits.push(`Qty ${Number(line.qty) || 1}`);
+  return {
+    title,
+    detail: bits.filter(Boolean).join(' · '),
+    price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
+    brandName: brandName || 'Windows',
+  };
+}
+export function windowSections(lines) {
+  const groups = [];
+  const index = new Map();
+  for (const line of lines || []) {
+    const name = brandById(line.brand)?.name || line.brand || 'Windows';
+    if (!index.has(name)) {
+      index.set(name, groups.length);
+      groups.push({ brandName: name, lines: [] });
+    }
+    groups[index.get(name)].lines.push(line);
+  }
+  return groups;
+}
 export function addonPriceHint(def) {
   if (!def) return '';
   if (def.type === 'percentOfWindow') return `+${def.amount}%`;
@@ -217,6 +287,12 @@ export function setLineAddon(line, id, on) {
 }
 
 const lineFrameType = (line) => line?.install?.frameType || line?.frameType || null;
+export const FRAME_TYPE_WARNING = 'Select frame type — Z-bar adds material cost';
+const MILGARD_FRAME_SERIES = new Set(['V250', 'V300', 'V400']);
+export function needsFrameWarning(line) {
+  if (!line || line.brand !== 'milgard' || !MILGARD_FRAME_SERIES.has(line.series)) return false;
+  return !lineFrameType(line);
+}
 // Add-ons with auto:"frameType:<id>" are charged from the frame choice, never from a checkbox.
 export function isAutoAddon(def) { return typeof def?.auto === 'string'; }
 function chosenAddonIds(line, addonDefs) {
