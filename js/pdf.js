@@ -25,7 +25,7 @@ export function moneyWords(amount) {
   const text = words(dollars);
   return text.charAt(0).toUpperCase() + text.slice(1) + ` and ${c}/100`;
 }
-export function contractPay(total, depositPct = 65) {
+export function contractPay(total, depositPct = 60) {
   const cents = Math.round((Number(total) || 0) * 100);
   const deposit = Math.round(cents * (Number(depositPct) || 0) / 100);
   return { total: cents / 100, deposit: deposit / 100, balance: (cents - deposit) / 100 };
@@ -215,7 +215,8 @@ export async function makeEstimatePdf(e) {
     w.text(`${l.w}" x ${l.h}"    Qty ${l.qty}    ${fmt(l.unit)} each${glass}    ${fmt(l.unit * l.qty)}`, { size: 9, gap: 3 });
   });
   w.text('Windows subtotal  ' + fmt(t.windows), { size: 10, bold: true, gap: 2 });
-  if (t.promo?.windowAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.windowAmount), { size: 10, bold: true, gap: 4 });
+  if (t.promo?.windowAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.windowAmount), { size: 10, bold: true, gap: 2 });
+  if (t.percentDiscountAmount) w.text(t.percentDiscountLabel + '  ' + fmt(-t.percentDiscountAmount), { size: 10, bold: true, gap: 4 });
 
   if ((e.extras || []).length) {
     w.text('Additional items', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
@@ -225,7 +226,7 @@ export async function makeEstimatePdf(e) {
 
   summaryLines(t).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
   w.text('TOTAL  ' + fmt(t.total), { size: 13, bold: true, gap: 2 });
-  const pct = Number(data.agreement?.depositPct) || 65;
+  const pct = Number(data.agreement?.depositPct) || 60;
   const pay = contractPay(t.total, pct);
   w.text(`Deposit (${pct}%)  ${fmt(pay.deposit)}`, { size: 11, gap: 1 });
   w.text(`Final (${100 - pct}%)  ${fmt(pay.balance)}`, { size: 11, gap: 4 });

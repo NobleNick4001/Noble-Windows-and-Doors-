@@ -18,7 +18,7 @@ export function render(root) {
       h('span', { class: 'fine' }, 'P75 is the default. Max uses the highest $/inch seen on real quotes — higher prices.')),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: s.roundToDollar ? 'checked' : null, onchange: (e) => { s.roundToDollar = e.target.checked; commit(); } }), h('span', {}, 'Round prices to whole dollars')),
     f('Estimate valid for (days)', () => s.validDays, (v) => (s.validDays = parseInt(v) || 30), 'number'),
-    h('p', { class: 'fine' }, 'Every estimate includes Shipping & Handling of $150 and sales tax of 9.1% on materials after promo discounts. Tax does not apply to labor, add-ons, stucco, extras, or shipping. Promo codes do not discount shipping.'),
+    h('p', { class: 'fine' }, 'Every estimate includes Shipping & Handling of $150 and sales tax of 9.1% on materials after promo codes and the additional percent discount. Tax does not apply to labor, add-ons, stucco, extras, or shipping. Promo codes and the additional discount do not discount shipping. The deposit is 60% and the final payment is 40%.'),
     h('p', { class: 'fine' }, `Fitted series use selling prices from `, h('code', {}, 'data/variable-rates.json'), ' (already at 45%). ', h('code', {}, 'grossMargin'), ' in ', h('code', {}, 'data/rates.json'), ' reprices only the combinations that file does not cover. Installation, add-ons, and stucco are calculated per window and shown to the customer as one Installation / Labor line (', h('code', {}, 'data/install.json'), ').')));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Company info (shown on estimates)'),
     f('Salesperson (Submitted by on the purchase agreement)', () => s.salesperson || '', (v) => (s.salesperson = v), 'text', 's-salesperson'),

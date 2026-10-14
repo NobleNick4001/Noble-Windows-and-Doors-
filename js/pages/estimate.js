@@ -1,10 +1,11 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, toast, uid, addonName } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, addonName } from '../core.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates } from '../cloud.js';
 import { contractPay } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
 const open = new Set(); // line ids being edited
 const promoUi = { forId: null, draft: '', dirty: false, error: '' };
+const pctUi = { forId: null, draft: '', dirty: false, error: '' };
 const hubUi = { estimateId: null, matches: [], autoId: null, busy: false };
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -64,7 +65,9 @@ export function render(root) {
   e.extras ||= [];
   e.stuccoRepair ||= { on: false, qty: null };
   e.promoCode ??= '';
+  e.percentDiscount ??= 0;
   if (promoUi.forId !== e.id) { promoUi.forId = e.id; promoUi.draft = e.promoCode; promoUi.dirty = false; promoUi.error = ''; }
+  if (pctUi.forId !== e.id) { pctUi.forId = e.id; pctUi.draft = e.percentDiscount ? String(e.percentDiscount) : ''; pctUi.dirty = false; pctUi.error = ''; }
   const wrap = h('div', { class: 'page est' });
   const save = () => { estimates.persist(); };
   const rerender = () => render(root);
@@ -199,20 +202,48 @@ export function render(root) {
     promoError && h('p', { class: 'warn', id: 'promo-error' }, promoError),
     applied && h('div', { class: 'row between wrap gap', id: 'promo-applied' }, h('span', {}, `${applied.code} · ${applied.label}`), h('button', { type: 'button', class: 'btn sm', id: 'promo-remove', onclick: removePromo }, 'Remove')),
     applied && promoNote && h('p', { class: 'fine', id: 'promo-note' }, promoNote),
-    h('p', { class: 'fine' }, 'Applies to the window price, including glass. Does not apply to installation, add-ons, stucco repair, shipping, or a custom unit entered at the supplier price. Sales tax is 9.1% of the materials after this discount.')));
+    h('p', { class: 'fine' }, 'Applies to the window price, including glass. Does not apply to installation, add-ons, stucco repair, shipping, or a custom unit entered at the supplier price. The additional discount below is applied after this code. Sales tax is 9.1% of the materials after both.')));
+
+  function showPercentError(message) {
+    pctUi.error = message;
+    let node = document.getElementById('percent-discount-error');
+    if (!message) { node?.remove(); return; }
+    if (!node) {
+      node = h('p', { class: 'warn', id: 'percent-discount-error' }, message);
+      document.getElementById('percent-discount')?.closest('.card')?.append(node);
+    } else node.textContent = message;
+  }
+  wrap.append(h('div', { class: 'card', id: 'percent-discount-card' },
+    h('h3', {}, 'Additional discount'),
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Percent off materials (0–10%)'),
+      h('input', { type: 'text', inputmode: 'decimal', id: 'percent-discount', placeholder: '0', autocomplete: 'off',
+        value: pctUi.dirty ? pctUi.draft : (e.percentDiscount ? String(e.percentDiscount) : ''),
+        oninput: (ev) => {
+          pctUi.draft = ev.target.value;
+          pctUi.dirty = true;
+          const parsed = parsePercentDiscount(ev.target.value);
+          if (!parsed.ok) { showPercentError(parsed.error); e.percentDiscount = 0; save(); refreshTotals(); return; }
+          showPercentError('');
+          if (parsed.clamped) { ev.target.value = '0'; pctUi.draft = '0'; }
+          e.percentDiscount = parsed.value;
+          save();
+          refreshTotals();
+        } })),
+    pctUi.error && h('p', { class: 'warn', id: 'percent-discount-error' }, pctUi.error),
+    h('p', { class: 'fine' }, 'Taken off windows and doors after the promo code. 0–10% only. Amounts over 10% are not applied. Labor and the $150 shipping charge are not discounted.')));
 
   // totals
   const tot = h('div', { class: 'card totals', id: 'totals' });
   function refreshTotals() {
     const t = totals(e);
-    const idFor = { windows: 't-win', discount: 't-discount', install: 't-inst', shipping: 't-ship', extras: 't-extras', tax: 't-tax' };
+    const idFor = { windows: 't-win', discount: 't-discount', percentDiscount: 't-pdisc', install: 't-inst', shipping: 't-ship', extras: 't-extras', tax: 't-tax' };
     const pay = contractPay(t.total, payPct());
     tot.replaceChildren(...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', { id: row.id === 'discount' ? 't-discount-lbl' : null }, row.id === 'windows' ? `Windows (${t.count})` : row.label), h('b', { id: idFor[row.id] }, fmt(row.amount)))),
       h('div', { class: 'line big2' }, h('span', {}, 'Total'), h('b', { id: 't-total' }, fmt(t.total))),
       h('div', { class: 'line' }, h('span', {}, `Deposit (${payPct()}%)`), h('b', { id: 't-deposit' }, fmt(pay.deposit))),
       h('div', { class: 'line' }, h('span', {}, `Final (${100 - payPct()}%)`), h('b', { id: 't-final' }, fmt(pay.balance))));
   }
-  const payPct = () => Number(data.agreement?.depositPct) || 65;
+  const payPct = () => Number(data.agreement?.depositPct) || 60;
   refreshTotals();
   wrap.append(tot);
   wrap.append(h('div', { class: 'card' }, h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes (shown on estimate)'), h('textarea', { rows: 3, id: 'e-notes', oninput: (ev) => { e.notes = ev.target.value; save(); } }, e.notes)),
@@ -237,6 +268,7 @@ export function renderPrint(root) {
   const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(l.unit)), h('td', { class: 'r' }, fmt(l.unit * l.qty)))));
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
+  if (t.percentDiscountAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-percent-discount-row' }, h('td', { colspan: 5, class: 'r' }, t.percentDiscountLabel), h('td', { class: 'r' }, fmt(-t.percentDiscountAmount))));
   tw.append(tb);
   sheet.append(h('h3', {}, 'Windows (materials, including glass)'), tw);
   if (e.extras.length) {
@@ -244,8 +276,8 @@ export function renderPrint(root) {
     tx.append(h('tr', { class: 'sub' }, h('td', { class: 'r' }, 'Additional items subtotal'), h('td', { class: 'r' }, fmt(t.extras))));
     sheet.append(h('h3', {}, 'Additional items'), tx);
   }
-  const shId = { windows: 'sh-windows', discount: 'sh-discount-total', install: 'sh-labor', shipping: 'sh-shipping', extras: 'sh-extras', tax: 'sh-tax' };
-  const pct = Number(data.agreement?.depositPct) || 65;
+  const shId = { windows: 'sh-windows', discount: 'sh-discount-total', percentDiscount: 'sh-percent-discount', install: 'sh-labor', shipping: 'sh-shipping', extras: 'sh-extras', tax: 'sh-tax' };
+  const pct = Number(data.agreement?.depositPct) || 60;
   const pay = contractPay(t.total, pct);
   sheet.append(h('div', { class: 'sh-totals' },
     ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: shId[row.id] }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
