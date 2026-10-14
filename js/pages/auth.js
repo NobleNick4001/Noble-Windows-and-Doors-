@@ -7,7 +7,7 @@ export function renderLogin(root, api) {
     const nameField = mode === 'signup'
       ? h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Your name'), h('input', { type: 'text', id: 'auth-name', autocomplete: 'name' }))
       : null;
-    root.replaceChildren(h('div', { class: 'page auth-wrap' },
+    root.replaceChildren(h('div', { class: 'page auth-wrap safe-top' },
       h('div', { class: 'card' },
         h('h1', {}, mode === 'signup' ? 'Create account' : 'Sign in'),
         h('p', { class: 'fine' }, 'Noble sales accounts. Nicholas, Eric, and George use their work email. The role is set from that email.'),

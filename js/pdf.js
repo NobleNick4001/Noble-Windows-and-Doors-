@@ -1,5 +1,6 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
-import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections } from './core.js';
+import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine } from './core.js';
+import { currentProfile } from './cloud.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -220,40 +221,225 @@ function writeCompactWindows(w, lines) {
   }
 }
 
-export async function makeEstimatePdf(e) {
+const QUOTE_ROC = 'ROC #364772 / #364771';
+
+function salesRep(explicit) {
+  const given = String(explicit || '').trim();
+  if (given) return given;
+  const profile = currentProfile() || {};
+  return profile.full_name || profile.email || settings.salesperson || '';
+}
+
+function customerLines(e) {
+  const c = e.customer || {};
+  return [c.name, c.address, c.phone, c.email].map((s) => String(s || '').trim()).filter(Boolean);
+}
+
+export async function makeEstimatePdf(e, opts = {}) {
   const doc = jsPDF();
-  const w = writer(doc);
+  const margin = 36;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const right = pageW - margin;
+  const width = right - margin;
+  const cols = [
+    { key: 'num', label: '#', w: 26, align: 'center' },
+    { key: 'location', label: 'Location', w: 86, align: 'left' },
+    { key: 'desc', label: 'Description', w: 214, align: 'left' },
+    { key: 'size', label: 'Size', w: 86, align: 'left' },
+    { key: 'qty', label: 'Qty', w: 34, align: 'center' },
+    { key: 'price', label: 'Price', w: width - 26 - 86 - 214 - 86 - 34, align: 'right' },
+  ];
   const t = totals(e);
-  const co = settings.company;
-  await drawHeader(w, co);
-  w.text('ESTIMATE', { size: 16, bold: true, gap: 4, color: [29, 117, 188] });
-  w.text('Estimate # ' + e.number, { size: 10, gap: 1 });
-  w.text('Date: ' + fdate(e.created), { size: 10, gap: 1 });
-  const valid = new Date(e.created + (e.validDays || 30) * 86400000);
-  w.text('Valid through: ' + fdate(valid), { size: 10, gap: 6 });
-  w.text('Prepared for', { size: 10, bold: true, gap: 1 });
-  w.text([e.customer?.name, e.customer?.address, e.customer?.phone, e.customer?.email].filter(Boolean).join('\n') || '—', { size: 10, gap: 8 });
+  const co = settings.company || {};
+  const rep = salesRep(opts.repName);
+  let y = margin;
 
-  w.text('Windows (materials, including glass)', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
-  writeCompactWindows(w, e.lines);
-  w.text('Windows subtotal  ' + fmt(t.windows), { size: 10, bold: true, gap: 2 });
-  if (t.promo?.windowAmount) w.text(t.discountLabel + '  ' + fmt(-t.promo.windowAmount), { size: 10, bold: true, gap: 2 });
-  if (t.percentDiscountAmount) w.text(t.percentDiscountLabel + '  ' + fmt(-t.percentDiscountAmount), { size: 10, bold: true, gap: 4 });
+  const rule = (y0, weight = 0.6, color = [14, 58, 99]) => {
+    doc.setDrawColor(...color);
+    doc.setLineWidth(weight);
+    doc.line(margin, y0, right, y0);
+  };
+  const wrapped = (text, max, size, bold) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(size);
+    return doc.splitTextToSize(plain(text), max);
+  };
 
-  if ((e.extras || []).length) {
-    w.text('Additional items', { size: 12, bold: true, gap: 3, color: [29, 117, 188] });
-    e.extras.forEach((x) => w.text(`${x.label}  ${fmt(Number(x.amount) || 0)}`, { size: 10, gap: 2 }));
-    w.text('Additional items subtotal  ' + fmt(t.extras), { size: 10, bold: true, gap: 4 });
+  function drawLetterhead() {
+    let logo = null;
+    const top = y;
+    let leftBottom = top;
+    return loadImage('assets/noble-logo-trim.png').then((img) => { logo = img; }).catch(() => {}).then(() => {
+      if (logo) {
+        const h = 36;
+        const lw = Math.min(150, h * (logo.w / logo.h));
+        try { doc.addImage(logo.data, logo.fmt || 'JPEG', margin, top, lw, h); } catch { /* text header still prints */ }
+        leftBottom = top + h + 6;
+      }
+      const company = [co.name || 'Noble Windows & Doors LLC', co.address, co.phone || '(623) 810-3460', QUOTE_ROC].filter(Boolean);
+      company.forEach((line, i) => {
+        const lines = wrapped(line, 250, i === 0 ? 11 : 8, i === 0);
+        doc.setTextColor(14, 58, 99);
+        doc.text(lines, margin, leftBottom + (i === 0 ? 11 : 8));
+        leftBottom += lines.length * (i === 0 ? 13 : 10);
+      });
+      const boxW = 230;
+      const boxX = right - boxW;
+      const who = customerLines(e);
+      const rows = [
+        ['Quote #', e.number || ''],
+        ['Date', fdate(e.created)],
+        ['Customer', who.length ? who.join('\n') : '—'],
+        ['Sales rep', rep || '—'],
+      ];
+      doc.setFillColor(14, 58, 99);
+      doc.rect(boxX, top, boxW, 18, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('QUOTE', boxX + boxW / 2, top + 13, { align: 'center' });
+      let by = top + 18;
+      rows.forEach(([label, value]) => {
+        const valueLines = wrapped(value, boxW - 78, 8, false);
+        const rowH = Math.max(16, valueLines.length * 10 + 6);
+        doc.setDrawColor(14, 58, 99);
+        doc.setLineWidth(0.6);
+        doc.rect(boxX, by, boxW, rowH);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(14, 58, 99);
+        doc.text(label, boxX + 6, by + 11);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(17, 17, 17);
+        doc.text(valueLines, boxX + 70, by + 11);
+        by += rowH;
+      });
+      y = Math.max(leftBottom, by) + 12;
+      rule(y - 6, 1.4);
+    });
   }
 
-  summaryLines(t, { includeMaterials: false }).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
-  w.text('TOTAL  ' + fmt(t.total), { size: 13, bold: true, gap: 2 });
+  function headerRow() {
+    let x = margin;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(14, 58, 99);
+    cols.forEach((col) => {
+      const tx = col.align === 'right' ? x + col.w - 2 : col.align === 'center' ? x + col.w / 2 : x + 2;
+      doc.text(col.label.toUpperCase(), tx, y + 11, { align: col.align === 'left' ? 'left' : col.align });
+      x += col.w;
+    });
+    y += 16;
+    rule(y, 1);
+    y += 6;
+  }
+
+  await drawLetterhead();
+  headerRow();
+
+  const items = (e.lines || []).map((line, i) => ({ n: i + 1, ...quoteLine(line, { ascii: true }) }));
+  (e.extras || []).forEach((extra) => {
+    items.push({
+      n: items.length + 1,
+      location: '',
+      title: extra.label || 'Additional item',
+      details: [],
+      size: '',
+      qty: 1,
+      price: Number(extra.amount) || 0,
+    });
+  });
+
+  function rowHeight(item) {
+    const descW = cols[2].w - 6;
+    const title = wrapped(item.title, descW, 9, true);
+    const rest = item.details.flatMap((d) => wrapped(d, descW, 8, false));
+    const loc = wrapped(item.location || '', cols[1].w - 4, 8, false);
+    const size = wrapped(item.size || '', cols[3].w - 4, 8, false);
+    const h = Math.max(24, title.length * 11 + rest.length * 10 + 10, loc.length * 10 + 10, size.length * 10 + 10);
+    return { title, rest, loc, size, h };
+  }
+
+  items.forEach((item) => {
+    const drawn = rowHeight(item);
+    if (y + drawn.h > pageH - 40) {
+      doc.addPage();
+      y = margin;
+      headerRow();
+    }
+    let x = margin;
+    const base = y + 10;
+    doc.setTextColor(17, 17, 17);
+    const paint = (text, col, yy, size, bold, align) => {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
+      const tx = align === 'right' ? x + col.w - 2 : align === 'center' ? x + col.w / 2 : x + 2;
+      doc.text(text, tx, yy, { align: align === 'left' ? 'left' : align });
+    };
+    paint(String(item.n), cols[0], base, 8, false, 'center');
+    x += cols[0].w;
+    drawn.loc.forEach((line, i) => paint(line, cols[1], base + i * 10, 8, false, 'left'));
+    x += cols[1].w;
+    let dy = 0;
+    drawn.title.forEach((line) => { paint(line, cols[2], base + dy, 9, true, 'left'); dy += 11; });
+    drawn.rest.forEach((line) => { paint(line, cols[2], base + dy, 8, false, 'left'); dy += 10; });
+    x += cols[2].w;
+    drawn.size.forEach((line, i) => paint(line, cols[3], base + i * 10, 8, false, 'left'));
+    x += cols[3].w;
+    paint(String(item.qty), cols[4], base, 8, false, 'center');
+    x += cols[4].w;
+    paint(fmt(item.price), cols[5], base, 8, true, 'right');
+    y += drawn.h;
+    rule(y, 0.4, [197, 205, 214]);
+    y += 4;
+  });
+
   const pct = Number(data.agreement?.depositPct) || 60;
   const pay = contractPay(t.total, pct);
-  w.text(`Deposit (${pct}%)  ${fmt(pay.deposit)}`, { size: 11, gap: 1 });
-  w.text(`Final (${100 - pct}%)  ${fmt(pay.balance)}`, { size: 11, gap: 4 });
-  if (e.notes) { w.text('Notes', { size: 11, bold: true, gap: 1 }); w.text(e.notes, { size: 9, gap: 6 }); }
-  w.text('Terms', { size: 11, bold: true, gap: 1 });
-  w.text(settings.terms || '', { size: 8, gap: 4 });
+  const totalRows = [
+    ...summaryLines(t).map((row) => ({ label: row.label, value: fmt(row.amount), strong: false })),
+    { label: 'TOTAL', value: fmt(t.total), strong: true },
+    { label: `Deposit (${pct}%)`, value: fmt(pay.deposit), strong: false },
+    { label: `Final (${100 - pct}%)`, value: fmt(pay.balance), strong: false },
+  ];
+  const boxW = 250;
+  const boxH = totalRows.length * 16 + 8;
+  if (y + boxH > pageH - 36) { doc.addPage(); y = margin; }
+  y += 8;
+  totalRows.forEach((row) => {
+    doc.setFont('helvetica', row.strong ? 'bold' : 'normal');
+    doc.setFontSize(row.strong ? 11 : 9);
+    doc.setTextColor(17, 17, 17);
+    if (row.strong) { rule(y, 1.2, [17, 17, 17]); y += 4; }
+    doc.text(plain(row.label), right - boxW, y + 11);
+    doc.text(row.value, right, y + 11, { align: 'right' });
+    y += 16;
+  });
+  y += 8;
+  if (e.notes) {
+    const notes = wrapped(e.notes, width, 8, false);
+    if (y + notes.length * 10 > pageH - 36) { doc.addPage(); y = margin; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(14, 58, 99);
+    doc.text('Notes', margin, y + 10);
+    y += 14;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(17, 17, 17);
+    doc.text(notes, margin, y + 8);
+    y += notes.length * 10 + 8;
+  }
+  const terms = wrapped(settings.terms || '', width, 7.5, false);
+  if (y + 16 + terms.length * 9 > pageH - 28) { doc.addPage(); y = margin; }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(14, 58, 99);
+  doc.text('Terms', margin, y + 10);
+  y += 14;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(17, 17, 17);
+  doc.text(terms, margin, y + 8);
   return doc.output('blob');
 }

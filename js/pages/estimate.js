@@ -1,5 +1,5 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
-import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail } from '../cloud.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, quoteLine } from '../core.js';
+import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, currentProfile } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
@@ -349,61 +349,81 @@ export function render(root) {
   root.replaceChildren(wrap);
 }
 
-function licenseLines(c) {
-  return String(c?.license || '').split('\n').map((s) => s.trim()).filter(Boolean);
+const QUOTE_ROC = 'ROC #364772 / #364771';
+function repName() {
+  const profile = currentProfile() || {};
+  return profile.full_name || profile.email || settings.salesperson || '';
 }
 function estimateSheet(e) {
-  const t = totals(e); const c = settings.company;
-  const valid = new Date(e.created + (e.validDays || 30) * 86400000);
-  const sheet = h('div', { class: 'sheet' },
-    h('div', { class: 'sh-head' }, h('img', { src: 'assets/noble-logo-trim.png', alt: 'Noble Windows & Doors LLC', class: 'sh-logo' }),
-      h('div', { class: 'sh-co' }, h('b', {}, c.name), h('div', {}, c.address), h('div', {}, c.phone), c.email && h('div', {}, c.email), c.website && h('div', {}, c.website), c.hours && h('div', {}, c.hours), ...licenseLines(c).map((line) => h('div', {}, line)))),
-    h('h1', { class: 'sh-title' }, 'ESTIMATE'),
-    h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
-      h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));
-  // windows table
-  const tw = h('table', { class: 'sh-table sh-wide' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
-  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(l.unit)), h('td', { class: 'r' }, fmt(l.unit * l.qty)))));
-  tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
-  if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
-  if (t.percentDiscountAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-percent-discount-row' }, h('td', { colspan: 5, class: 'r' }, t.percentDiscountLabel), h('td', { class: 'r' }, fmt(-t.percentDiscountAmount))));
-  tw.append(tb);
-  const compact = compactWindowList(e.lines, { id: 'sh-compact' });
-  const foot = h('div', { class: 'win-foot' });
-  const footLine = (label, amount, extra = {}) => h('div', { class: 'win-top' + (extra.discount ? ' discount' : ''), id: extra.id || null }, h('span', {}, label), h('b', {}, fmt(amount)));
-  foot.append(footLine('Windows subtotal', t.windows, { id: 'sh-compact-windows' }));
-  if (t.promo?.windowAmount) foot.append(footLine(t.discountLabel, -t.promo.windowAmount, { discount: true, id: 'sh-compact-discount' }));
-  if (t.percentDiscountAmount) foot.append(footLine(t.percentDiscountLabel, -t.percentDiscountAmount, { discount: true, id: 'sh-compact-percent' }));
-  compact.append(foot);
-  sheet.append(h('h3', {}, 'Windows (materials, including glass)'), tw, compact);
-  if (e.extras.length) {
-    const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))));
-    tx.append(h('tr', { class: 'sub' }, h('td', { class: 'r' }, 'Additional items subtotal'), h('td', { class: 'r' }, fmt(t.extras))));
-    sheet.append(h('h3', {}, 'Additional items'), tx);
-  }
-  const shId = { install: 'sh-labor', shipping: 'sh-shipping', extras: 'sh-extras', tax: 'sh-tax' };
+  const t = totals(e);
+  const c = settings.company || {};
   const pct = Number(data.agreement?.depositPct) || 60;
   const pay = contractPay(t.total, pct);
-  sheet.append(h('div', { class: 'sh-totals' },
-    ...summaryLines(t, { includeMaterials: false }).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: shId[row.id] }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
+  const customer = h('div', {},
+    h('div', {}, e.customer?.name || '—'),
+    e.customer?.address ? h('div', {}, e.customer.address) : null,
+    e.customer?.phone ? h('div', {}, e.customer.phone) : null,
+    e.customer?.email ? h('div', {}, e.customer.email) : null);
+  const infoRow = (label, value) => h('tr', {}, h('th', {}, label), h('td', {}, value));
+  const sheet = h('div', { class: 'sheet quote' },
+    h('div', { class: 'q-head' },
+      h('div', { class: 'q-co' },
+        h('img', { src: 'assets/noble-logo-trim.png', alt: 'Noble Windows & Doors LLC', class: 'sh-logo' }),
+        h('b', {}, c.name || 'Noble Windows & Doors LLC'),
+        h('div', {}, c.address),
+        h('div', {}, c.phone || '(623) 810-3460'),
+        h('div', {}, QUOTE_ROC)),
+      h('table', { class: 'q-info', id: 'quote-info' },
+        h('caption', {}, 'QUOTE'),
+        h('tbody', {},
+          infoRow('Quote #', e.number || ''),
+          infoRow('Date', fdate(e.created)),
+          infoRow('Customer', customer),
+          infoRow('Sales rep', h('span', { id: 'quote-rep' }, repName() || '—'))))));
+  const table = h('table', { class: 'q-table', id: 'quote-lines' },
+    h('thead', {}, h('tr', {}, ['#', 'Location', 'Description', 'Size', 'Qty', 'Price'].map((label, i) => h('th', { class: i >= 4 ? 'r' : '' }, label)))));
+  const body = h('tbody');
+  (e.lines || []).forEach((l, i) => {
+    const q = quoteLine(l);
+    body.append(h('tr', {},
+      h('td', { class: 'q-num' }, String(i + 1)),
+      h('td', {}, q.location),
+      h('td', { class: 'q-desc' }, h('b', {}, q.title), ...q.details.map((d) => h('div', {}, d))),
+      h('td', { class: 'q-size' }, q.size),
+      h('td', { class: 'q-qty r' }, q.qty),
+      h('td', { class: 'q-price r' }, fmt(q.price))));
+  });
+  (e.extras || []).forEach((x, i) => {
+    body.append(h('tr', {},
+      h('td', { class: 'q-num' }, String((e.lines || []).length + i + 1)),
+      h('td', {}, ''),
+      h('td', { class: 'q-desc' }, h('b', {}, x.label || 'Additional item')),
+      h('td', {}, ''),
+      h('td', { class: 'q-qty r' }, '1'),
+      h('td', { class: 'q-price r' }, fmt(Number(x.amount) || 0))));
+  });
+  table.append(body);
+  sheet.append(h('div', { class: 'q-scroll' }, table));
+  const shId = { windows: 'sh-windows', discount: 'sh-discount', percentDiscount: 'sh-percent', install: 'sh-labor', shipping: 'sh-shipping', extras: 'sh-extras', tax: 'sh-tax' };
+  sheet.append(h('div', { class: 'q-totals sh-totals' },
+    ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: shId[row.id] || null }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
     h('div', { class: 'line big2' }, h('span', {}, 'TOTAL'), h('b', { id: 'sh-total' }, fmt(t.total))),
     h('div', { class: 'line' }, h('span', {}, `Deposit (${pct}%)`), h('b', { id: 'sh-deposit' }, fmt(pay.deposit))),
     h('div', { class: 'line' }, h('span', {}, `Final (${100 - pct}%)`), h('b', { id: 'sh-final' }, fmt(pay.balance)))));
   if (e.notes) sheet.append(h('h3', {}, 'Notes'), h('p', { class: 'pre' }, e.notes));
-  sheet.append(h('h3', {}, 'Terms'), h('p', { class: 'pre fine' }, settings.terms),
-    h('div', { class: 'sig' }, h('div', {}, 'Accepted by (signature) ______________________________'), h('div', {}, 'Date ______________')));
+  sheet.append(h('h3', {}, 'Terms'), h('p', { class: 'pre fine' }, settings.terms));
   return sheet;
 }
 export function renderPrint(root) {
   const e = estimates.current();
   root.replaceChildren(h('div', { class: 'page printpage' },
-    h('div', { class: 'noprint row gap wrap' }, h('a', { class: 'btn', href: '#/estimate' }, '← Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), estimateSheet(e)));
+    h('div', { class: 'noprint row gap wrap safe-top' }, h('a', { class: 'btn', href: '#/estimate' }, '← Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), estimateSheet(e)));
 }
 export function renderPresent(root) {
   const e = estimates.current();
   const rerender = () => renderPresent(root);
   const page = h('div', { class: 'page present-page' },
-    h('div', { class: 'noprint row' }, h('a', { class: 'btn sm', id: 'btn-present-back', href: '#/estimate' }, '← Estimate')),
+    h('div', { class: 'noprint present-top safe-top' }, h('a', { class: 'btn sm', id: 'btn-present-back', href: '#/estimate' }, '← Estimate')),
     sendUi.error ? h('p', { class: 'warn', id: 'send-error' }, sendUi.error) : null,
     estimateSheet(e),
     h('div', { class: 'present-bar noprint' },

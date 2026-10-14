@@ -167,7 +167,7 @@ export function render(root) {
     h('a', { class: 'btn', href: '#/estimate', id: 'btn-back-est' }, '← Back to estimate'));
 
   const wrap = h('div', { class: 'page contract-page' },
-    h('div', { class: 'noprint row between wrap' }, h('h1', {}, 'Purchase agreement'), h('a', { class: 'btn', href: '#/estimate' }, '← Estimate')),
+    h('div', { class: 'noprint row between wrap safe-top' }, h('h1', {}, 'Purchase agreement'), h('a', { class: 'btn', id: 'btn-contract-back', href: '#/estimate' }, '← Estimate')),
     page1, page2, actions);
   root.replaceChildren(wrap);
 
