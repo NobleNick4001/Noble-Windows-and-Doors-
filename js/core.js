@@ -386,8 +386,11 @@ export function findPromo(code) {
   if (!key) return null;
   return (data.promos?.codes || []).find((c) => String(c.code || '').trim().toUpperCase() === key) || null;
 }
+// Fixed on every estimate. Promo codes do not discount shipping. Tax is 9.1% of materials after the promo, not labor or shipping.
+export const SHIPPING_HANDLING = 150;
+export const SALES_TAX_PCT = 9.1;
 // Discount off window cost including glass upcharges. Labor only when that code's appliesToLabor is true.
-// Add-ons and stucco repair are never discounted.
+// Add-ons, stucco repair, and shipping are never discounted.
 export function promoResult(e, windows = 0, install = 0) {
   const entered = String(e?.promoCode || '').trim();
   const empty = { applied: false, invalid: false, amount: 0, windowAmount: 0, laborAmount: 0, label: '', note: '', promo: null };
@@ -429,22 +432,24 @@ export function totals(e) {
   const extras = r2((e.extras || []).reduce((s, x) => s + (Number(x.amount) || 0), 0));
   const promo = promoResult(e, windows, install);
   const discount = promo.amount;
-  const subtotal = r2(windows + install + addons + stucco.total + extras - discount);
-  const taxable = Math.max(0, (settings.taxOn === 'all') ? subtotal : r2(windows - promo.windowAmount));
-  const tax = r2(taxable * (e.taxPct || 0) / 100);
+  const labor = r2(install + addons + stucco.total);
+  const shipping = SHIPPING_HANDLING;
+  const taxable = Math.max(0, r2(windows - promo.windowAmount));
+  const tax = r2(taxable * SALES_TAX_PCT / 100);
+  const subtotal = r2(windows + labor + extras + shipping - discount);
   return {
-    windows, install, addons, stucco: stucco.total, stuccoName: stucco.name, stuccoQty: stucco.qty, stuccoUnit: stucco.unit, stuccoOn: stucco.on,
-    extras, discount, discountLabel: promo.label, promo, subtotal, taxable, tax, total: r2(subtotal + tax),
+    windows, install, addons, labor, shipping, stucco: stucco.total, stuccoName: stucco.name, stuccoQty: stucco.qty, stuccoUnit: stucco.unit, stuccoOn: stucco.on,
+    extras, discount, discountLabel: promo.label, promo, subtotal, taxable, tax, taxPct: SALES_TAX_PCT, total: r2(subtotal + tax),
     count: lines.reduce((s, l) => s + qtyOf(l), 0),
   };
 }
-// Rows shared by the estimate screen, the print view, the estimate PDF, and the purchase agreement.
+// Client-facing rows: itemized materials stay on the window lines. Labor, add-ons, and stucco are one Installation / Labor amount.
 export function summaryLines(t) {
   const rows = [{ id: 'windows', label: 'Windows', amount: t.windows }];
   if (t.discount) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -t.discount, discount: true });
-  rows.push({ id: 'install', label: 'Installation / labor', amount: t.install });
-  if (t.addons) rows.push({ id: 'addons', label: 'Add-ons', amount: t.addons });
-  if (t.stucco) rows.push({ id: 'stucco', label: t.stuccoName || 'Stucco repair & paint', amount: t.stucco });
+  rows.push({ id: 'install', label: 'Installation / Labor', amount: t.labor });
+  rows.push({ id: 'shipping', label: 'Shipping & Handling', amount: t.shipping });
   if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
+  rows.push({ id: 'tax', label: `Sales Tax (${SALES_TAX_PCT}%)`, amount: t.tax });
   return rows;
 }

@@ -1,4 +1,4 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, toast, uid, addonName } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, toast, uid, addonName } from '../core.js';
 import { contractPay } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
@@ -54,7 +54,7 @@ export function render(root) {
         h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
           h('div', { class: 'fine' }, `Install: ${installLabel(l.install)}`),
           addonNames(l.install).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install).join(', ')}`) : null),
-        h('div', { class: 'li-price' }, h('div', {}, `${l.qty} × ${fmt(l.unit)}`), h('div', { class: 'muted' }, `+ install ${l.qty} × ${fmt(installUnit(l.install))}`), addonUnit(l.install) ? h('div', { class: 'muted' }, `+ add-ons ${l.qty} × ${fmt(addonUnit(l.install))}`) : null, h('b', {}, fmt((l.unit + installUnit(l.install) + addonUnit(l.install)) * l.qty)))),
+        h('div', { class: 'li-price' }, h('div', {}, `${l.qty} × ${fmt(l.unit)}`), h('b', {}, fmt(l.unit * l.qty)))),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
         h('button', { class: 'btn sm danger', onclick: () => { e.lines.splice(idx, 1); save(); rerender(); } }, 'Remove')));
@@ -144,26 +144,20 @@ export function render(root) {
     promoError && h('p', { class: 'warn', id: 'promo-error' }, promoError),
     applied && h('div', { class: 'row between wrap gap', id: 'promo-applied' }, h('span', {}, `${applied.code} · ${applied.label}`), h('button', { type: 'button', class: 'btn sm', id: 'promo-remove', onclick: removePromo }, 'Remove')),
     applied && promoNote && h('p', { class: 'fine', id: 'promo-note' }, promoNote),
-    h('p', { class: 'fine' }, 'Applies to the window price, including glass. Does not apply to installation, add-ons, stucco repair, or a custom unit entered at the supplier price.')));
+    h('p', { class: 'fine' }, 'Applies to the window price, including glass. Does not apply to installation, add-ons, stucco repair, shipping, or a custom unit entered at the supplier price. Sales tax is 9.1% of the materials after this discount.')));
 
   // totals
   const tot = h('div', { class: 'card totals', id: 'totals' });
   function refreshTotals() {
     const t = totals(e);
-    const idFor = { windows: 't-win', discount: 't-discount', install: 't-inst', addons: 't-addons', stucco: 't-stucco', extras: 't-extras' };
-    tot.replaceChildren(...[
-      ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', { id: row.id === 'discount' ? 't-discount-lbl' : null }, row.id === 'windows' ? `Windows (${t.count})` : row.label), h('b', { id: idFor[row.id] }, fmt(row.amount)))),
-      h('div', { class: 'line strong' }, h('span', {}, 'Subtotal'), h('b', { id: 't-sub' }, fmt(t.subtotal))),
-      h('div', { class: 'line' }, h('span', { class: 'row gap' }, 'Tax %', h('input', { type: 'text', class: 'taxin', id: 't-taxpct', inputmode: 'decimal', value: e.taxPct, oninput: (ev) => { e.taxPct = parseFloat(ev.target.value) || 0; save(); const t2 = totals(e); const pay = contractPay(t2.total, payPct()); $tax.textContent = fmt(t2.tax); $tot.textContent = fmt(t2.total); $lbl.textContent = totLabel(t2); const dep = document.getElementById('t-deposit'); const fin = document.getElementById('t-final'); if (dep) dep.textContent = fmt(pay.deposit); if (fin) fin.textContent = fmt(pay.balance); } })), h('b', {}, h('span', { id: 't-tax' }, fmt(t.tax)))),
-      h('div', { class: 'line big2' }, h('span', { id: 't-lbl' }, totLabel(t)), h('b', { id: 't-total' }, fmt(t.total))),
-      h('div', { class: 'line' }, h('span', {}, `Deposit (${payPct()}%)`), h('b', { id: 't-deposit' }, fmt(contractPay(t.total, payPct()).deposit))),
-      h('div', { class: 'line' }, h('span', {}, `Final (${100 - payPct()}%)`), h('b', { id: 't-final' }, fmt(contractPay(t.total, payPct()).balance))),
-    ].filter(Boolean));
-    var $tax = $('#t-tax', tot), $tot = $('#t-total', tot), $lbl = $('#t-lbl', tot);
+    const idFor = { windows: 't-win', discount: 't-discount', install: 't-inst', shipping: 't-ship', extras: 't-extras', tax: 't-tax' };
+    const pay = contractPay(t.total, payPct());
+    tot.replaceChildren(...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', { id: row.id === 'discount' ? 't-discount-lbl' : null }, row.id === 'windows' ? `Windows (${t.count})` : row.label), h('b', { id: idFor[row.id] }, fmt(row.amount)))),
+      h('div', { class: 'line big2' }, h('span', {}, 'Total'), h('b', { id: 't-total' }, fmt(t.total))),
+      h('div', { class: 'line' }, h('span', {}, `Deposit (${payPct()}%)`), h('b', { id: 't-deposit' }, fmt(pay.deposit))),
+      h('div', { class: 'line' }, h('span', {}, `Final (${100 - payPct()}%)`), h('b', { id: 't-final' }, fmt(pay.balance))));
   }
-  const totLabel = (t) => (e.taxPct ? 'Total with tax' : 'Total (before tax)');
   const payPct = () => Number(data.agreement?.depositPct) || 65;
-  function $(s, r) { return r.querySelector(s); }
   refreshTotals();
   wrap.append(tot);
   wrap.append(h('div', { class: 'card' }, h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes (shown on estimate)'), h('textarea', { rows: 3, id: 'e-notes', oninput: (ev) => { e.notes = ev.target.value; save(); } }, e.notes)),
@@ -190,40 +184,19 @@ export function renderPrint(root) {
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
   tw.append(tb);
   sheet.append(h('h3', {}, 'Windows (materials, including glass)'), tw);
-  const ti = h('table', { class: 'sh-table' }, h('thead', {}, h('tr', {}, ['Location', 'Installation', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 1 ? 'r' : '' }, x)))));
-  const ib = h('tbody'); e.lines.forEach((l) => { const each = installUnit(l.install); ib.append(h('tr', {}, h('td', {}, l.label), h('td', {}, installLabel(l.install)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(each)), h('td', { class: 'r' }, fmt(each * l.qty)))); });
-  ib.append(h('tr', { class: 'sub' }, h('td', { colspan: 4, class: 'r' }, 'Installation / labor subtotal'), h('td', { class: 'r' }, fmt(t.install))));
-  if (t.promo?.laborAmount) ib.append(h('tr', { class: 'sub discount' }, h('td', { colspan: 4, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.laborAmount))));
-  ti.append(ib);
-  sheet.append(h('h3', {}, 'Installation / labor'), ti);
-  const addRows = e.lines.filter((l) => addonUnit(l.install));
-  if (addRows.length) {
-    const ta = h('table', { class: 'sh-table', id: 'sh-addons' }, h('thead', {}, h('tr', {}, ['Location', 'Add-ons', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 1 ? 'r' : '' }, x)))));
-    const ab = h('tbody');
-    addRows.forEach((l) => { const each = addonUnit(l.install); ab.append(h('tr', {}, h('td', {}, l.label), h('td', {}, addonNames(l.install).join(', ')), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(each)), h('td', { class: 'r' }, fmt(each * l.qty)))); });
-    ab.append(h('tr', { class: 'sub' }, h('td', { colspan: 4, class: 'r' }, 'Add-ons subtotal'), h('td', { class: 'r' }, fmt(t.addons))));
-    ta.append(ab);
-    sheet.append(h('h3', {}, 'Add-ons'), ta);
-  }
-  if (t.stuccoOn) {
-    const ts = h('table', { class: 'sh-table', id: 'sh-stucco' }, h('thead', {}, h('tr', {}, ['Item', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i ? 'r' : '' }, x)))));
-    ts.append(h('tbody', {}, h('tr', {}, h('td', {}, t.stuccoName), h('td', { class: 'r' }, t.stuccoQty), h('td', { class: 'r' }, fmt(t.stuccoUnit)), h('td', { class: 'r' }, fmt(t.stucco)))));
-    sheet.append(h('h3', {}, t.stuccoName), ts);
-  }
   if (e.extras.length) {
     const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))));
     tx.append(h('tr', { class: 'sub' }, h('td', { class: 'r' }, 'Additional items subtotal'), h('td', { class: 'r' }, fmt(t.extras))));
     sheet.append(h('h3', {}, 'Additional items'), tx);
   }
-  const shId = { windows: 'sh-windows', discount: 'sh-discount-total', install: 'sh-labor', addons: 'sh-addons-total', stucco: 'sh-stucco-total', extras: 'sh-extras' };
+  const shId = { windows: 'sh-windows', discount: 'sh-discount-total', install: 'sh-labor', shipping: 'sh-shipping', extras: 'sh-extras', tax: 'sh-tax' };
+  const pct = Number(data.agreement?.depositPct) || 65;
+  const pay = contractPay(t.total, pct);
   sheet.append(h('div', { class: 'sh-totals' },
     ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: shId[row.id] }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
-    h('div', { class: 'line' }, h('span', {}, 'Subtotal'), h('b', {}, fmt(t.subtotal))),
-    e.taxPct ? h('div', { class: 'line' }, h('span', {}, `Tax (${e.taxPct}%${settings.taxOn === 'all' ? '' : ' on windows'})`), h('b', {}, fmt(t.tax))) : null,
-    h('div', { class: 'line big2' }, h('span', {}, e.taxPct ? 'TOTAL' : 'TOTAL (before tax)'), h('b', { id: 'sh-total' }, fmt(t.total))),
-    h('div', { class: 'line' }, h('span', {}, `Deposit (${Number(data.agreement?.depositPct) || 65}%)`), h('b', { id: 'sh-deposit' }, fmt(contractPay(t.total, Number(data.agreement?.depositPct) || 65).deposit))),
-    h('div', { class: 'line' }, h('span', {}, `Final (${100 - (Number(data.agreement?.depositPct) || 65)}%)`), h('b', { id: 'sh-final' }, fmt(contractPay(t.total, Number(data.agreement?.depositPct) || 65).balance))),
-    !e.taxPct && h('div', { class: 'fine r' }, 'Sales tax not included.')));
+    h('div', { class: 'line big2' }, h('span', {}, 'TOTAL'), h('b', { id: 'sh-total' }, fmt(t.total))),
+    h('div', { class: 'line' }, h('span', {}, `Deposit (${pct}%)`), h('b', { id: 'sh-deposit' }, fmt(pay.deposit))),
+    h('div', { class: 'line' }, h('span', {}, `Final (${100 - pct}%)`), h('b', { id: 'sh-final' }, fmt(pay.balance)))));
   if (e.notes) sheet.append(h('h3', {}, 'Notes'), h('p', { class: 'pre' }, e.notes));
   sheet.append(h('h3', {}, 'Terms'), h('p', { class: 'pre fine' }, settings.terms),
     h('div', { class: 'sig' }, h('div', {}, 'Accepted by (signature) ______________________________'), h('div', {}, 'Date ______________')));

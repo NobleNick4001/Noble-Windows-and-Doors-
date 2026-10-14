@@ -34,7 +34,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await shot('02-estimate-edit');
     await page.evaluate(() => { [...document.querySelectorAll('.btn')].find((b) => b.textContent === 'Save line').click(); }); await sleep(200);
     await shot('03-estimate');
-    if (tag === 'ipad-landscape') console.log('totals', await page.evaluate(() => ['t-win', 't-inst', 't-sub', 't-total'].map((i) => document.getElementById(i).textContent).join(' | ')));
+    if (tag === 'ipad-landscape') console.log('totals', await page.evaluate(() => ['t-win', 't-inst', 't-ship', 't-tax', 't-total'].map((i) => document.getElementById(i).textContent).join(' | ')));
     await go('#/estimate/print'); await page.screenshot({ path: `${OUT}${tag}-04-print-view.png`, fullPage: true });
     if (tag === 'ipad-portrait') await page.pdf({ path: OUT + 'sample-estimate.pdf', format: 'Letter', printBackground: true });
     await go('#/saved'); await shot('05-saved');
