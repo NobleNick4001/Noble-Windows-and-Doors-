@@ -13,7 +13,7 @@ import * as admin from './pages/admin.js';
 
 const ROUTES = [
   ['calculator', 'Calculator', '🧮', (r) => calculator.render(r)],
-  ['estimate', 'Estimate', '📄', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
+  ['estimate', 'Estimate', '📄', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'present' ? estimate.renderPresent(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
   ['saved', 'Mine', '🗂', (r) => estimate.renderList(r)],
   ['options', 'Options', '🪟', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', '🖼', (r) => gallery.render(r)],

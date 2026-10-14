@@ -476,6 +476,8 @@ export const estimates = {
     delete c.hubspotPossibleMatch;
     delete c.presentedAt;
     delete c.signedAt;
+    delete c.sentAt;
+    delete c.sentTo;
     delete c.contractRowId;
     c.status = 'draft';
     this.save(c); this._cur = c; this.setCurrent(c.id); return c;

@@ -6,6 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   customerQuery, normEmail, parseName, phoneFormats, rankCandidates, resolveContactChoice, pickDeal,
 } from './match.js';
+import { followUpDue, followUpTitle, matchOwner } from './followup.js';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -185,6 +186,43 @@ async function attachNote(token: string, dealId: string, body: string) {
   return note?.id || null;
 }
 
+async function createFollowUp(token: string, { contactId, dealId, title, due, ownerEmail }: {
+  contactId: string; dealId: string; title: string; due: string; ownerEmail: string;
+}) {
+  let ownerId: string | null = null;
+  if (ownerEmail) {
+    const found = await hubspot(token, '/crm/v3/owners/?email=' + encodeURIComponent(ownerEmail) + '&limit=10');
+    const owner = matchOwner(found?.results || [], ownerEmail);
+    ownerId = owner?.id ? String(owner.id) : null;
+  }
+  const properties: Record<string, string> = {
+    hs_task_subject: title,
+    hs_task_status: 'NOT_STARTED',
+    hs_task_priority: 'MEDIUM',
+    hs_task_type: 'TODO',
+    hs_timestamp: due,
+  };
+  if (ownerId) properties.hubspot_owner_id = ownerId;
+  const task = await hubspot(token, '/crm/v3/objects/tasks', {
+    method: 'POST',
+    body: JSON.stringify({ properties }),
+  });
+  const taskId = task?.id ? String(task.id) : '';
+  if (taskId && contactId) {
+    await hubspot(token, `/crm/v4/objects/tasks/${taskId}/associations/default/contacts/${contactId}`, {
+      method: 'PUT',
+      body: '{}',
+    });
+  }
+  if (taskId && dealId) {
+    await hubspot(token, `/crm/v4/objects/tasks/${taskId}/associations/default/deals/${dealId}`, {
+      method: 'PUT',
+      body: '{}',
+    });
+  }
+  return { id: taskId || null, ownerId };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json(405, { ok: false, error: 'POST only' });
@@ -210,7 +248,7 @@ Deno.serve(async (req) => {
   if (!estimateId) return json(400, { ok: false, error: 'estimateId is required' });
   if (mode === 'sync' && !event) return json(400, { ok: false, error: 'estimateId and event are required' });
 
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const { data: profile } = await admin.from('profiles').select('role, email, full_name').eq('id', user.id).maybeSingle();
   const { data: estimate, error: estErr } = await admin.from('estimates').select('*').eq('id', estimateId).maybeSingle();
   if (estErr) return json(500, { ok: false, error: estErr.message });
   if (!estimate || estimate.deleted_at) return json(404, { ok: false, error: 'Estimate not found' });
@@ -300,6 +338,26 @@ Deno.serve(async (req) => {
       noteError = err instanceof Error ? err.message : 'Note was not attached';
     }
 
+    let taskId: string | null = null;
+    let taskDue: string | null = null;
+    let taskError: string | null = null;
+    if (payload.followUp && event === 'presented') {
+      taskDue = followUpDue(new Date(), 2);
+      const title = followUpTitle(estimate.customer_name, estimate.total_amount);
+      try {
+        const task = await createFollowUp(token, {
+          contactId: String(contactId),
+          dealId: String(dealId),
+          title,
+          due: taskDue,
+          ownerEmail: profile?.email || user.email || '',
+        });
+        taskId = task.id;
+      } catch (err) {
+        taskError = err instanceof Error ? err.message : 'Follow-up task was not created';
+      }
+    }
+
     return json(200, {
       ok: true,
       mode: 'sync',
@@ -311,6 +369,9 @@ Deno.serve(async (req) => {
       created_deal: createdDeal,
       possible_matches: decision.flag,
       note_error: noteError,
+      task_id: taskId,
+      task_due: taskDue,
+      task_error: taskError,
     });
   } catch (err) {
     return json(502, { ok: false, error: err instanceof Error ? err.message : 'HubSpot request failed' });
