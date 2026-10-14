@@ -1,7 +1,11 @@
-// Finds or creates a HubSpot contact, then creates or updates the deal for one estimate.
-// Secret: HUBSPOT_TOKEN (a private-app token). SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
-// are injected by Supabase. The app keeps working when this function is not deployed.
+// Finds an existing HubSpot contact and open deal for an estimate, or creates one.
+// Preview mode only searches. Sync links a confident match (or the rep's choice)
+// and attaches an estimate note. Secret: HUBSPOT_TOKEN. The app still saves locally
+// when this function is not deployed.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  customerQuery, normEmail, parseName, phoneFormats, rankCandidates, resolveContactChoice, pickDeal,
+} from './match.js';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -9,15 +13,14 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const CONTACT_PROPS = ['email', 'phone', 'mobilephone', 'firstname', 'lastname', 'address', 'zip', 'city'];
+const DEAL_PROPS = ['dealname', 'amount', 'dealstage', 'pipeline', 'hs_is_closed', 'hs_is_closed_won', 'hs_lastmodifieddate'];
+
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
-}
-
-function digits(value: string) {
-  return String(value || '').replace(/\D/g, '');
 }
 
 async function hubspot(token: string, path: string, init: RequestInit = {}) {
@@ -39,36 +42,73 @@ async function hubspot(token: string, path: string, init: RequestInit = {}) {
   return body;
 }
 
-async function searchContact(token: string, property: string, value: string) {
-  const found = await hubspot(token, '/crm/v3/objects/contacts/search', {
-    method: 'POST',
-    body: JSON.stringify({
-      filterGroups: [{ filters: [{ propertyName: property, operator: 'EQ', value }] }],
-      properties: ['email', 'phone', 'firstname', 'lastname'],
-      limit: 1,
-    }),
-  });
-  return found?.results?.[0] || null;
+function chunks<T>(items: T[], size: number) {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }
 
-async function findOrCreateContact(token: string, estimate: any) {
-  const email = String(estimate.customer_email || '').trim();
-  const phone = String(estimate.customer_phone || '').trim();
-  const name = String(estimate.customer_name || '').trim();
-  let contact = email ? await searchContact(token, 'email', email) : null;
-  if (!contact && phone) contact = await searchContact(token, 'phone', phone);
-  if (!contact && digits(phone).length >= 10) {
-    const d = digits(phone);
-    contact = await searchContact(token, 'phone', d.length === 10 ? `+1${d}` : `+${d}`);
+async function searchContacts(token: string, filterGroups: any[], limit = 20) {
+  if (!filterGroups.length) return [];
+  const found = await hubspot(token, '/crm/v3/objects/contacts/search', {
+    method: 'POST',
+    body: JSON.stringify({ filterGroups, properties: CONTACT_PROPS, limit }),
+  });
+  return found?.results || [];
+}
+
+async function gatherContacts(token: string, query: { name: string; email: string; phone: string; address: string }) {
+  const map = new Map<string, any>();
+  const add = (rows: any[]) => {
+    for (const row of rows) if (row?.id && !map.has(String(row.id))) map.set(String(row.id), row);
+  };
+  const email = normEmail(query.email);
+  if (email) {
+    add(await searchContacts(token, [{ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] }]));
   }
-  if (contact) return contact;
-  const parts = name.split(/\s+/).filter(Boolean);
+  for (const group of chunks(phoneFormats(query.phone), 5)) {
+    add(await searchContacts(token, group.map((value) => ({ filters: [{ propertyName: 'phone', operator: 'EQ', value }] }))));
+    add(await searchContacts(token, group.map((value) => ({ filters: [{ propertyName: 'mobilephone', operator: 'EQ', value }] }))));
+  }
+  const name = parseName(query.name);
+  const lastNames = [...new Set([name.last, name.last ? name.last.replace(/\b\w/g, (c) => c.toUpperCase()) : ''].filter(Boolean))];
+  for (const last of lastNames) {
+    add(await searchContacts(token, [{ filters: [{ propertyName: 'lastname', operator: 'EQ', value: last }] }], 25));
+  }
+  return [...map.values()];
+}
+
+async function dealsForContact(token: string, contactId: string) {
+  const assoc = await hubspot(token, `/crm/v4/objects/contacts/${contactId}/associations/deals`);
+  const ids = (assoc?.results || []).map((r: any) => r.toObjectId || r.id).filter(Boolean).map(String);
+  if (!ids.length) return [];
+  const read = await hubspot(token, '/crm/v3/objects/deals/batch/read', {
+    method: 'POST',
+    body: JSON.stringify({
+      properties: DEAL_PROPS,
+      inputs: ids.slice(0, 50).map((id) => ({ id })),
+    }),
+  });
+  return read?.results || [];
+}
+
+function openDealSummary(deals: any[]) {
+  const pick = pickDeal({ deals });
+  if (pick.action !== 'update') return null;
+  const deal = deals.find((d) => String(d.id) === pick.dealId);
+  const p = deal?.properties || {};
+  return { id: pick.dealId, name: p.dealname || '', amount: p.amount || '', stage: p.dealstage || '' };
+}
+
+async function createContact(token: string, query: { name: string; email: string; phone: string; address: string }) {
+  const name = parseName(query.name);
   const properties: Record<string, string> = {};
+  const email = normEmail(query.email);
   if (email) properties.email = email;
-  if (phone) properties.phone = phone;
-  if (parts[0]) properties.firstname = parts[0];
-  if (parts.length > 1) properties.lastname = parts.slice(1).join(' ');
-  if (estimate.customer_address) properties.address = String(estimate.customer_address);
+  if (query.phone) properties.phone = String(query.phone).trim();
+  if (name.first) properties.firstname = name.first;
+  if (name.last) properties.lastname = name.last;
+  if (query.address) properties.address = String(query.address).trim();
   if (!Object.keys(properties).length) properties.firstname = 'Customer';
   return hubspot(token, '/crm/v3/objects/contacts', {
     method: 'POST',
@@ -76,10 +116,12 @@ async function findOrCreateContact(token: string, estimate: any) {
   });
 }
 
-async function dealStage(token: string, event: string) {
+async function dealStage(token: string, event: string, pipelineHint?: string) {
   const pipelines = await hubspot(token, '/crm/v3/pipelines/deals');
   const list = pipelines?.results || [];
-  const pipeline = list.find((p: any) => p.id === 'default') || list[0];
+  const pipeline = list.find((p: any) => p.id === pipelineHint)
+    || list.find((p: any) => p.id === 'default')
+    || list[0];
   const stages = pipeline?.stages || [];
   const label = (s: any) => String(s.label || '');
   let stage = null;
@@ -97,38 +139,41 @@ async function dealStage(token: string, event: string) {
   };
 }
 
-async function upsertDeal(token: string, estimate: any, event: string, contactId: string | null) {
-  const stage = await dealStage(token, event);
+function noteBody(estimate: any, event: string, flag: any[]) {
   const doc = estimate.document || {};
-  const number = doc.number || estimate.id;
-  const who = estimate.customer_name || 'Customer';
-  const amount = estimate.total_amount == null ? '0' : String(estimate.total_amount);
-  const properties: Record<string, string> = {
-    dealname: `${who} — ${number}`,
-    amount,
-    pipeline: stage.pipelineId,
-    dealstage: stage.stageId,
-  };
-  let dealId = estimate.hubspot_deal_id || null;
-  if (dealId) {
-    await hubspot(token, `/crm/v3/objects/deals/${dealId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ properties }),
-    });
-  } else {
-    const created = await hubspot(token, '/crm/v3/objects/deals', {
-      method: 'POST',
-      body: JSON.stringify({ properties }),
-    });
-    dealId = created.id;
+  const lines = doc.lines || [];
+  const windows = lines.reduce((n: number, line: any) => n + (Number(line?.qty) > 0 ? Number(line.qty) : 1), 0);
+  const total = estimate.total_amount == null ? '' : `$${Number(estimate.total_amount).toFixed(2)}`;
+  const linesOut = [
+    `Estimate ${doc.number || estimate.id} ${event}`,
+    `Customer: ${estimate.customer_name || ''}`,
+    `Phone: ${estimate.customer_phone || ''}`,
+    `Email: ${estimate.customer_email || ''}`,
+    `Address: ${estimate.customer_address || ''}`,
+    `Windows: ${windows}`,
+    `Total: ${total}`,
+  ];
+  if (flag?.length) {
+    linesOut.push('Possible matching contacts were not linked:');
+    for (const match of flag) linesOut.push(`- ${match.name || 'Unnamed'} · ${match.phone || ''} · ${match.email || ''}`);
   }
-  if (contactId && dealId) {
-    await hubspot(token, `/crm/v4/objects/deals/${dealId}/associations/default/contacts/${contactId}`, {
+  return linesOut.join('\n');
+}
+
+async function attachNote(token: string, dealId: string, body: string) {
+  const note = await hubspot(token, '/crm/v3/objects/notes', {
+    method: 'POST',
+    body: JSON.stringify({
+      properties: { hs_timestamp: new Date().toISOString(), hs_note_body: body },
+    }),
+  });
+  if (note?.id) {
+    await hubspot(token, `/crm/v4/objects/notes/${note.id}/associations/default/deals/${dealId}`, {
       method: 'PUT',
       body: '{}',
     });
   }
-  return { dealId, ...stage };
+  return note?.id || null;
 }
 
 Deno.serve(async (req) => {
@@ -151,8 +196,10 @@ Deno.serve(async (req) => {
   let payload: any = {};
   try { payload = await req.json(); } catch { return json(400, { ok: false, error: 'Expected JSON' }); }
   const estimateId = String(payload.estimateId || '');
+  const mode = payload.mode === 'preview' ? 'preview' : 'sync';
   const event = payload.event === 'signed' ? 'signed' : payload.event === 'presented' ? 'presented' : '';
-  if (!estimateId || !event) return json(400, { ok: false, error: 'estimateId and event are required' });
+  if (!estimateId) return json(400, { ok: false, error: 'estimateId is required' });
+  if (mode === 'sync' && !event) return json(400, { ok: false, error: 'estimateId and event are required' });
 
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle();
   const { data: estimate, error: estErr } = await admin.from('estimates').select('*').eq('id', estimateId).maybeSingle();
@@ -161,19 +208,100 @@ Deno.serve(async (req) => {
   if (estimate.owner_id !== user.id && profile?.role !== 'admin') return json(403, { ok: false, error: 'Not your estimate' });
 
   try {
-    const contact = await findOrCreateContact(token, estimate);
-    const deal = await upsertDeal(token, estimate, event, contact?.id || null);
+    const query = customerQuery(estimate);
+    const ranked = rankCandidates(query, await gatherContacts(token, query));
+    const shown = ranked.matches.slice(0, 8);
+
+    if (mode === 'preview') {
+      const matches = [];
+      for (const match of shown) {
+        const deals = await dealsForContact(token, match.id);
+        matches.push({ ...match, deal: openDealSummary(deals) });
+      }
+      return json(200, { ok: true, mode: 'preview', matches, autoId: ranked.auto?.id || null });
+    }
+
+    const choice = payload.choice && typeof payload.choice === 'object' ? payload.choice : null;
+    const decision = resolveContactChoice(choice, shown);
+    let contactId = decision.contactId;
+    if (decision.action === 'create') {
+      const created = await createContact(token, query);
+      contactId = created?.id ? String(created.id) : null;
+    }
+    if (!contactId) return json(502, { ok: false, error: 'HubSpot contact was not created' });
+
+    const createNew = decision.action === 'create';
+    const deals = createNew ? [] : await dealsForContact(token, contactId);
+    const explicitChoice = Boolean(choice && Object.prototype.hasOwnProperty.call(choice, 'dealId') && !choice.createNew);
+    const picked = pickDeal({
+      createNew,
+      estimateDealId: estimate.hubspot_deal_id || null,
+      chosenDealId: choice?.dealId || null,
+      explicitChoice,
+      deals,
+    });
+
+    let pipelineHint: string | undefined;
+    if (picked.action === 'update' && picked.dealId) {
+      const existing = deals.find((d: any) => String(d.id) === String(picked.dealId));
+      pipelineHint = existing?.properties?.pipeline;
+      if (!pipelineHint) {
+        const read = await hubspot(token, `/crm/v3/objects/deals/${picked.dealId}?properties=pipeline,dealstage`);
+        pipelineHint = read?.properties?.pipeline;
+      }
+    }
+    const stage = await dealStage(token, event, pipelineHint);
+    const doc = estimate.document || {};
+    const properties: Record<string, string> = {
+      dealname: `${estimate.customer_name || 'Customer'} — ${doc.number || estimate.id}`,
+      amount: estimate.total_amount == null ? '0' : String(estimate.total_amount),
+      pipeline: stage.pipelineId,
+      dealstage: stage.stageId,
+    };
+    let dealId = picked.dealId;
+    let createdDeal = false;
+    if (picked.action === 'update' && dealId) {
+      await hubspot(token, `/crm/v3/objects/deals/${dealId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ properties }),
+      });
+    } else {
+      const created = await hubspot(token, '/crm/v3/objects/deals', {
+        method: 'POST',
+        body: JSON.stringify({ properties }),
+      });
+      dealId = created.id;
+      createdDeal = true;
+    }
+    await hubspot(token, `/crm/v4/objects/deals/${dealId}/associations/default/contacts/${contactId}`, {
+      method: 'PUT',
+      body: '{}',
+    });
+
     const { error: saveErr } = await admin.from('estimates').update({
-      hubspot_contact_id: contact?.id || estimate.hubspot_contact_id || null,
-      hubspot_deal_id: deal.dealId,
+      hubspot_contact_id: contactId,
+      hubspot_deal_id: dealId,
     }).eq('id', estimateId);
     if (saveErr) return json(500, { ok: false, error: saveErr.message });
+
+    let noteError: string | null = null;
+    try {
+      await attachNote(token, String(dealId), noteBody(estimate, event, decision.flag));
+    } catch (err) {
+      noteError = err instanceof Error ? err.message : 'Note was not attached';
+    }
+
     return json(200, {
       ok: true,
+      mode: 'sync',
       event,
-      hubspot_contact_id: contact?.id || null,
-      hubspot_deal_id: deal.dealId,
-      stage: deal.stageLabel,
+      hubspot_contact_id: contactId,
+      hubspot_deal_id: dealId,
+      stage: stage.stageLabel,
+      created_contact: decision.action === 'create',
+      created_deal: createdDeal,
+      possible_matches: decision.flag,
+      note_error: noteError,
     });
   } catch (err) {
     return json(502, { ok: false, error: err instanceof Error ? err.message : 'HubSpot request failed' });

@@ -1,10 +1,11 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, optionDef, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, toast, uid, addonName } from '../core.js';
-import { markPresented, userId, refreshEstimates } from '../cloud.js';
+import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates } from '../cloud.js';
 import { contractPay } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
 const open = new Set(); // line ids being edited
 const promoUi = { forId: null, draft: '', dirty: false, error: '' };
+const hubUi = { estimateId: null, matches: [], autoId: null, busy: false };
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function lineDesc(l) {
@@ -23,6 +24,41 @@ function reprice(l) {
   else { l.unitBase = 0; l.optionsEach = 0; l.unit = 0; }
   l.installUnit = installUnit(l.install);
 }
+async function presentEstimate(rerender) {
+  if (hubUi.busy) return;
+  hubUi.busy = true;
+  const current = estimates.current();
+  try {
+    const prep = await preparePresented(current);
+    if (!prep.ok) return;
+    if (!prep.ready) {
+      hubUi.estimateId = current.id;
+      hubUi.matches = prep.matches || [];
+      hubUi.autoId = prep.autoId || null;
+      return;
+    }
+    hubUi.estimateId = null;
+    await markPresented(current);
+  } finally {
+    hubUi.busy = false;
+    rerender();
+  }
+}
+
+async function confirmHubspot(e, choice, rerender) {
+  if (hubUi.busy) return;
+  hubUi.busy = true;
+  try {
+    applyHubspotChoice(e, choice);
+    hubUi.estimateId = null;
+    hubUi.matches = [];
+    await markPresented(e);
+  } finally {
+    hubUi.busy = false;
+    rerender();
+  }
+}
+
 export function render(root) {
   const e = estimates.current();
   e.extras ||= [];
@@ -39,12 +75,28 @@ export function render(root) {
     h('div', { class: 'row wrap gap' },
       h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, '+ New'),
       h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
-      h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' ? true : null, onclick: async () => { await markPresented(estimates.current()); rerender(); } }, 'Mark presented'),
+      h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' || hubUi.busy ? true : null, onclick: () => presentEstimate(rerender) }, 'Mark presented'),
       h('a', { class: 'btn primary', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
       h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
 
+  if (hubUi.estimateId === e.id && hubUi.matches.length) {
+    wrap.append(h('div', { class: 'card hubspot-match', id: 'hubspot-match' },
+      h('h3', {}, 'HubSpot lead'),
+      h('p', { class: 'muted' }, 'A similar contact is already in HubSpot. Confirm that lead, or start a new one.'),
+      ...hubUi.matches.map((m) => h('div', { class: 'match' + (m.id === hubUi.autoId ? ' best' : '') },
+        h('b', {}, m.name || 'Unnamed contact'),
+        h('span', { class: 'fine' }, m.confident ? ' Likely match' : ' Possible match'),
+        h('div', {}, m.phone || 'No phone'),
+        h('div', {}, m.email || 'No email'),
+        m.deal
+          ? h('div', { class: 'fine' }, `Open deal: ${m.deal.name || m.deal.id}${m.deal.amount ? ' · $' + m.deal.amount : ''}`)
+          : h('div', { class: 'fine' }, 'No open deal yet. A new deal will be created.'),
+        h('button', { type: 'button', class: 'btn primary', onclick: () => confirmHubspot(e, { match: m }, rerender) }, 'Use this lead'))),
+      h('button', { type: 'button', class: 'btn', id: 'hubspot-new-lead', onclick: () => confirmHubspot(e, { createNew: true, matches: hubUi.matches }, rerender) }, 'New lead')));
+  }
+
   // customer
-  const cf = (key, label, type = 'text', ph = '') => h('label', { class: 'field' }, h('span', { class: 'lbl' }, label), h('input', { type, id: 'c-' + key, value: e.customer[key], placeholder: ph, autocomplete: 'off', oninput: (ev) => { e.customer[key] = ev.target.value; save(); } }));
+  const cf = (key, label, type = 'text', ph = '') => h('label', { class: 'field' }, h('span', { class: 'lbl' }, label), h('input', { type, id: 'c-' + key, value: e.customer[key], placeholder: ph, autocomplete: 'off', oninput: (ev) => { e.customer[key] = ev.target.value; if (!e.hubspotContactId) delete e.hubspotChoice; save(); } }));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Customer'), h('div', { class: 'cols2' }, cf('name', 'Name'), cf('phone', 'Phone', 'tel'), cf('email', 'Email', 'email'), cf('address', 'Job address'))));
 
   // lines
