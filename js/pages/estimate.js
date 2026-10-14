@@ -361,7 +361,6 @@ function estimateSheet(e) {
     h('h1', { class: 'sh-title' }, 'ESTIMATE'),
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));
-  // windows table
   const tw = h('table', { class: 'sh-table sh-wide' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
   const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(l.unit)), h('td', { class: 'r' }, fmt(l.unit * l.qty)))));
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
@@ -397,13 +396,13 @@ function estimateSheet(e) {
 export function renderPrint(root) {
   const e = estimates.current();
   root.replaceChildren(h('div', { class: 'page printpage' },
-    h('div', { class: 'noprint row gap wrap' }, h('a', { class: 'btn', href: '#/estimate' }, '← Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), estimateSheet(e)));
+    h('div', { class: 'noprint row gap wrap safe-top' }, h('a', { class: 'btn', href: '#/estimate' }, '← Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), estimateSheet(e)));
 }
 export function renderPresent(root) {
   const e = estimates.current();
   const rerender = () => renderPresent(root);
   const page = h('div', { class: 'page present-page' },
-    h('div', { class: 'noprint row' }, h('a', { class: 'btn sm', id: 'btn-present-back', href: '#/estimate' }, '← Estimate')),
+    h('div', { class: 'noprint present-top safe-top' }, h('a', { class: 'btn sm', id: 'btn-present-back', href: '#/estimate' }, '← Estimate')),
     sendUi.error ? h('p', { class: 'warn', id: 'send-error' }, sendUi.error) : null,
     estimateSheet(e),
     h('div', { class: 'present-bar noprint' },

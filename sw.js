@@ -1,5 +1,5 @@
 // Offline support: network-first (so edited JSON/rates show up immediately), cache fallback when offline.
-const CACHE = 'nwd-sales-v26';
+const CACHE = 'nwd-sales-v28';
 const PRECACHE = ['./', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'js/app.js', 'js/core.js', 'js/cloud.js', 'js/frames.js', 'js/pdf.js', 'js/sign.js', 'js/vendor/jspdf.umd.min.js',
   'js/pages/calculator.js', 'js/pages/estimate.js', 'js/pages/contract.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/overlay.js', 'js/pages/settings.js', 'js/pages/obscure.js', 'js/pages/frame-types.js', 'js/pages/auth.js', 'js/pages/admin.js',
   'data/rates.json', 'data/variable-rates.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'data/promos.json', 'data/purchase-agreement.json', 'assets/gallery/gallery.json',

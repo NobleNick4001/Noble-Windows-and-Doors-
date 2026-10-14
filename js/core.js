@@ -228,6 +228,62 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
     brandName: brandName || 'Windows',
   };
 }
+const QUOTE_FRAME = { zbar: 'Z-bar', block: 'Block frame', nailfin: 'Nailing fin' };
+export function glassPackageName(line) {
+  const brand = line?.brand === 'iwc_window' || line?.brand === 'iwc_door' ? 'iwc' : line?.brand;
+  if (brand === 'milgard') return 'SunCoat Max Low-E (dual pane, argon)';
+  if (brand === 'andersen') return 'Dual-Pane Low-E SmartSun';
+  if (brand === 'iwc') return 'Xtreme Low-E';
+  return '';
+}
+function quoteFrameName(line) {
+  const id = line?.install?.frameType || line?.frameType || '';
+  return QUOTE_FRAME[id] || (id ? (frameTypeById(id)?.name || String(id)) : '');
+}
+function obscurePatternName(line) {
+  const ids = new Set([...(line?.options || []), ...(line?.addons || [])]);
+  return (data.obscureGlass?.patterns || []).find((p) => ids.has(p.id))?.name || '';
+}
+// Customer-facing quote row. Glass package is the brand default. Tempered, obscure, and grids appear only when selected.
+export function quoteLine(line, { ascii = false } = {}) {
+  line = line || {};
+  const brandId = line.brand === 'iwc_window' || line.brand === 'iwc_door' ? 'iwc' : line.brand;
+  const brandName = brandById(line.brand)?.name || (brandId === 'iwc' ? 'IWC' : line.brand) || '';
+  const custom = String(line.customDescription || '').trim();
+  const product = [brandName, seriesLabel(line), typeName(line.type)].filter(Boolean).join(' ');
+  const ids = new Set([...(line.addons || []), ...(line.options || [])]);
+  const details = [];
+  if (custom) details.push(custom);
+  const color = colorName(line.color);
+  if (color) details.push(color);
+  const frame = quoteFrameName(line);
+  if (frame) details.push(frame);
+  const glass = glassPackageName(line);
+  if (glass) details.push(glass);
+  if (ids.has('tempered')) details.push('Tempered (safety) glass');
+  else if (ids.has('tempered_lower')) details.push('Tempered (lower sash only)');
+  if (ids.has('laminated')) details.push('Laminated glass');
+  if (ids.has('obscure')) {
+    const pattern = obscurePatternName(line);
+    details.push(pattern ? `Obscured glass (${pattern})` : 'Obscured glass');
+  }
+  if (ids.has('grids') || ids.has('grids-colonial')) details.push('Grids (flat colonial)');
+  else if (ids.has('grids-prairie')) details.push('Grids (Prairie)');
+  if (ids.has('grilles_gbg')) details.push('Grilles between the glass');
+  if (ids.has('truscene')) details.push('TruScene screen');
+  if (ids.has('flush_fin_trim')) details.push('Flush fin + interior trim');
+  if (ids.has('screen')) details.push('Screen');
+  if (Number(line.unitsPerLine) > 1) details.push(`${line.unitsPerLine} units`);
+  const times = ascii ? 'x' : '×';
+  return {
+    location: line.label || 'Window',
+    title: product || custom || 'Window',
+    details,
+    size: `${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`,
+    qty: Number(line.qty) || 1,
+    price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
+  };
+}
 export function windowSections(lines) {
   const groups = [];
   const index = new Map();
