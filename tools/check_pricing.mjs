@@ -1,6 +1,6 @@
 // Spot-check the sales pricing rules. Run: node tools/check_pricing.mjs
 import { readFileSync } from 'node:fs';
-import { data, settings, priceWindow, totals, stuccoState, installUnit, addonUnit, summaryLines } from '../js/core.js';
+import { data, settings, priceWindow, totals, stuccoState, installUnit, addonUnit, summaryLines, parsePercentDiscount, clampPercentDiscount } from '../js/core.js';
 import { contractPay } from '../js/pdf.js';
 
 const read = (name) => JSON.parse(readFileSync(new URL('../data/' + name, import.meta.url), 'utf8'));
@@ -71,9 +71,10 @@ eq(t.shipping, 150, 'shipping is $150');
 eq(t.taxable, 2016, 'tax base is materials after the promo');
 eq(t.tax, 183.46, '9.1% of $2,016');
 eq(t.total, 3144.46, 'total');
+eq(data.agreement.depositPct, 60, 'deposit percent');
 const pay = contractPay(t.total, data.agreement.depositPct);
-eq(pay.deposit, 2043.9, 'deposit');
-eq(pay.balance, 1100.56, 'final');
+eq(pay.deposit, 1886.68, 'deposit is 60%');
+eq(pay.balance, 1257.78, 'final is 40%');
 eq(pay.deposit + pay.balance, pay.total, 'deposit plus final');
 
 const stacked = priceWindow({ brand: 'milgard', series: 'V250', color: 'ww', type: 'hslider', w: 50, h: 50, qty: 1, options: ['laminated', 'tempered', 'obscure', 'satin'] });
@@ -121,5 +122,29 @@ const withExtra = totals({ ...e, extras: [{ amount: 200 }] });
 eq(withExtra.tax, 183.46, 'extras are not taxed');
 eq(withExtra.total, 3144.46 + 200, 'extras add after tax');
 
+const fiveOff = totals({ ...e, percentDiscount: 5 });
+eq(fiveOff.percentDiscountAmount, 100.8, '5% after NOBLE10 is $100.80');
+eq(fiveOff.discount, 224, 'promo stays on its own line');
+eq(fiveOff.labor, 795, 'percent discount leaves labor');
+eq(fiveOff.shipping, 150, 'percent discount leaves shipping');
+eq(fiveOff.taxable, 1915.2, 'tax base after promo then percent');
+eq(fiveOff.tax, 174.28, '9.1% of $1,915.20');
+eq(fiveOff.total, 3034.48, 'total after 5% materials discount');
+const fivePay = contractPay(fiveOff.total, 60);
+eq(fivePay.deposit, 1820.69, '60% of the discounted total');
+eq(fivePay.balance, 1213.79, '40% final');
+const fiveRows = summaryLines(fiveOff).map((r) => r.id).join(',');
+if (fiveRows !== 'windows,discount,percentDiscount,install,shipping,tax') fail('percent line missing ' + fiveRows);
+eq(summaryLines(fiveOff).find((r) => r.id === 'percentDiscount').amount, -100.8, 'percent line amount');
+eq(summaryLines(fiveOff).find((r) => r.id === 'percentDiscount').label, 'Additional discount (5%)', 'percent line label');
+
+eq(clampPercentDiscount(15), 10, 'stored percent cannot exceed 10');
+eq(clampPercentDiscount(-4), 0, 'negative percent clamps to 0');
+const over = parsePercentDiscount('12');
+if (over.ok || over.error !== 'Discount cannot be more than 10%.') fail('12% should be rejected');
+eq(parsePercentDiscount('10').value, 10, '10% is allowed');
+eq(parsePercentDiscount('-2').value, 0, 'negative entry clamps');
+eq(totals({ ...e, percentDiscount: 15 }).percentDiscountAmount, 201.6, 'a stored 15% is clamped to 10% of $2,016');
+
 if (process.exitCode) console.error('pricing check failed');
-else console.log('pricing check ok', { windowsNet: 2016, labor: 795, shipping: 150, tax: 183.46, total: 3144.46, deposit: 2043.9, final: 1100.56 });
+else console.log('pricing check ok', { windowsNet: 2016, labor: 795, shipping: 150, tax: 183.46, total: 3144.46, deposit: 1886.68, final: 1257.78, with5pct: 3034.48 });

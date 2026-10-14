@@ -126,7 +126,7 @@ eq(pickDeal({
 eq(pickDeal({ chosenDealId: 'picked', explicitChoice: true, deals: openDeals }).dealId, 'picked', 'the deal the rep confirmed is updated');
 
 const fn = readFileSync(new URL('../supabase/functions/hubspot-sync/index.ts', import.meta.url), 'utf8');
-for (const needle of ['./match.js', "payload.mode === 'preview'", 'mobilephone', 'hs_note_body', 'associations/default']) {
+for (const needle of ['./match.js', "payload.mode === 'preview'", 'mobilephone', 'hs_note_body', 'associations/default', 'Deposit (60%)', 'Final (40%)']) {
   if (!fn.includes(needle)) fail('hubspot function missing ' + needle);
 }
 const page = readFileSync(new URL('../js/pages/estimate.js', import.meta.url), 'utf8');

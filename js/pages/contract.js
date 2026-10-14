@@ -227,7 +227,8 @@ async function deliver(e, contractBlob, estimateBlob, pay) {
   const email = (e.customer.email || '').trim();
   const name = e.customer.name || '';
   const subject = `Noble Windows & Doors — ${e.number}`;
-  const body = `Hello ${name},\n\nYour purchase agreement and estimate ${e.number} are attached.\n\nTotal: ${fmt(pay.total)}\nDeposit (65%): ${fmt(pay.deposit)}\nBalance due on completion (35%): ${fmt(pay.balance)}\n\n${settings.company.name}\n${settings.company.phone}`;
+  const pct = Number(data.agreement?.depositPct) || 60;
+  const body = `Hello ${name},\n\nYour purchase agreement and estimate ${e.number} are attached.\n\nTotal: ${fmt(pay.total)}\nDeposit (${pct}%): ${fmt(pay.deposit)}\nBalance due on completion (${100 - pct}%): ${fmt(pay.balance)}\n\n${settings.company.name}\n${settings.company.phone}`;
   const files = [
     new File([contractBlob], `Noble-contract-${e.number}.pdf`, { type: 'application/pdf' }),
     new File([estimateBlob], `Noble-estimate-${e.number}.pdf`, { type: 'application/pdf' }),

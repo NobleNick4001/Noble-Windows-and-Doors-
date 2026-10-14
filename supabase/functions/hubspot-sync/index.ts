@@ -143,7 +143,10 @@ function noteBody(estimate: any, event: string, flag: any[]) {
   const doc = estimate.document || {};
   const lines = doc.lines || [];
   const windows = lines.reduce((n: number, line: any) => n + (Number(line?.qty) > 0 ? Number(line.qty) : 1), 0);
-  const total = estimate.total_amount == null ? '' : `$${Number(estimate.total_amount).toFixed(2)}`;
+  const totalNum = Number(estimate.total_amount);
+  const total = Number.isFinite(totalNum) ? `$${totalNum.toFixed(2)}` : '';
+  const cents = Number.isFinite(totalNum) ? Math.round(totalNum * 100) : null;
+  const depositCents = cents == null ? null : Math.round(cents * 60 / 100);
   const linesOut = [
     `Estimate ${doc.number || estimate.id} ${event}`,
     `Customer: ${estimate.customer_name || ''}`,
@@ -153,6 +156,12 @@ function noteBody(estimate: any, event: string, flag: any[]) {
     `Windows: ${windows}`,
     `Total: ${total}`,
   ];
+  if (depositCents != null && cents != null) {
+    linesOut.push(`Deposit (60%): $${(depositCents / 100).toFixed(2)}`);
+    linesOut.push(`Final (40%): $${((cents - depositCents) / 100).toFixed(2)}`);
+  }
+  const extraPct = Number(doc.percentDiscount);
+  if (extraPct > 0) linesOut.push(`Additional materials discount: ${Math.min(extraPct, 10)}%`);
   if (flag?.length) {
     linesOut.push('Possible matching contacts were not linked:');
     for (const match of flag) linesOut.push(`- ${match.name || 'Unnamed'} · ${match.phone || ''} · ${match.email || ''}`);

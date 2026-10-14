@@ -369,7 +369,7 @@ export const estimates = {
   },
   blank() {
     return { id: uid(), number: this.nextNumber(), created: Date.now(), updated: Date.now(),
-      customer: { name: '', address: '', phone: '', email: '' }, lines: [], extras: [], stuccoRepair: { on: false, qty: null }, notes: '', promoCode: '', taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
+      customer: { name: '', address: '', phone: '', email: '' }, lines: [], extras: [], stuccoRepair: { on: false, qty: null }, notes: '', promoCode: '', percentDiscount: 0, taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
   },
   // current draft: loaded or created on demand (not persisted until it has content)
   current() {
@@ -384,7 +384,7 @@ export const estimates = {
   startNew() { this._cur = this.blank(); this.setCurrent(this._cur.id); return this._cur; },
   persist() {
     const e = this._cur; if (!e) return;
-    const has = e.lines.length || (e.extras || []).length || e.stuccoRepair?.on || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || e.contract;
+    const has = e.lines.length || (e.extras || []).length || e.stuccoRepair?.on || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || Number(e.percentDiscount) > 0 || e.contract;
     if (has || this.all()[e.id]) this.save(e);
   },
   duplicate(id) {
@@ -410,9 +410,31 @@ export function findPromo(code) {
   if (!key) return null;
   return (data.promos?.codes || []).find((c) => String(c.code || '').trim().toUpperCase() === key) || null;
 }
-// Fixed on every estimate. Promo codes do not discount shipping. Tax is 9.1% of materials after the promo, not labor or shipping.
+// Fixed on every estimate. Promo codes and the write-in percent do not discount shipping.
+// Tax is 9.1% of materials after the promo and the write-in percent, not labor or shipping.
 export const SHIPPING_HANDLING = 150;
 export const SALES_TAX_PCT = 9.1;
+export const MAX_PERCENT_DISCOUNT = 10;
+
+// Applied percent is never above 10. Negatives and blank values are 0.
+export function clampPercentDiscount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(MAX_PERCENT_DISCOUNT, n);
+}
+
+// Rejects anything over 10%. A negative entry clamps to 0.
+export function parsePercentDiscount(raw) {
+  const text = String(raw ?? '').trim().replace(/%$/, '').trim();
+  if (!text || text === '.' || text === '-' || text === '-.') return { ok: true, value: 0, error: '' };
+  const pending = text.endsWith('.') ? text.slice(0, -1) : text;
+  if (!/^-?\d*\.?\d+$/.test(pending)) return { ok: false, value: 0, error: 'Enter a discount from 0 to 10%.' };
+  const n = Number(pending);
+  if (!Number.isFinite(n)) return { ok: false, value: 0, error: 'Enter a discount from 0 to 10%.' };
+  if (n < 0) return { ok: true, value: 0, error: '', clamped: true };
+  if (n > MAX_PERCENT_DISCOUNT) return { ok: false, value: 0, error: 'Discount cannot be more than 10%.' };
+  return { ok: true, value: n, error: '' };
+}
 // Discount off window cost including glass upcharges. Labor only when that code's appliesToLabor is true.
 // Add-ons, stucco repair, and shipping are never discounted.
 export function promoResult(e, windows = 0, install = 0) {
@@ -458,12 +480,17 @@ export function totals(e) {
   const discount = promo.amount;
   const labor = r2(install + addons + stucco.total);
   const shipping = SHIPPING_HANDLING;
-  const taxable = Math.max(0, r2(windows - promo.windowAmount));
+  const afterPromo = Math.max(0, r2(windows - promo.windowAmount));
+  const percentDiscount = clampPercentDiscount(e?.percentDiscount);
+  const percentDiscountAmount = r2(afterPromo * percentDiscount / 100);
+  const percentDiscountLabel = `Additional discount (${percentDiscount}%)`;
+  const taxable = Math.max(0, r2(afterPromo - percentDiscountAmount));
   const tax = r2(taxable * SALES_TAX_PCT / 100);
-  const subtotal = r2(windows + labor + extras + shipping - discount);
+  const subtotal = r2(windows + labor + extras + shipping - discount - percentDiscountAmount);
   return {
     windows, install, addons, labor, shipping, stucco: stucco.total, stuccoName: stucco.name, stuccoQty: stucco.qty, stuccoUnit: stucco.unit, stuccoOn: stucco.on,
-    extras, discount, discountLabel: promo.label, promo, subtotal, taxable, tax, taxPct: SALES_TAX_PCT, total: r2(subtotal + tax),
+    extras, discount, discountLabel: promo.label, promo, percentDiscount, percentDiscountAmount, percentDiscountLabel,
+    subtotal, taxable, tax, taxPct: SALES_TAX_PCT, total: r2(subtotal + tax),
     count: lines.reduce((s, l) => s + qtyOf(l), 0),
   };
 }
@@ -471,6 +498,7 @@ export function totals(e) {
 export function summaryLines(t) {
   const rows = [{ id: 'windows', label: 'Windows', amount: t.windows }];
   if (t.discount) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -t.discount, discount: true });
+  if (t.percentDiscountAmount) rows.push({ id: 'percentDiscount', label: t.percentDiscountLabel || 'Additional discount', amount: -t.percentDiscountAmount, discount: true });
   rows.push({ id: 'install', label: 'Installation / Labor', amount: t.labor });
   rows.push({ id: 'shipping', label: 'Shipping & Handling', amount: t.shipping });
   if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
