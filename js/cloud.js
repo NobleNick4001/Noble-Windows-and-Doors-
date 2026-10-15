@@ -566,6 +566,7 @@ function bootFromCache(session, access) {
     email: access.email,
     role: access.role,
     fullName: access.fullName || access.full_name || nameForEmail(session.user.email),
+    seeAll: access.seeAll === true || access.see_all === true,
   });
   readyHook?.();
   mountAccount(document.getElementById('account'));
