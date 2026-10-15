@@ -584,6 +584,7 @@ export const estimates = {
     delete c.contract;
     delete c.remoteId;
     delete c.ownerId;
+    delete c.ownerName;
     delete c.hubspotContactId;
     delete c.hubspotDealId;
     delete c.hubspotChoice;
