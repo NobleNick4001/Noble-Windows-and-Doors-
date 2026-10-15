@@ -1,4 +1,6 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE } from '../core.js';
+import { isMilgardDoorLine } from '../milgard.js';
+import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
@@ -33,7 +35,7 @@ function reprice(l) {
   const p = priceWindow(l);
   if (p) { l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; }
   else { l.unitBase = 0; l.optionsEach = 0; l.unit = 0; }
-  l.installUnit = installUnit(l.install);
+  l.installUnit = installUnit(l.install, l);
 }
 async function presentEstimate(rerender) {
   if (hubUi.busy) return;
@@ -115,6 +117,12 @@ async function deliverEstimate(e, rerender) {
 }
 
 function askToSend(e, rerender) {
+  if (browserOffline()) {
+    sendUi.error = OFFLINE_MESSAGE;
+    toast(sendUi.error);
+    rerender();
+    return;
+  }
   const email = String(e.customer?.email || '').trim();
   if (!email || !email.includes('@')) {
     sendUi.error = 'Enter the client email before sending.';
@@ -207,10 +215,10 @@ export function render(root) {
     const row = h('div', { class: 'lineitem' },
       h('div', { class: 'li-main' }, icon(l.type, frameKeyFor(l.color), 'tyicon sm'),
         h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
-          h('div', { class: 'fine' }, `Install: ${installLabel(l.install)}`),
+          h('div', { class: 'fine' }, `Install: ${installLabel(l.install, l)}`),
           needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
-          addonNames(l.install).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install).join(', ')}`) : null),
-        h('div', { class: 'li-price' }, h('div', {}, `${l.qty} × ${fmt(l.unit)}`), h('b', {}, fmt(l.unit * l.qty)))),
+          addonNames(l.install, l).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install, l).join(', ')}`) : null),
+        h('div', { class: 'li-price' }, h('b', {}, fmt((Number(l.unit) || 0) * (Number(l.qty) || 0))))),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
         h('button', { class: 'btn sm danger', onclick: () => { e.lines.splice(idx, 1); save(); rerender(); } }, 'Remove')));
@@ -226,8 +234,13 @@ export function render(root) {
         seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
         seriesDef && h('b', {}, 'Frame color'),
         seriesDef && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
-        upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
-        h('b', {}, 'Installation'), installEditor(l.install, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id, l),
+        (l.pricingMode === 'onelink' || l.brand === 'milgard' && (isMilgardDoorLine(l) || ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning'].includes(l.type)))
+          ? milgardLineEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-')
+          : upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
+        h('b', {}, 'Installation'),
+        isMilgardDoorLine(l)
+          ? doorInstallEditor(l, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id + '-')
+          : installEditor(l.install, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id, l),
         h('button', { class: 'btn primary', onclick: () => { reprice(l); save(); open.delete(l.id); rerender(); } }, 'Save line')));
     }
     lines.append(row);

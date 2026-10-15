@@ -1,18 +1,31 @@
 {
-  "_readme": "INSTALLATION / LABOR (separate from window price). types[].price = install price PER WINDOW. surcharges[] are per-window add-ons: the line total is amount × that line's quantity, and they are NOT part of the labor price and NOT discounted by promo codes. stuccoRepair is an optional estimate line at price × its own quantity (the estimate screen defaults that quantity to the window count). jobExtras are flat job-level lines. Frame types in data/frame-types.json point here: zbar (retrofit / jump frame) -> standard, nailfin -> stucco-fin, block -> block. 'custom' lets the rep type a labor price. A rep can also override the labor price on any window; add-ons still add on top.",
+  "_readme": "INSTALLATION / LABOR, separate from the window or door price. types[].price is the install price per window. surcharges[] are per-window add-ons (amount × line quantity) and are not part of the labor price. Promo codes do not discount them. stuccoRepair is the optional estimate-level line (price × its own quantity). doors.panels is automatic patio-door labor by panel count, plus tallAdd when the door is taller than tallOverInches. doors.addons are per door. door-header is amount dollars per linear foot (headerFeet on the line). A write-in description and price on the door line is added with those add-ons. All of it rolls into the one Installation total. jobExtras are flat job-level lines. Frame types in data/frame-types.json point here: zbar -> standard, nailfin -> stucco-fin, block -> block.",
   "defaultType": "standard",
   "types": [
-    {"id": "standard", "name": "Retrofit/Jump frame", "price": 360, "placeholder": false},
-    {"id": "stucco-fin", "name": "R&R stucco / nailing fin", "price": 400, "placeholder": false},
-    {"id": "block", "name": "Block frame install", "price": 380, "placeholder": false},
-    {"id": "custom", "name": "Custom (type a price)", "price": 0, "placeholder": false, "custom": true}
+    {"id": "standard", "name": "Jump Frame", "price": 360, "placeholder": false},
+    {"id": "stucco-fin", "name": "Nail Fin RnR Stucco", "price": 400, "placeholder": false},
+    {"id": "block", "name": "Block", "price": 380, "placeholder": false},
+    {"id": "custom", "name": "Custom", "price": 0, "placeholder": false, "custom": true}
   ],
   "surcharges": [
-    {"id": "second-story", "name": "2nd story", "amount": 75, "placeholder": false},
-    {"id": "difficult-access", "name": "Difficult access", "amount": 75, "placeholder": false},
-    {"id": "oversize", "name": "Oversized/heavy", "amount": 85, "placeholder": false}
+    {"id": "stucco-repair", "name": "Stucco repair & paint", "amount": 650, "placeholder": false},
+    {"id": "oversize", "name": "Large unit", "amount": 85, "placeholder": false},
+    {"id": "second-story", "name": "Two-story", "amount": 75, "placeholder": false},
+    {"id": "difficult-access", "name": "Hard access", "amount": 75, "placeholder": false},
+    {"id": "steelies", "name": "Steelies", "amount": 75, "placeholder": false}
   ],
   "stuccoRepair": {"id": "stucco-repair", "name": "Stucco repair & paint", "price": 650},
+  "doors": {
+    "panels": {"2panel": 850, "3panel": 1050, "4panel": 1250},
+    "tallOverInches": 84,
+    "tallAdd": 100,
+    "addons": [
+      {"id": "door-second-story", "name": "Second Story", "amount": 300},
+      {"id": "door-stucco", "name": "Stucco Repair", "amount": 650},
+      {"id": "door-header", "name": "Header modification / new header (wall modification)", "amount": 850, "per": "linearFoot"},
+      {"id": "door-cutdown", "name": "Cut down", "amount": 1500}
+    ]
+  },
   "jobExtras": [
     {"id": "permit", "name": "Permit", "amount": 0, "placeholder": true},
     {"id": "haul-away", "name": "Haul-away / disposal", "amount": 0, "placeholder": true},

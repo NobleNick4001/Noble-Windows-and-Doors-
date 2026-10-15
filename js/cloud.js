@@ -1,6 +1,6 @@
 // Accounts and durable sync. supabase-js is loaded from the CDN on demand so a
 // missing network does not stop the rest of the app. The publishable key is a client key.
-import { h, store, estimates, totals, summaryLines, toast } from './core.js';
+import { h, store, estimates, totals, summaryLines, toast, browserOffline, OFFLINE_MESSAGE } from './core.js';
 
 export const SUPABASE_URL = 'https://nmyatpcjqfokmfbssimc.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_SnKqbI5z7tlZzQmntcxumQ_AqB1pNJ9';
@@ -428,6 +428,7 @@ export async function markPresented(e, opts = {}) {
 }
 
 export async function sendEstimateEmail(e, pdfBase64) {
+  if (browserOffline()) return { ok: false, error: OFFLINE_MESSAGE };
   const email = String(e.customer?.email || '').trim();
   if (!email || !email.includes('@')) return { ok: false, error: 'Enter the client email before sending.' };
   const sb = await getSupabase();
@@ -464,6 +465,10 @@ export async function recordSigned(e) {
   e.signedAt = e.signedAt || new Date().toISOString();
   estimates.save(e);
   addOps(e.remoteId, ['contract', 'signed']);
+  if (browserOffline()) {
+    toast(OFFLINE_MESSAGE);
+    return { ok: false, offline: true };
+  }
   const hub = await flushFocused(e.remoteId);
   if (!hub?.ok) toast('Agreement saved. HubSpot sync is not available yet.');
   return hub || { ok: false, skipped: true };
@@ -505,7 +510,7 @@ export async function signOut() {
 
 export async function signIn(email, password) {
   const sb = await getSupabase();
-  if (!sb) return { error: 'Sign-in needs a connection.' };
+  if (!sb) return { error: browserOffline() ? OFFLINE_MESSAGE : 'Sign-in needs a connection.' };
   const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
   if (error) return { error: error.message };
   if (!data.session) return { error: 'Check your email to confirm the account, then sign in.' };
@@ -515,7 +520,7 @@ export async function signIn(email, password) {
 
 export async function signUp(email, password, fullName) {
   const sb = await getSupabase();
-  if (!sb) return { error: 'Create account needs a connection.' };
+  if (!sb) return { error: browserOffline() ? OFFLINE_MESSAGE : 'Create account needs a connection.' };
   const known = nameForEmail(email);
   const { data, error } = await sb.auth.signUp({
     email: email.trim(),

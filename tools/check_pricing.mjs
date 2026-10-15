@@ -10,6 +10,7 @@ data.install = read('install.json');
 data.promos = read('promos.json');
 data.agreement = read('purchase-agreement.json');
 data.frameTypes = read('frame-types.json');
+data.milgardOnelink = read('milgard-onelink.json');
 data.obscureGlass = { patterns: [{ id: 'satin', name: 'Satin Etch' }] };
 settings.rateSet = 'p75';
 settings.roundToDollar = false;
@@ -25,9 +26,14 @@ const byId = (id) => data.install.types.find((t) => t.id === id);
 eq(byId('standard').price, 360, 'retrofit');
 eq(byId('stucco-fin').price, 400, 'nail fin');
 eq(byId('block').price, 380, 'block');
-if (byId('standard').name !== 'Retrofit/Jump frame') fail('retrofit name');
-if (byId('stucco-fin').name !== 'R&R stucco / nailing fin') fail('nail fin name');
-if (byId('block').name !== 'Block frame install') fail('block name');
+if (byId('standard').name !== 'Jump Frame') fail('retrofit name');
+if (byId('stucco-fin').name !== 'Nail Fin RnR Stucco') fail('nail fin name');
+if (byId('block').name !== 'Block') fail('block name');
+eq(data.install.surcharges.find((s) => s.id === 'steelies').amount, 75, 'steelies');
+eq(data.install.doors.panels['2panel'], 850, '2-panel door labor');
+eq(data.install.doors.panels['4panel'], 1250, '4-panel door labor');
+eq(data.install.doors.addons.find((s) => s.id === 'door-header').amount, 850, 'header per foot');
+eq(data.install.doors.addons.find((s) => s.id === 'door-cutdown').amount, 1500, 'cut down');
 if (data.frameTypes.types.find((t) => t.id === 'zbar').installType !== 'standard') fail('zbar should be retrofit');
 eq(data.install.surcharges.find((s) => s.id === 'second-story').amount, 75, '2nd story');
 eq(data.install.surcharges.find((s) => s.id === 'difficult-access').amount, 75, 'access');
@@ -41,10 +47,10 @@ for (const g of data.options.glass) {
 
 // Synthetic rate so (50+50) inches prices at exactly $1,000 before glass.
 const stored = 1000 * 0.55 / (100 * 0.60);
-data.rates.brands[0].rates['V250|ww|hslider'] = { p75: stored, max: stored, estimated: false, n: 5 };
+data.rates.brands[0].rates['V250|ww|arch'] = { p75: stored, max: stored, estimated: false, n: 5 };
 
 function line(extra) {
-  const p = priceWindow({ brand: 'milgard', series: 'V250', color: 'ww', type: 'hslider', w: 50, h: 50, qty: 1, options: extra.options });
+  const p = priceWindow({ brand: 'milgard', series: 'V250', color: 'ww', type: 'arch', w: 50, h: 50, qty: 1, options: extra.options });
   return { id: extra.id, label: extra.label, qty: 1, unit: p.unit, unitBase: p.unitBase, optionsEach: p.optionsEach, options: extra.options, install: extra.install };
 }
 const retrofit = (surcharges) => ({ type: 'standard', surcharges, override: null, custom: null, frameType: 'zbar' });
@@ -77,9 +83,9 @@ eq(pay.deposit, 1886.68, 'deposit is 60%');
 eq(pay.balance, 1257.78, 'final is 40%');
 eq(pay.deposit + pay.balance, pay.total, 'deposit plus final');
 
-const stacked = priceWindow({ brand: 'milgard', series: 'V250', color: 'ww', type: 'hslider', w: 50, h: 50, qty: 1, options: ['laminated', 'tempered', 'obscure', 'satin'] });
+const stacked = priceWindow({ brand: 'milgard', series: 'V250', color: 'ww', type: 'arch', w: 50, h: 50, qty: 1, options: ['laminated', 'tempered', 'obscure', 'satin'] });
 eq(stacked.optionsEach, 360, 'three glass options stack at 36%, pattern is free');
-const two = priceWindow({ brand: 'milgard', series: 'V250', color: 'ww', type: 'hslider', w: 50, h: 50, qty: 2, options: ['laminated', 'tempered'] });
+const two = priceWindow({ brand: 'milgard', series: 'V250', color: 'ww', type: 'arch', w: 50, h: 50, qty: 2, options: ['laminated', 'tempered'] });
 eq(two.optionsEach, 240, 'two glass options are 24%');
 
 const qty2 = { ...tempered, qty: 2, install: retrofit(['second-story', 'difficult-access', 'oversize']) };

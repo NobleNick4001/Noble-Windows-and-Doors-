@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast } from '../core.js';
+import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE } from '../core.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
 import { recordSigned } from '../cloud.js';
@@ -226,6 +226,12 @@ async function send(e, c, a) {
 // Web Share cannot set Mail's To: line. A one-tap send would POST the two PDFs
 // to a small worker (Resend, Amazon SES, or similar) that emails the customer.
 async function deliver(e, contractBlob, estimateBlob, pay) {
+  if (browserOffline()) {
+    toast(OFFLINE_MESSAGE);
+    const box = document.getElementById('send-fallback');
+    if (box) box.replaceChildren(h('p', { id: 'offline-send', class: 'warn' }, OFFLINE_MESSAGE));
+    return;
+  }
   const email = (e.customer.email || '').trim();
   const name = e.customer.name || '';
   const subject = `Noble Windows & Doors — ${e.number}`;

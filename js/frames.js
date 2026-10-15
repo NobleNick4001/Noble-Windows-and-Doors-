@@ -84,8 +84,8 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
       body += rect(gx, split - st / 2, gw, st * 1.2, f);
       body += rect(gx, split + st / 2, gw, st, i) + rect(gx, gy + gh - st, gw, st, i) + rect(gx, split, st, gy + gh - split, i) + rect(gx + gw - st, split, st, gy + gh - split, i);
       body += `<path d="M${gx + gw / 2},${gy + gh - st} L${gx + st},${split + st} M${gx + gw / 2},${gy + gh - st} L${gx + gw - st},${split + st}" stroke="${e}" stroke-width="2" stroke-dasharray="7 5" fill="none" opacity=".6"/>`;
-    } else if (type === '2panel' || type === '4panel') {
-      const n = type === '4panel' ? 4 : 2;
+    } else if (type === '2panel' || type === '3panel' || type === '4panel') {
+      const n = type === '4panel' ? 4 : type === '3panel' ? 3 : 2;
       body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
       body += rect(gx, gy, gw, st, i) + rect(gx, gy + gh - st, gw, st, i);
       for (let k = 0; k < n; k++) {
