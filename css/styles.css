@@ -69,8 +69,13 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .ss-cap{flex:1;display:flex;flex-direction:column}.ss-cap span{opacity:.85;font-size:.9rem}
 .ss-btn{width:56px;height:56px;border-radius:50%;border:0;background:rgba(255,255,255,.2);color:#fff;font-size:1.2rem;cursor:pointer}.ss-close{position:absolute;top:calc(14px + constant(safe-area-inset-top));top:calc(14px + env(safe-area-inset-top));right:14px;transition:opacity .3s}
 .ss-dots{display:flex;gap:6px}.ss-dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.4)}.ss-dots i.on{background:#fff}.ss.hideui .ss-bar,.ss.hideui .ss-close{opacity:0;pointer-events:none}
-.ov-stage{background:#222;border-radius:var(--r);overflow:hidden;display:flex;justify-content:center;touch-action:none}.ov-canvas{max-width:100%;max-height:68vh;touch-action:none;display:block}
+.ov-stage{background:#222;border-radius:var(--r);overflow:hidden;display:flex;justify-content:center;touch-action:none}.ov-canvas{max-width:100%;max-height:68vh;touch-action:none;display:block;cursor:grab}
 .ov-empty{background:#fff;border:2px dashed #bcc6d4;border-radius:var(--r);padding:3rem 1rem;text-align:center;color:var(--mut)}
+.ov-note{background:var(--orange-soft);border:1px solid #f3c98a;border-radius:10px;padding:.55rem .7rem;color:var(--navy)}
+.ov-shot img,.sh-overlay img{width:100%;height:auto;border-radius:10px;display:block;background:#1c1c1c}
+.ov-shot{display:flex;flex-direction:column;gap:.35rem;margin-top:.7rem}
+.sh-overlay{margin:.4rem 0 1rem;break-inside:avoid}
+.sh-overlay figcaption{margin-top:.35rem;font-weight:700;color:#111}
 .scroll{overflow:auto}table.rates{border-collapse:collapse;font-size:.85rem;width:100%}table.rates th,table.rates td{border:1px solid var(--line);padding:.3rem .5rem;text-align:right}table.rates td:first-child,table.rates td:nth-child(2),table.rates th:first-child,table.rates th:nth-child(2){text-align:left}td.est{background:var(--orange-soft)}td.from-quotes{background:#e5f6ec;text-align:left;white-space:normal;font-size:.75rem;min-width:8.5rem}td.custom-rate{background:var(--soft);text-align:left;font-size:.75rem}
 #toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);background:var(--navy);color:#fff;padding:.8rem 1.3rem;border-radius:999px;opacity:0;transition:.25s;z-index:200;pointer-events:none}#toast.show{opacity:1;transform:translate(-50%,0)}
 #account{display:flex;align-items:center;gap:.4rem;color:#fff;font-size:.75rem;font-weight:700;flex:none}

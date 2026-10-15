@@ -666,5 +666,34 @@ export async function makeEstimatePdf(e, opts = {}) {
   doc.setFontSize(7.5);
   doc.setTextColor(17, 17, 17);
   doc.text(terms, margin, y + 8);
+
+  for (const shot of e.overlays || []) {
+    if (!shot?.image) continue;
+    doc.addPage();
+    y = margin;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(14, 58, 99);
+    doc.text('Window overlay', margin, y + 12);
+    y += 22;
+    const cap = wrapped(shot.caption || 'Window overlay', width, 9, false);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(17, 17, 17);
+    doc.text(cap, margin, y + 9);
+    y += cap.length * 12 + 4;
+    if (shot.note) {
+      const note = wrapped(shot.note, width, 8, false);
+      doc.setTextColor(77, 100, 120);
+      doc.text(note, margin, y + 8);
+      y += note.length * 10 + 8;
+    }
+    try {
+      const props = doc.getImageProperties(shot.image);
+      const maxW = width;
+      const maxH = pageH - y - margin;
+      const scale = Math.min(maxW / props.width, maxH / props.height);
+      doc.addImage(shot.image, 'JPEG', margin, y, props.width * scale, props.height * scale);
+    } catch { /* a photo that will not embed is left as the caption */ }
+  }
   return doc.output('blob');
 }

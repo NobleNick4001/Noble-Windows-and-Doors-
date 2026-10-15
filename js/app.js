@@ -17,7 +17,7 @@ const ROUTES = [
   ['saved', 'Mine', '🗂', (r) => estimate.renderList(r)],
   ['options', 'Options', '🪟', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', '🖼', (r) => gallery.render(r)],
-  ['preview', 'Preview', '📷', (r) => overlay.render(r)],
+  ['preview', 'Overlay', '📷', (r) => overlay.render(r)],
   ['settings', 'Settings', '⚙️', (r) => settings.render(r)],
 ];
 

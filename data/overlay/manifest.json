@@ -1,0 +1,852 @@
+{
+  "version": 1,
+  "note": "Straight-on exterior overlays. Replace a WebP in place to use a real photo. The app reads this list and does not hard-code file names.",
+  "series": [
+    {
+      "id": "V250",
+      "name": "V250"
+    },
+    {
+      "id": "V300",
+      "name": "V300"
+    },
+    {
+      "id": "V400",
+      "name": "V400"
+    }
+  ],
+  "types": [
+    {
+      "id": "hslider",
+      "name": "XO slider"
+    },
+    {
+      "id": "vslider",
+      "name": "Single hung"
+    },
+    {
+      "id": "picture",
+      "name": "Picture"
+    }
+  ],
+  "colors": [
+    {
+      "id": "white",
+      "name": "White / White",
+      "rateId": "ww",
+      "swatch": "#f4f4f1"
+    },
+    {
+      "id": "adobe",
+      "name": "Adobe",
+      "rateId": "adobe",
+      "swatch": "#C8A27A"
+    },
+    {
+      "id": "black",
+      "name": "Black / Black",
+      "rateId": "bb",
+      "swatch": "#111111"
+    },
+    {
+      "id": "bronze",
+      "name": "Bronze Anodized",
+      "rateId": "bronze",
+      "swatch": "#5b4636"
+    }
+  ],
+  "assets": [
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V250_hslider_white.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V250_hslider_white_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V250_hslider_adobe.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V250_hslider_adobe_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V250_hslider_black.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V250_hslider_black_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V250_hslider_bronze.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "hslider",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V250_hslider_bronze_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V250_vslider_white.webp",
+      "width": 218,
+      "height": 439,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V250_vslider_white_zbar.webp",
+      "width": 260,
+      "height": 481,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V250_vslider_adobe.webp",
+      "width": 218,
+      "height": 439,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V250_vslider_adobe_zbar.webp",
+      "width": 260,
+      "height": 481,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V250_vslider_black.webp",
+      "width": 218,
+      "height": 439,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V250_vslider_black_zbar.webp",
+      "width": 260,
+      "height": 481,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V250_vslider_bronze.webp",
+      "width": 218,
+      "height": 439,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V250",
+      "type": "vslider",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V250_vslider_bronze_zbar.webp",
+      "width": 260,
+      "height": 481,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V250_picture_white.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V250_picture_white_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V250_picture_adobe.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V250_picture_adobe_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V250_picture_black.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V250_picture_black_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V250_picture_bronze.webp",
+      "width": 320,
+      "height": 393,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V250",
+      "type": "picture",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V250_picture_bronze_zbar.webp",
+      "width": 386,
+      "height": 459,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_white.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V300_hslider_white_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_adobe.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V300_hslider_adobe_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_black.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V300_hslider_black_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_bronze.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V300_hslider_bronze_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_white.webp",
+      "width": 225,
+      "height": 452,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V300_vslider_white_zbar.webp",
+      "width": 273,
+      "height": 500,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_adobe.webp",
+      "width": 225,
+      "height": 452,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V300_vslider_adobe_zbar.webp",
+      "width": 273,
+      "height": 500,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_black.webp",
+      "width": 225,
+      "height": 452,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V300_vslider_black_zbar.webp",
+      "width": 273,
+      "height": 500,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_bronze.webp",
+      "width": 225,
+      "height": 452,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V300_vslider_bronze_zbar.webp",
+      "width": 273,
+      "height": 500,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V300_picture_white.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V300_picture_white_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V300_picture_adobe.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V300_picture_adobe_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V300_picture_black.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V300_picture_black_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V300_picture_bronze.webp",
+      "width": 356,
+      "height": 433,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V300",
+      "type": "picture",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V300_picture_bronze_zbar.webp",
+      "width": 428,
+      "height": 505,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V400_hslider_white.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V400_hslider_white_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V400_hslider_adobe.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V400_hslider_adobe_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V400_hslider_black.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V400_hslider_black_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V400_hslider_bronze.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V400",
+      "type": "hslider",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V400_hslider_bronze_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V400_vslider_white.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V400_vslider_white_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V400_vslider_adobe.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V400_vslider_adobe_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V400_vslider_black.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V400_vslider_black_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V400_vslider_bronze.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal."
+    },
+    {
+      "series": "V400",
+      "type": "vslider",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V400_vslider_bronze_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "V400 single hung is the slider photo with the meeting rail turned horizontal. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "white",
+      "zbar": false,
+      "file": "data/overlay/V400_picture_white.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "white",
+      "zbar": true,
+      "file": "data/overlay/V400_picture_white_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "adobe",
+      "zbar": false,
+      "file": "data/overlay/V400_picture_adobe.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "adobe",
+      "zbar": true,
+      "file": "data/overlay/V400_picture_adobe_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "black",
+      "zbar": false,
+      "file": "data/overlay/V400_picture_black.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "black",
+      "zbar": true,
+      "file": "data/overlay/V400_picture_black_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "bronze",
+      "zbar": false,
+      "file": "data/overlay/V400_picture_bronze.webp",
+      "width": 381,
+      "height": 471,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed."
+    },
+    {
+      "series": "V400",
+      "type": "picture",
+      "color": "bronze",
+      "zbar": true,
+      "file": "data/overlay/V400_picture_bronze_zbar.webp",
+      "width": 459,
+      "height": 549,
+      "approximate": true,
+      "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    }
+  ]
+}
