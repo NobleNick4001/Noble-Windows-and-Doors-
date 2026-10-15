@@ -50,7 +50,7 @@ if (/for\s+delete/i.test(sql)) fail('schema must not grant a DELETE policy');
 if (!/before delete on public\.estimates/i.test(sql) || !/before delete on public\.contracts/i.test(sql)) fail('hard delete triggers missing');
 
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-if (!sw.includes("const CACHE = 'nwd-sales-v34-access'")) fail('service worker should be nwd-sales-v34-access');
+if (!sw.includes("const CACHE = 'nwd-sales-v35-see-all'")) fail('service worker should be nwd-sales-v35-see-all');
 for (const file of ['js/cloud.js', 'js/pages/auth.js', 'js/pages/admin.js', 'js/milgard.js', 'data/milgard-onelink.json']) {
   if (!sw.includes(file)) fail('precache missing ' + file);
 }
@@ -89,10 +89,27 @@ for (const needle of [
   'This email is not allowed to sign in.',
   'This email is not allowed to create an account.',
   'you cannot revoke your own access',
+  'see_all boolean not null default false',
+  'can_see_all_estimates',
+  'admin_set_see_all',
+  'admins already see every estimate',
 ]) {
   if (!allow.includes(needle)) fail('allowlist migration missing ' + needle);
 }
 if (/for\s+delete/i.test(allow)) fail('allowlist migration must not add a DELETE policy');
+const estimateSelect = allow.split('create policy e_sel')[1]?.split('create policy e_ins')[0] || '';
+const estimateUpdate = allow.split('create policy e_upd')[1]?.split('create policy c_sel')[0] || '';
+const contractSelect = allow.split('create policy c_sel')[1]?.split('create policy c_ins')[0] || '';
+if (!estimateSelect.includes('can_see_all_estimates')) fail('estimate select should follow the see-all flag');
+if (!contractSelect.includes('can_see_all_estimates')) fail('contract select should follow the see-all flag');
+if (estimateUpdate.includes('can_see_all_estimates')) fail('seeing other estimates must not allow editing them');
+if (!client.includes('admin_set_see_all') || !client.includes('canSeeAllEstimates')) fail('client should toggle and honor see-all');
+
+const adminPage = readFileSync(new URL('../js/pages/admin.js', import.meta.url), 'utf8');
+const estimatePage = readFileSync(new URL('../js/pages/estimate.js', import.meta.url), 'utf8');
+if (!adminPage.includes("Can see other reps' estimates")) fail('admin page should label the see-all toggle');
+if (!adminPage.includes('Sees every estimate')) fail('admin row should say the admin sees every estimate');
+if (!estimatePage.includes('ownerName') || !estimatePage.includes('canSeeAllEstimates')) fail('estimate list should name the owner and include shared jobs');
 
 const kick = readFileSync(new URL('../supabase/functions/revoke-sessions/index.ts', import.meta.url), 'utf8');
 if (!kick.includes("Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')")) fail('revoke function should read the service role from the environment');

@@ -6,15 +6,25 @@
 -- A person who is not on this list cannot create an account or get a new sign-in token.
 -- Revoking sets revoked_at, hides every estimate and profile from that login (row level
 -- security), and deletes their Supabase sessions so the next token refresh fails.
+-- see_all starts off. Running this file again does not turn that flag off.
+-- An admin always sees every estimate. A salesperson sees other reps' estimates
+-- and contracts only after Nick turns the flag on. They still cannot edit those jobs.
 
 create table if not exists public.allowed_users (
   email text primary key,
   full_name text not null,
   role text not null check (role in ('admin', 'sales')),
+  -- Sales only. Off until Nick turns it on. Admins always see every estimate.
+  see_all boolean not null default false,
   revoked_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Existing databases already have the table. Adding the column again is safe,
+-- and the default leaves every current rep seeing only their own estimates.
+alter table public.allowed_users
+  add column if not exists see_all boolean not null default false;
 
 create or replace function public.allowed_users_normalize()
 returns trigger
@@ -78,6 +88,26 @@ as $$
       and a.role = 'admin'
       and a.revoked_at is null
   );
+$$;
+
+-- Admin always. A salesperson only when Nick has turned their flag on.
+create or replace function public.can_see_all_estimates()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_admin()
+    or exists (
+      select 1
+      from public.profiles p
+      join public.allowed_users a on a.email = lower(p.email)
+      where p.id = auth.uid()
+        and a.revoked_at is null
+        and a.role = 'sales'
+        and a.see_all
+    );
 $$;
 
 create or replace function public.handle_new_user()
@@ -161,7 +191,8 @@ as $$
         'allowed', (a.revoked_at is null),
         'email', a.email,
         'full_name', a.full_name,
-        'role', a.role
+        'role', a.role,
+        'see_all', (a.role = 'admin' or a.see_all)
       )
       from public.allowed_users a
       where a.email = lower(coalesce(
@@ -174,7 +205,8 @@ as $$
       'allowed', false,
       'email', lower(coalesce(auth.jwt()->>'email', '')),
       'full_name', '',
-      'role', null
+      'role', null,
+      'see_all', false
     )
   );
 $$;
@@ -246,6 +278,7 @@ begin
       a.email,
       a.full_name,
       a.role,
+      a.see_all,
       a.revoked_at,
       p.id as profile_id,
       true as on_list
@@ -256,6 +289,7 @@ begin
       lower(p.email) as email,
       coalesce(p.full_name, '') as full_name,
       p.role,
+      false as see_all,
       null::timestamptz as revoked_at,
       p.id as profile_id,
       false as on_list
@@ -342,6 +376,35 @@ begin
   set role = v_role
   where lower(email) = v_email;
   return jsonb_build_object('ok', true, 'email', v_email, 'role', v_role);
+end;
+$$;
+
+create or replace function public.admin_set_see_all(p_email text, p_on boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text := lower(trim(coalesce(p_email, '')));
+  v_role text;
+  v_on boolean := coalesce(p_on, false);
+begin
+  if not public.is_admin() then
+    raise exception 'only admin can change who sees estimates';
+  end if;
+  select role into v_role from public.allowed_users where email = v_email;
+  if v_role is null then
+    raise exception 'Add this rep before changing what they can see';
+  end if;
+  if v_role = 'admin' then
+    raise exception 'admins already see every estimate';
+  end if;
+  update public.allowed_users
+  set see_all = v_on,
+      updated_at = now()
+  where email = v_email;
+  return jsonb_build_object('ok', true, 'email', v_email, 'see_all', v_on);
 end;
 $$;
 
@@ -488,7 +551,7 @@ alter table public.allowed_users enable row level security;
 drop policy if exists p_self on public.profiles;
 drop policy if exists p_admin on public.profiles;
 create policy p_self on public.profiles
-  for select using (public.is_allowed() and (id = auth.uid() or public.is_admin()));
+  for select using (public.is_allowed() and (id = auth.uid() or public.can_see_all_estimates()));
 create policy p_admin on public.profiles
   for update using (public.is_admin())
   with check (public.is_admin());
@@ -497,7 +560,7 @@ drop policy if exists e_sel on public.estimates;
 drop policy if exists e_ins on public.estimates;
 drop policy if exists e_upd on public.estimates;
 create policy e_sel on public.estimates
-  for select using (public.is_allowed() and deleted_at is null and (owner_id = auth.uid() or public.is_admin()));
+  for select using (public.is_allowed() and deleted_at is null and (owner_id = auth.uid() or public.can_see_all_estimates()));
 create policy e_ins on public.estimates
   for insert with check (public.is_allowed() and deleted_at is null and (owner_id = auth.uid() or public.is_admin()));
 create policy e_upd on public.estimates
@@ -508,7 +571,7 @@ drop policy if exists c_sel on public.contracts;
 drop policy if exists c_ins on public.contracts;
 drop policy if exists c_upd on public.contracts;
 create policy c_sel on public.contracts
-  for select using (public.is_allowed() and deleted_at is null and (owner_id = auth.uid() or public.is_admin()));
+  for select using (public.is_allowed() and deleted_at is null and (owner_id = auth.uid() or public.can_see_all_estimates()));
 create policy c_ins on public.contracts
   for insert with check (
     public.is_allowed()
@@ -535,6 +598,9 @@ grant execute on function public.is_allowed() to authenticated;
 revoke all on function public.is_admin() from public, anon;
 grant execute on function public.is_admin() to authenticated;
 
+revoke all on function public.can_see_all_estimates() from public, anon;
+grant execute on function public.can_see_all_estimates() to authenticated;
+
 revoke all on function public.current_access() from public, anon;
 grant execute on function public.current_access() to authenticated;
 
@@ -546,6 +612,9 @@ grant execute on function public.admin_add_user(text, text, text) to authenticat
 
 revoke all on function public.admin_set_role(text, text) from public, anon;
 grant execute on function public.admin_set_role(text, text) to authenticated;
+
+revoke all on function public.admin_set_see_all(text, boolean) from public, anon;
+grant execute on function public.admin_set_see_all(text, boolean) to authenticated;
 
 revoke all on function public.admin_revoke_user(text) from public, anon;
 grant execute on function public.admin_revoke_user(text) to authenticated;

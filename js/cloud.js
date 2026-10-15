@@ -65,6 +65,7 @@ let watchingAccess = false;
 export function userId() { return me; }
 export function currentProfile() { return profile; }
 export function isAdmin() { return profile?.role === 'admin'; }
+export function canSeeAllEstimates() { return profile?.role === 'admin' || profile?.see_all === true; }
 
 export async function getSupabase() {
   if (client) return client;
@@ -128,6 +129,8 @@ export function fromRow(row) {
   const e = doc;
   e.remoteId = row.id;
   e.ownerId = row.owner_id;
+  const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+  if (owner && (owner.full_name || owner.email)) e.ownerName = owner.full_name || owner.email;
   e.status = row.status || e.status || 'draft';
   if (row.hubspot_contact_id) e.hubspotContactId = row.hubspot_contact_id;
   if (row.hubspot_deal_id) e.hubspotDealId = row.hubspot_deal_id;
@@ -209,12 +212,14 @@ function installSync() {
   estimates.save = (e) => {
     ensureRemote(e);
     origSave(e);
+    // Seeing another rep's estimate does not make it yours to overwrite.
+    if (e.ownerId && me && e.ownerId !== me && !isAdmin()) return;
     addOps(e.remoteId, ['upsert']);
     scheduleFlush();
   };
   estimates.remove = (id) => {
     const e = estimates.all()[id];
-    if (e?.remoteId) addOps(e.remoteId, ['delete']);
+    if (e?.remoteId && !(e.ownerId && me && e.ownerId !== me && !isAdmin())) addOps(e.remoteId, ['delete']);
     origRemove(id);
     scheduleFlush();
   };
@@ -334,7 +339,7 @@ async function insertContract(sb, e, ownerId) {
 }
 
 async function pull(sb) {
-  const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, sent_at, sent_to, updated_at, deleted_at, contracts(id, signed_at)').order('updated_at', { ascending: false });
+  const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, sent_at, sent_to, updated_at, deleted_at, profiles!owner_id(full_name, email), contracts(id, signed_at)').order('updated_at', { ascending: false });
   if (error || !data) return;
   const queued = new Set(loadQueue().map((q) => q.remoteId));
   const all = estimates.all();
@@ -342,9 +347,15 @@ async function pull(sb) {
     if (row.deleted_at || queued.has(row.id)) continue;
     const remote = fromRow(row);
     if (!remote) continue;
-    if (estimates._cur?.id === remote.id) continue;
+    const foreign = me && remote.ownerId && remote.ownerId !== me && !isAdmin();
+    if (estimates._cur?.id === remote.id && !foreign) continue;
     const local = all[remote.id];
-    if (!local || (remote.updated || 0) >= (local.updated || 0)) all[remote.id] = remote;
+    if (!local || foreign || (remote.updated || 0) >= (local.updated || 0)) all[remote.id] = remote;
+  }
+  if (!canSeeAllEstimates()) {
+    for (const [id, e] of Object.entries(all)) {
+      if (e.ownerId && me && e.ownerId !== me && !queued.has(e.remoteId)) delete all[id];
+    }
   }
   store.set('nwd.estimates', all);
 }
@@ -546,6 +557,7 @@ function applyProfile(session, access) {
     email,
     full_name: access?.fullName || access?.full_name || nameForEmail(email) || email,
     role,
+    see_all: role === 'admin' || access?.seeAll === true || access?.see_all === true,
   };
 }
 
@@ -587,6 +599,7 @@ async function confirmAccess(sb, session, opts = {}) {
     allowed: true,
     role: row.role === 'admin' ? 'admin' : 'sales',
     fullName: row.full_name || nameForEmail(email) || email,
+    seeAll: row.role === 'admin' || row.see_all === true,
     checkedAt: Date.now(),
   };
   writeCachedAccess(access);
@@ -636,10 +649,12 @@ async function recheckAccess(andFlush) {
     return;
   }
   const previous = profile?.role;
+  const previousSee = profile?.see_all === true;
   applyProfile(data.session, gate.access);
   mountAccount(document.getElementById('account'));
-  if (previous && previous !== profile.role) window.dispatchEvent(new Event('nwd-access'));
-  if (andFlush) flush();
+  const seeChanged = previousSee !== (profile?.see_all === true);
+  if ((previous && previous !== profile.role) || seeChanged) window.dispatchEvent(new Event('nwd-access'));
+  if (andFlush || seeChanged) flush();
 }
 
 function watchAccess() {
@@ -770,6 +785,23 @@ async function showLogin(message) {
 function needsConnection() {
   if (browserOffline()) return OFFLINE_MESSAGE;
   return '';
+}
+
+export async function setSeeAll(email, on) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.' };
+  const address = String(email || '').trim().toLowerCase();
+  const { error } = await sb.rpc('admin_set_see_all', { p_email: address, p_on: Boolean(on) });
+  if (error) return { error: error.message };
+  if (address === String(profile?.email || '')) {
+    profile = { ...profile, see_all: profile?.role === 'admin' || Boolean(on) };
+    const cached = readCachedAccess();
+    if (cached) writeCachedAccess({ ...cached, seeAll: profile.see_all, checkedAt: Date.now() });
+    window.dispatchEvent(new Event('nwd-access'));
+  }
+  return { ok: true };
 }
 
 export async function setUserRole(email, role) {

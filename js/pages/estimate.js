@@ -1,7 +1,7 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE } from '../core.js';
 import { isMilgardDoorLine, doorColorLabel } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
-import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail } from '../cloud.js';
+import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
 import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 
@@ -437,18 +437,36 @@ export function renderPresent(root) {
   root.replaceChildren(page);
 }
 
+function ownerLine(x, uid) {
+  const name = x.ownerName || '';
+  if (!x.ownerId || x.ownerId === uid) return name ? `You · ${name}` : 'You';
+  return name || 'Another rep';
+}
+
 export function renderList(root) {
   const uid = userId();
-  const all = estimates.list().filter((x) => !x.deletedAt && (!uid || !x.ownerId || x.ownerId === uid));
+  const seeAll = canSeeAllEstimates();
+  const all = estimates.list().filter((x) => !x.deletedAt && (seeAll || !uid || !x.ownerId || x.ownerId === uid));
   const cur = estimates.currentId();
-  const wrap = h('div', { class: 'page' }, h('div', { class: 'row between wrap gap' }, h('h1', {}, 'My estimates'), h('div', { class: 'row gap' },
+  const wrap = h('div', { class: 'page' }, h('div', { class: 'row between wrap gap' }, h('h1', {}, seeAll ? 'Estimates' : 'My estimates'), h('div', { class: 'row gap' },
     h('button', { class: 'btn', id: 'btn-refresh-estimates', onclick: async () => { await refreshEstimates(); renderList(root); } }, 'Refresh'),
     h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate'))));
-  wrap.append(h('p', { class: 'fine' }, 'Every estimate and signed agreement saves on this device and to your account, including when you are offline. Open one here on any device after you sign in.'));
+  wrap.append(h('p', { class: 'fine' }, seeAll
+    ? 'Each estimate shows the rep who owns it. You can open another rep’s estimate. Changes still save only on your own.'
+    : 'Every estimate and signed agreement saves on this device and to your account, including when you are offline. Open one here on any device after you sign in.'));
   if (!all.length) wrap.append(h('div', { class: 'card muted' }, 'No estimates yet. They show up here as you build them.'));
-  all.forEach((x) => { const t = totals(x); const statusWord = x.status === 'signed' ? 'Signed' : x.status === 'presented' ? 'Presented' : 'Draft'; wrap.append(h('div', { class: 'card lineitem' + (x.id === cur ? ' current' : '') },
-    h('div', { class: 'li-main' }, h('div', { class: 'li-text' }, h('b', {}, x.customer.name || '(no name)'), h('div', { class: 'muted' }, `${x.number} · ${statusWord} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}${x.promoCode ? ' · ' + x.promoCode : ''}`), h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
-    h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'), h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
-      h('button', { class: 'btn sm danger', onclick: () => { if (confirm('Remove this estimate from your list? It is archived, not erased.')) { estimates.remove(x.id); renderList(root); } } }, 'Remove')))); });
+  all.forEach((x) => {
+    const t = totals(x);
+    const statusWord = x.status === 'signed' ? 'Signed' : x.status === 'presented' ? 'Presented' : 'Draft';
+    const mine = !x.ownerId || x.ownerId === uid || isAdmin();
+    wrap.append(h('div', { class: 'card lineitem' + (x.id === cur ? ' current' : '') },
+      h('div', { class: 'li-main' }, h('div', { class: 'li-text' },
+        h('b', {}, x.customer.name || '(no name)'),
+        h('div', { class: 'muted', id: 'estimate-owner-' + x.id }, ownerLine(x, uid)),
+        h('div', { class: 'muted' }, `${x.number} · ${statusWord} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}${x.promoCode ? ' · ' + x.promoCode : ''}`),
+        h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
+      h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'), h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
+        mine ? h('button', { class: 'btn sm danger', onclick: () => { if (confirm('Remove this estimate from your list? It is archived, not erased.')) { estimates.remove(x.id); renderList(root); } } }, 'Remove') : null)));
+  });
   root.replaceChildren(wrap);
 }

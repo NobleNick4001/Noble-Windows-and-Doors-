@@ -1,5 +1,5 @@
 import { h, fmt, estimates, toast } from '../core.js';
-import { isAdmin, currentProfile, loadAdmin, loadRoster, setUserRole, addRep, revokeAccess, restoreAccess, reassignEstimate, loadSignatures } from '../cloud.js';
+import { isAdmin, currentProfile, loadAdmin, loadRoster, setUserRole, setSeeAll, addRep, revokeAccess, restoreAccess, reassignEstimate, loadSignatures } from '../cloud.js';
 
 const fdate = (t) => t ? new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
 
@@ -51,6 +51,21 @@ export async function render(root) {
       h('option', { value: 'sales', selected: p.role === 'sales' ? 'selected' : null }, 'Sales'),
       h('option', { value: 'admin', selected: p.role === 'admin' ? 'selected' : null }, 'Admin'));
     const self = email && email === mine;
+    const slug = email.replace(/[^a-z0-9]+/g, '-');
+    const seeToggle = p.role === 'admin'
+      ? h('div', { class: 'fine' }, 'Sees every estimate')
+      : h('label', { class: 'check' },
+        h('input', {
+          type: 'checkbox',
+          id: 'see-all-' + slug,
+          checked: p.see_all ? true : null,
+          onchange: async (ev) => {
+            const res = await setSeeAll(email, ev.target.checked);
+            if (res.error) { ev.target.checked = !ev.target.checked; toast(res.error); }
+            else toast(ev.target.checked ? 'They can see every rep’s estimates.' : 'They only see their own estimates.');
+          },
+        }),
+        h('span', {}, "Can see other reps' estimates"));
     const accessBtn = !p.on_list ? null : self ? h('span', { class: 'fine' }, 'This is you') : h('button', {
       type: 'button',
       class: 'btn sm' + (revoked ? '' : ' danger'),
@@ -65,7 +80,8 @@ export async function render(root) {
       h('div', {},
         h('b', {}, p.full_name || email || 'Rep'),
         h('div', { class: 'fine' }, email),
-        h('div', { class: revoked || !p.on_list ? 'warn' : 'fine', id: 'status-' + email.replace(/[^a-z0-9]+/g, '-') }, status)),
+        h('div', { class: revoked || !p.on_list ? 'warn' : 'fine', id: 'status-' + email.replace(/[^a-z0-9]+/g, '-') }, status),
+        p.on_list ? seeToggle : null),
       h('div', { class: 'row gap wrap' },
         select,
         h('button', { type: 'button', class: 'btn sm', onclick: async () => {

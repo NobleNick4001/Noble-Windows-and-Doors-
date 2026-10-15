@@ -85,6 +85,8 @@ Seeded accounts:
 
 Nick adds a later rep from the Admin page (name, email, role). That person then creates a password on the sign-in screen. Revoke blocks new sign-ins, hides estimates and profiles from that login, deletes their Supabase sessions, and the app signs them out the next time the device is online. Restore lets them sign in again.
 
+Each salesperson starts out seeing only their own estimates and contracts. On the Admin page, **Can see other reps' estimates** lets that person read everyone else's jobs too. The list names the rep who owns each estimate. The switch does not let them edit or reassign those jobs. Nick always sees every estimate, so the switch is not shown on the admin row. Running the migration again leaves the switch where Nick set it.
+
 A rep who already signed in can keep building quotes with no signal. The app checks the allowlist again whenever the iPad is back online. A brand-new device still needs a connection the first time.
 
 ## What Nick runs in Supabase
