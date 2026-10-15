@@ -9,6 +9,7 @@ const S = {
   series: 'V300',
   type: 'hslider',
   color: 'white',
+  frame: '',
   zbar: false,
   opacity: 1,
   original: false,
@@ -29,10 +30,46 @@ function loadManifest() {
   return manifestPromise;
 }
 
+function frameId(asset) {
+  return (asset && asset.frame) || '';
+}
+
+function typesFor(series) {
+  const ids = new Set(S.manifest.assets.filter((a) => a.series === series).map((a) => a.type));
+  return S.manifest.types.filter((t) => ids.has(t.id));
+}
+
+function framesFor(series, type) {
+  const ids = new Set(S.manifest.assets.filter((a) => a.series === series && a.type === type).map(frameId));
+  const meta = S.manifest.frames || [{ id: '', name: 'Product photo' }];
+  return meta.filter((f) => ids.has(f.id));
+}
+
+function colorsFor(series, type, frame) {
+  const ids = new Set(S.manifest.assets.filter((a) => a.series === series && a.type === type && frameId(a) === frame && !a.zbar).map((a) => a.color));
+  return S.manifest.colors.filter((c) => ids.has(c.id));
+}
+
+function hasZbar(series, type, color, frame) {
+  return S.manifest.assets.some((a) => a.series === series && a.type === type && a.color === color && frameId(a) === frame && a.zbar);
+}
+
+function snap() {
+  const types = typesFor(S.series);
+  if (!types.some((t) => t.id === S.type)) S.type = types[0] ? types[0].id : S.type;
+  const frames = framesFor(S.series, S.type);
+  if (!frames.some((f) => f.id === (S.frame || ''))) S.frame = frames[0] ? frames[0].id : '';
+  const colors = colorsFor(S.series, S.type, S.frame || '');
+  if (!colors.some((c) => c.id === S.color)) S.color = colors[0] ? colors[0].id : S.color;
+  if (!hasZbar(S.series, S.type, S.color, S.frame || '')) S.zbar = false;
+}
+
 function assetRow() {
   const m = S.manifest;
   if (!m) return null;
-  return m.assets.find((a) => a.series === S.series && a.type === S.type && a.color === S.color && !!a.zbar === !!S.zbar) || null;
+  const frame = S.frame || '';
+  const match = (a, wanted) => a.series === S.series && a.type === S.type && a.color === S.color && frameId(a) === wanted && !!a.zbar === !!S.zbar;
+  return m.assets.find((a) => match(a, frame)) || (frame ? m.assets.find((a) => match(a, '')) : null) || null;
 }
 
 function windowImage() {
@@ -139,6 +176,10 @@ function captionFor(row) {
   const type = m.types.find((t) => t.id === S.type)?.name || S.type;
   const color = m.colors.find((c) => c.id === S.color)?.name || S.color;
   const bits = [series, type, color];
+  if (S.frame) {
+    const frameName = (m.frames || []).find((f) => f.id === S.frame)?.name;
+    if (frameName) bits.push(frameName);
+  }
   if (S.zbar) bits.push('Z-bar');
   if (row?.approximate) bits.push('approximate');
   return bits.join(' · ');
@@ -219,6 +260,7 @@ export function render(root) {
       S.series = 'V300';
       S.type = 'hslider';
       S.color = 'white';
+      S.frame = '';
       S.zbar = false;
       draw();
       syncControls();
@@ -322,27 +364,38 @@ export function render(root) {
 
   function syncControls() {
     const m = S.manifest;
-    const row = assetRow();
     if (!m) {
       controls.replaceChildren(h('h3', {}, 'New window'), h('p', { class: 'muted' }, 'Loading window photos…'));
       return;
     }
+    snap();
+    const row = assetRow();
     const chip = (id, on, label, fn) => h('button', { type: 'button', class: 'chip' + (on ? ' on' : ''), id, onclick: fn }, label);
+    const types = typesFor(S.series);
+    const frames = framesFor(S.series, S.type);
+    const colors = colorsFor(S.series, S.type, S.frame || '');
+    const showFrames = frames.some((f) => f.id);
+    const frameChip = (f) => {
+      const id = f.id === 'block' ? 'pick-frame-block' : f.id === 'nailfin' ? 'pick-frame-nailfin' : 'pick-frame-product';
+      return chip(id, (S.frame || '') === f.id, f.name, () => { S.frame = f.id; snap(); draw(); syncControls(); });
+    };
     controls.replaceChildren(
       h('h3', {}, 'New window'),
       h('b', {}, 'Series'),
-      h('div', { class: 'chips', id: 'ov-series' }, m.series.map((s) => chip('pick-series-' + s.id, S.series === s.id, s.name, () => { S.series = s.id; draw(); syncControls(); }))),
+      h('div', { class: 'chips', id: 'ov-series' }, m.series.map((s) => chip('pick-series-' + s.id, S.series === s.id, s.name, () => { S.series = s.id; snap(); draw(); syncControls(); }))),
       h('b', {}, 'Type'),
-      h('div', { class: 'chips', id: 'ov-types' }, m.types.map((t) => chip('pick-type-' + t.id, S.type === t.id, t.name, () => { S.type = t.id; draw(); syncControls(); }))),
+      h('div', { class: 'chips', id: 'ov-types' }, types.map((t) => chip('pick-type-' + t.id, S.type === t.id, t.name, () => { S.type = t.id; snap(); draw(); syncControls(); }))),
+      showFrames ? h('b', {}, 'Frame') : null,
+      showFrames ? h('div', { class: 'chips', id: 'ov-frames' }, frames.map(frameChip)) : null,
       h('b', {}, 'Color'),
-      h('div', { class: 'swatches', id: 'ov-colors' }, m.colors.map((c) => h('button', {
+      h('div', { class: 'swatches', id: 'ov-colors' }, colors.map((c) => h('button', {
         type: 'button', class: 'swatch' + (S.color === c.id ? ' on' : ''), id: 'pick-color-' + c.id,
-        onclick: () => { S.color = c.id; draw(); syncControls(); },
+        onclick: () => { S.color = c.id; snap(); draw(); syncControls(); },
       }, h('i', { style: `background:${c.swatch}` }), h('span', {}, c.name)))),
-      h('label', { class: 'check' }, h('input', {
+      hasZbar(S.series, S.type, S.color, S.frame || '') ? h('label', { class: 'check' }, h('input', {
         type: 'checkbox', id: 'ov-zbar', checked: S.zbar ? true : null,
         onchange: (e) => { S.zbar = e.target.checked; draw(); syncControls(); },
-      }), h('span', {}, 'Z-bar')),
+      }), h('span', {}, 'Z-bar')) : null,
       h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Opacity'), h('input', {
         type: 'range', id: 'ov-op', min: '0.15', max: '1', step: '0.01', value: String(S.opacity),
         oninput: (e) => { S.opacity = parseFloat(e.target.value); draw(); },
@@ -384,6 +437,7 @@ export function render(root) {
       type: S.type,
       color: S.color,
       colorName: S.manifest.colors.find((c) => c.id === S.color)?.name || S.color,
+      frame: S.frame || '',
       zbar: S.zbar,
       approximate: !!row.approximate,
       note: row.note || '',

@@ -13,6 +13,10 @@
     {
       "id": "V400",
       "name": "V400"
+    },
+    {
+      "id": "andersen100",
+      "name": "Andersen 100"
     }
   ],
   "types": [
@@ -53,6 +57,24 @@
       "name": "Bronze Anodized",
       "rateId": "bronze",
       "swatch": "#5b4636"
+    },
+    {
+      "id": "sandtone",
+      "name": "Sandtone",
+      "rateId": "sandtone",
+      "swatch": "#CBBBA0"
+    },
+    {
+      "id": "terratone",
+      "name": "Terratone",
+      "rateId": "terratone",
+      "swatch": "#8A6A4F"
+    },
+    {
+      "id": "dkbronze",
+      "name": "Dark Bronze / Dark Bronze",
+      "rateId": "dkbronze_dkbronze",
+      "swatch": "#3d2e24"
     }
   ],
   "assets": [
@@ -847,6 +869,236 @@
       "height": 549,
       "approximate": true,
       "note": "Picture window is the slider frame with the meeting rail removed. Z-bar is a stepped trim border, not a factory photo."
+    },
+    {
+      "series": "andersen100",
+      "type": "picture",
+      "color": "white",
+      "frame": "",
+      "zbar": false,
+      "file": "data/overlay/andersen100_picture_white.webp",
+      "width": 453,
+      "height": 680,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 picture window."
+    },
+    {
+      "series": "andersen100",
+      "type": "picture",
+      "color": "sandtone",
+      "frame": "",
+      "zbar": false,
+      "file": "data/overlay/andersen100_picture_sandtone.webp",
+      "width": 453,
+      "height": 680,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 picture window."
+    },
+    {
+      "series": "andersen100",
+      "type": "picture",
+      "color": "terratone",
+      "frame": "",
+      "zbar": false,
+      "file": "data/overlay/andersen100_picture_terratone.webp",
+      "width": 453,
+      "height": 680,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 picture window."
+    },
+    {
+      "series": "andersen100",
+      "type": "picture",
+      "color": "dkbronze",
+      "frame": "",
+      "zbar": false,
+      "file": "data/overlay/andersen100_picture_dkbronze.webp",
+      "width": 453,
+      "height": 680,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 picture window."
+    },
+    {
+      "series": "andersen100",
+      "type": "picture",
+      "color": "black",
+      "frame": "",
+      "zbar": false,
+      "file": "data/overlay/andersen100_picture_black.webp",
+      "width": 453,
+      "height": 680,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "white",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_white_block.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": true,
+      "note": "Recolored from the installed black V300 block-frame slider."
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "adobe",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_adobe_block.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": true,
+      "note": "Recolored from the installed black V300 block-frame slider."
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "bronze",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_bronze_block.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": true,
+      "note": "Recolored from the installed black V300 block-frame slider."
+    },
+    {
+      "series": "V300",
+      "type": "hslider",
+      "color": "black",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_hslider_black_block.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "white",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_white_block.webp",
+      "width": 336,
+      "height": 640,
+      "approximate": true,
+      "note": "Recolored from the installed black V300 block-frame single hung."
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "adobe",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_adobe_block.webp",
+      "width": 336,
+      "height": 640,
+      "approximate": true,
+      "note": "Recolored from the installed black V300 block-frame single hung."
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "bronze",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_bronze_block.webp",
+      "width": 336,
+      "height": 640,
+      "approximate": true,
+      "note": "Recolored from the installed black V300 block-frame single hung."
+    },
+    {
+      "series": "V300",
+      "type": "vslider",
+      "color": "black",
+      "frame": "block",
+      "zbar": false,
+      "file": "data/overlay/V300_vslider_black_block.webp",
+      "width": 336,
+      "height": 640,
+      "approximate": false,
+      "note": ""
+    },
+    {
+      "series": "andersen100",
+      "type": "hslider",
+      "color": "white",
+      "frame": "nailfin",
+      "zbar": false,
+      "file": "data/overlay/andersen100_hslider_white_nailfin.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 nail-fin slider."
+    },
+    {
+      "series": "andersen100",
+      "type": "hslider",
+      "color": "sandtone",
+      "frame": "nailfin",
+      "zbar": false,
+      "file": "data/overlay/andersen100_hslider_sandtone_nailfin.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 nail-fin slider."
+    },
+    {
+      "series": "andersen100",
+      "type": "hslider",
+      "color": "terratone",
+      "frame": "nailfin",
+      "zbar": false,
+      "file": "data/overlay/andersen100_hslider_terratone_nailfin.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 nail-fin slider."
+    },
+    {
+      "series": "andersen100",
+      "type": "hslider",
+      "color": "dkbronze",
+      "frame": "nailfin",
+      "zbar": false,
+      "file": "data/overlay/andersen100_hslider_dkbronze_nailfin.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": true,
+      "note": "Recolored from the installed black Andersen 100 nail-fin slider."
+    },
+    {
+      "series": "andersen100",
+      "type": "hslider",
+      "color": "black",
+      "frame": "nailfin",
+      "zbar": false,
+      "file": "data/overlay/andersen100_hslider_black_nailfin.webp",
+      "width": 680,
+      "height": 635,
+      "approximate": false,
+      "note": ""
+    }
+  ],
+  "frames": [
+    {
+      "id": "",
+      "name": "Product photo"
+    },
+    {
+      "id": "block",
+      "name": "Block frame"
+    },
+    {
+      "id": "nailfin",
+      "name": "Nail fin"
     }
   ]
 }

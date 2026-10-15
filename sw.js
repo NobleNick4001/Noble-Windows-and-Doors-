@@ -1,7 +1,7 @@
 // Offline shell for iPad (Safari / Add to Home Screen).
 // Network-first, then this versioned cache. A new CACHE name drops the old one on
 // activate, so price files update the next time the iPad is online.
-const CACHE = 'nwd-sales-v36-overlay';
+const CACHE = 'nwd-sales-v37-installed';
 const PRECACHE = ['./', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'js/app.js', 'js/core.js', 'js/milgard.js', 'js/cloud.js', 'js/frames.js', 'js/pdf.js', 'js/sign.js', 'js/vendor/jspdf.umd.min.js',
   'js/pages/calculator.js', 'js/pages/milgard-ui.js', 'js/pages/estimate.js', 'js/pages/contract.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/overlay.js', 'js/pages/settings.js', 'js/pages/obscure.js', 'js/pages/frame-types.js', 'js/pages/auth.js', 'js/pages/admin.js',
   'data/rates.json', 'data/variable-rates.json', 'data/milgard-onelink.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'data/promos.json', 'data/purchase-agreement.json', 'data/overlay/manifest.json', 'assets/gallery/gallery.json',
