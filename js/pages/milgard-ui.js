@@ -153,16 +153,17 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   const left = h('div', { class: 'card' });
   left.append(h('h3', {}, '1 · Product'));
-  left.append(h('p', { class: 'fine' }, 'SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen.'));
+  left.append(h('p', { class: 'fine' }, 'SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen. Door sizes are the net frame, not the rough opening.'));
   left.append(seg('Product', [['window', 'Window'], ['door', 'Patio door']], calc.product, setKind));
   left.append(seg('Series', calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES, calc.series, (id) => { calc.series = id; persist(); rerender(); }));
   left.append(seg('Style', STYLES[calc.product], calc.type, (id) => { calc.type = id; persist(); rerender(); }));
 
   const wInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-w', value: calc.w ?? '', placeholder: '0', oninput: (e) => { calc.w = decimal(e.target.value); persist(); update(); } });
   const hInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-h', value: calc.h ?? '', placeholder: '0', oninput: (e) => { calc.h = decimal(e.target.value); persist(); update(); } });
+  const sizeLabel = calc.product === 'door' ? 'net frame' : '';
   left.append(h('div', { class: 'grid2' },
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Width (in)'), wInput, wHint),
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Height (in)'), hInput, hHint)));
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame width (in)' : 'Width (in)'), wInput, wHint),
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame height (in)' : 'Height (in)'), hInput, hHint)));
   left.append(errEl);
 
   if (calc.product === 'door') {

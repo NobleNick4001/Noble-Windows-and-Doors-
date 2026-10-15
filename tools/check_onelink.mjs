@@ -102,24 +102,35 @@ const cases = [
   ['win', 'V250', 'hslider', 36, 24, { pureview: true }, 367.72],
   ['win', 'V300', 'hslider', 95.5, 53.5, {}, 1182.01],
   ['win', 'V400', 'casement', 40, 60, {}, 1162.33],
-  ['door', 'V300', '2panel', 72, 80, {}, 2932.65],
+  ['door', 'V300', '2panel', 71.5, 79.5, {}, 2152.48],
+  ['door', 'V300', '2panel', 72, 80, {}, 2761.30],
+  ['door', 'V300', '2panel', 84, 79.5, {}, 2825.87],
+  ['door', 'V400', '2panel', 71.5, 79.5, {}, 2439.08],
+  ['door', 'V400', '2panel', 72, 80, {}, 3072.72],
+  ['door', 'V400', '2panel', 96, 95.5, {}, 4333.45],
+  ['door', 'A250', '2panel', 71.5, 79.5, {}, 2509.10],
+  ['door', 'A250', '2panel', 72, 80, {}, 3256.00],
+  ['door', 'V300', '3panel', 108, 80, {}, 5439.20],
   ['door', 'V300', '3panel', 144, 95.5, {}, 6847.14],
-  ['door', 'V400', '2panel', 96, 95.5, {}, 4463.10],
   ['door', 'A250', '2panel', 72, 93, {}, 3577.20],
   ['door', 'V300', '4panel', 120, 80, {}, 6374.79],
   ['door', 'V300', '4panel', 190, 80, {}, 6402.09],
   ['door', 'V400', '4panel', 192, 95.5, {}, 9223.68],
   ['door', 'A250', '4panel', 190.75, 84, {}, 10032.00],
-  ['door', 'V300', '2panel', 72, 80, { pureview: true }, 2932.65 + 131.17],
+  ['door', 'V300', '2panel', 72, 80, { pureview: true }, 2932.65],
+  ['door', 'V300', '2panel', 71.5, 79.5, { pureview: true }, 2282.13],
+  ['door', 'V400', '2panel', 96, 95.5, { pureview: true }, 4463.10],
 ];
 for (const [kind, series, type, w, h, extra, obs] of cases) {
   const line = { brand: 'milgard', series, type, color: extra.color || 'ww', w, h, ...extra };
   const price = materialUnitPrice(line);
   notUnder(price, obs, `${series} ${type} ${w}x${h} ${JSON.stringify(extra)}`);
-  if (kind === 'door' && !extra.pureview && obs === 2932.65) near(price, 2932.65, 'V300 door 72x80', 0.02);
 }
 near(win('V250', 'hslider', 36, 24), 347.38, 'V250 XO 36x24 grid', 0.02);
-near(win('V300', '2panel', 72, 80), 2932.65, 'V300 XO door 72x80', 0.02);
+near(win('V300', '2panel', 71.5, 79.5), 2152.48, 'V300 standard net frame 71.5x79.5', 0.02);
+near(win('V300', '2panel', 72, 80), 2803, 'V300 custom net frame 72x80', 0.02);
+near(win('V400', '2panel', 71.5, 79.5), 2439.08, 'V400 standard net frame 71.5x79.5', 0.02);
+check(win('V300', '2panel', 72, 80, { pureview: true }) - win('V300', '2panel', 72, 80) >= 130, 'PureView toggle adds about $130');
 
 const seriesId = (name) => name.startsWith('V300') ? 'V300' : name.startsWith('V400') ? 'V400' : name.startsWith('A250') ? 'A250' : '';
 const configType = (name) => name.startsWith('2-panel') ? '2panel' : name.startsWith('3-panel') ? '3panel' : name.startsWith('4-panel') ? '4panel' : '';
@@ -158,8 +169,8 @@ for (const row of colorRows) {
 }
 const whiteDoor = materialUnitPrice({ brand: 'milgard', series: 'V300', type: '2panel', color: 'ww', w: 72, h: 80 });
 const blackDoor = materialUnitPrice({ brand: 'milgard', series: 'V300', type: '2panel', color: 'bb', w: 72, h: 80 });
-near(whiteDoor, 2932.65, 'V300 white door base', 0.02);
-near(blackDoor, 2932.65 + 818, 'V300 black/black door', 0.02);
+near(whiteDoor, 2803, 'V300 white door base', 0.02);
+near(blackDoor, 2803 + 818, 'V300 black/black door', 0.02);
 check(blackDoor >= 2969.59, 'black/black not under OneLink ' + blackDoor);
 const named = quoteLine({ brand: 'milgard', series: 'V300', type: '2panel', color: 'bb', w: 72, h: 80 });
 check(named.details.includes('Black / Black'), 'quote color ' + named.details.join(' | '));
@@ -200,4 +211,4 @@ if (errs.length) {
   for (const e of errs) console.log(' -', e);
   process.exit(1);
 }
-console.log(`ok  OneLink ${windows} windows, doors, PureView, upcharges. V250 XO 36x24 $${win('V250', 'hslider', 36, 24).toFixed(2)}  V300 XO door 72x80 $${win('V300', '2panel', 72, 80).toFixed(2)}`);
+console.log(`ok  OneLink ${windows} windows, doors, PureView, upcharges. V250 XO 36x24 $${win('V250', 'hslider', 36, 24).toFixed(2)}  V300 standard 71.5x79.5 $${win('V300', '2panel', 71.5, 79.5).toFixed(2)}  V300 custom 72x80 $${win('V300', '2panel', 72, 80).toFixed(2)}`);

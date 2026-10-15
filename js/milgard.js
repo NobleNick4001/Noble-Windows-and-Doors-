@@ -101,6 +101,16 @@ export function makeEngine(D) {
     if (o.frame === 'block') items.push(['block', D.up.block.flat]);
     return { items, notes, errors: validate(series, style, w, h), material: items.reduce((s, i) => s + i[1], 0), limits: limits(series, style) };
   }
+  function standardDoor(series, cfg, w, h) {
+    const sd = D.doorsStd && D.doorsStd[series + '_' + cfg];
+    if (!sd?.rows) return null;
+    const key = Object.keys(sd.rows).find((k) => Math.abs(Number(k) - h) < 0.001);
+    if (!key) return null;
+    const exact = (sd.exactW || []).some((x) => Math.abs(Number(x) - w) < 0.001);
+    if (!(w <= Number(sd.continuousMaxW) + 0.001 || exact)) return null;
+    const cell = sd.rows[key].find((pair) => Number(pair[0]) + 0.001 >= w);
+    return cell ? Number(cell[1]) : null;
+  }
   function door(series, cfg, w, h, o) {
     o = o || {};
     const m = D.doors[series + '_' + cfg];
@@ -114,9 +124,11 @@ export function makeEngine(D) {
     const j = m.heightBrackets.findIndex((x) => h <= x);
     const jj = j < 0 ? m.heightBrackets.length - 1 : j;
     const i = m.widthSteps.findIndex((x) => x >= w);
-    const v = i >= 0
+    const custom = i >= 0
       ? m.price45[i][jj]
       : m.price45[m.price45.length - 1][jj] + m.perInchBeyondLast * (w - m.widthSteps[m.widthSteps.length - 1]);
+    const standard = standardDoor(series, cfg, w, h);
+    const v = standard != null ? standard : custom;
     const items = [['base', v]];
     const ruleKey = o.doorColor || 'white';
     const rule = series === 'A250' || ruleKey === 'white' ? null : D.doorColors?.[series]?.[ruleKey];
@@ -128,6 +140,7 @@ export function makeEngine(D) {
     }
     if (o.pureview && series !== 'A250') items.push(['pureview', D.doorPV]);
     const notes = [];
+    if (w > 0 && h > 0) notes.push(standard != null ? 'Standard net frame size' : 'Custom size. Net frame rounds up on the custom grid.');
     if (ruleKey === 'adobe') notes.push('Adobe interior');
     if (ruleKey === 'dark') notes.push('White interior');
     if (h > 82 && h < 84) notes.push('82–84" tall uses the tall-door price');

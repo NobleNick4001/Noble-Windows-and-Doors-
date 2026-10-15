@@ -10,7 +10,7 @@ export function renderLogin(root, api) {
     root.replaceChildren(h('div', { class: 'page auth-wrap safe-top' },
       h('div', { class: 'card' },
         h('h1', {}, mode === 'signup' ? 'Create account' : 'Sign in'),
-        h('p', { class: 'fine' }, 'Noble sales accounts. Nicholas, Eric, and George use their work email. The role is set from that email.'),
+        h('p', { class: 'fine' }, 'Noble sales accounts. Sign in with the work email Nick approved. A new rep cannot create an account until that email is added on the Admin page.'),
         error && h('p', { class: 'warn', id: 'auth-error' }, error),
         h('form', { id: 'login-form', onsubmit: async (ev) => {
           ev.preventDefault();

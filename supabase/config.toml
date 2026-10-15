@@ -6,3 +6,6 @@ verify_jwt = true
 
 [functions.send-estimate]
 verify_jwt = true
+
+[functions.revoke-sessions]
+verify_jwt = true
