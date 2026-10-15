@@ -132,6 +132,12 @@
    "name": "White",
    "swatch": "#f7f7f5",
    "frame": "white"
+  },
+  {
+   "id": "door-dark",
+   "name": "Classic Brown / Espresso / Bronze",
+   "swatch": "#4a3728",
+   "frame": "dkbronze"
   }
  ],
  "brands": [
@@ -207,8 +213,7 @@
      "id": "A250",
      "name": "A250",
      "colors": [
-      "ww",
-      "bronze",
+      "bronze-anodized",
       "clear-anodized"
      ],
      "types": [

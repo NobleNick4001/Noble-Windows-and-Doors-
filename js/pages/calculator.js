@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
 import { renderMilgard } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
 
@@ -246,7 +246,7 @@ export function render(root) {
   function miniEstimate() {
     const e = estimates.current(); const t = totals(e);
     return h('div', { class: 'card mini' }, h('div', { class: 'row between' }, h('b', {}, 'Current estimate'), h('span', { class: 'muted' }, e.number)),
-      e.lines.length ? h('div', {}, ...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', {}, row.id === 'windows' ? `${t.count} window${t.count === 1 ? '' : 's'} · windows` : row.label), h('b', {}, fmt(row.amount)))), h('div', { class: 'line strong' }, h('span', {}, 'Total'), h('b', {}, fmt(t.total))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
+      e.lines.length ? h('div', {}, ...quoteTotalRows(t).map((row) => h('div', { class: 'line' + (row.strong ? ' strong' : '') + (row.discount ? ' discount' : '') }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))), h('div', { class: 'line strong' }, h('span', {}, 'Total'), h('b', {}, fmt(t.total))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
   }
   const rerender = () => render(root);
   update();
