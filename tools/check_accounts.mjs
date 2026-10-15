@@ -1,6 +1,6 @@
 // Accounts, sync payload, and the database contract. No network.
 import { readFileSync } from 'node:fs';
-import { roleForEmail, nameForEmail, toRow, toContract, fromRow, ACCOUNTS } from '../js/cloud.js';
+import { roleForEmail, nameForEmail, toRow, toContract, fromRow, ACCOUNTS, sessionFromStorage, offlineAccessOk } from '../js/cloud.js';
 
 const fail = (msg) => { console.error('FAIL', msg); process.exitCode = 1; };
 const eq = (actual, expected, msg) => { if (actual !== expected) fail(msg + ' — ' + JSON.stringify(actual)); };
@@ -9,10 +9,27 @@ eq(roleForEmail('mgr@noblewandd.com'), 'admin', 'Nicholas is admin');
 eq(roleForEmail('MGR@noblewandd.com'), 'admin', 'admin email is case-insensitive');
 eq(roleForEmail('Eric@noblewandd.com'), 'sales', 'Eric is sales');
 eq(roleForEmail('Mgr@noblegcllc.com'), 'sales', 'George is sales');
+eq(roleForEmail('dan@noblewandd.com'), 'sales', 'Daniel is sales');
+eq(roleForEmail('DAN@noblewandd.com'), 'sales', 'Daniel email is case-insensitive');
+eq(roleForEmail('stranger@example.com'), null, 'unknown email is not a sales rep');
 eq(nameForEmail('eric@noblewandd.com'), 'Eric Havins', 'Eric name');
 eq(nameForEmail('mgr@noblegcllc.com'), 'George Piekarski', 'George name');
 eq(nameForEmail('mgr@noblewandd.com'), 'Nicholas Sommer', 'Nicholas name');
-eq(ACCOUNTS.length, 3, 'three known accounts');
+eq(nameForEmail('dan@noblewandd.com'), 'Daniel Smalley', 'Daniel name');
+eq(ACCOUNTS.length, 4, 'four known accounts');
+
+const token = 'header.payload.signature-long-enough';
+const session = sessionFromStorage(JSON.stringify({
+  access_token: token,
+  user: { id: '11111111-1111-4111-8111-111111111111', email: 'Dan@noblewandd.com' },
+}));
+eq(session?.user?.email, 'dan@noblewandd.com', 'stored session keeps the email');
+eq(sessionFromStorage('{}'), null, 'empty cached token is not a session');
+eq(sessionFromStorage('{"access_token":"short"}'), null, 'short token is not a session');
+eq(offlineAccessOk({ allowed: true, email: 'dan@noblewandd.com', role: 'sales' }, session), true, 'allowed rep can continue offline');
+eq(offlineAccessOk({ allowed: false, email: 'dan@noblewandd.com', role: 'sales' }, session), false, 'revoked rep cannot continue offline');
+eq(offlineAccessOk({ allowed: true, email: 'eric@noblewandd.com', role: 'sales' }, session), false, 'offline cache must match the signed-in email');
+eq(offlineAccessOk(null, session), false, 'no access check means stay signed out');
 
 const sql = readFileSync(new URL('../supabase/migrations/001_schema.sql', import.meta.url), 'utf8');
 for (const needle of [
@@ -33,7 +50,7 @@ if (/for\s+delete/i.test(sql)) fail('schema must not grant a DELETE policy');
 if (!/before delete on public\.estimates/i.test(sql) || !/before delete on public\.contracts/i.test(sql)) fail('hard delete triggers missing');
 
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-if (!sw.includes("const CACHE = 'nwd-sales-v30-door-colors'")) fail('service worker should be nwd-sales-v30-door-colors');
+if (!sw.includes("const CACHE = 'nwd-sales-v32-net-frame'")) fail('service worker should be nwd-sales-v32-net-frame');
 for (const file of ['js/cloud.js', 'js/pages/auth.js', 'js/pages/admin.js', 'js/milgard.js', 'data/milgard-onelink.json']) {
   if (!sw.includes(file)) fail('precache missing ' + file);
 }
@@ -48,6 +65,39 @@ const client = readFileSync(new URL('../js/cloud.js', import.meta.url), 'utf8');
 if (client.includes('HUBSPOT_TOKEN') || client.includes('SERVICE_ROLE')) fail('client must not contain HubSpot or service-role secrets');
 if (!client.includes('sb_publishable_SnKqbI5z7tlZzQmntcxumQ_AqB1pNJ9')) fail('publishable key should be in the client');
 if (!client.includes('cdn.jsdelivr.net/npm/@supabase/supabase-js')) fail('supabase-js should load from the CDN');
+if (!client.includes('dan@noblewandd.com') || !client.includes('Daniel Smalley')) fail('client allowlist should include Daniel');
+if (!client.includes('current_access') || !client.includes('offlineAccessOk')) fail('client should check the allowlist and the offline access flag');
+if (!client.includes('admin_revoke_user') || !client.includes('revoke-sessions')) fail('revoke should hit the database and the sign-out function');
+if (/if \(cached\) \{\s*onReady/.test(client)) fail('a cached token alone must not open the app');
+
+const allow = readFileSync(new URL('../supabase/migrations/003_allowlist.sql', import.meta.url), 'utf8');
+for (const needle of [
+  'dan@noblewandd.com',
+  'Daniel Smalley',
+  'allowed_users',
+  'revoked_at',
+  'is_allowed',
+  'admin_revoke_user',
+  'admin_restore_user',
+  'admin_add_user',
+  'current_access',
+  'custom_access_token_hook',
+  'hook_before_user_created',
+  'auth.sessions',
+  'auth.refresh_tokens',
+  'drop_sessions_for_email',
+  'This email is not allowed to sign in.',
+  'This email is not allowed to create an account.',
+  'you cannot revoke your own access',
+]) {
+  if (!allow.includes(needle)) fail('allowlist migration missing ' + needle);
+}
+if (/for\s+delete/i.test(allow)) fail('allowlist migration must not add a DELETE policy');
+
+const kick = readFileSync(new URL('../supabase/functions/revoke-sessions/index.ts', import.meta.url), 'utf8');
+if (!kick.includes("Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')")) fail('revoke function should read the service role from the environment');
+if (!kick.includes('drop_sessions_for_email')) fail('revoke function should delete that user\'s sessions');
+if (kick.includes('eyJ') || /SERVICE_ROLE_KEY\s*=\s*['"]/.test(kick)) fail('revoke function must not embed the service role key');
 
 const estimate = {
   id: 'local1',
@@ -85,4 +135,4 @@ eq(back.contract.signatures.p1a, 'data:image/png;base64,bbb', 'reopen keeps the 
 eq(back.contractRowId, 'c1', 'contract row linked');
 
 if (process.exitCode) console.error('account check failed');
-else console.log('account check ok', { admin: 'mgr@noblewandd.com', sales: ['Eric Havins', 'George Piekarski'], shippingOnEmpty: 150 });
+else console.log('account check ok', { admin: 'mgr@noblewandd.com', sales: ['Eric Havins', 'George Piekarski', 'Daniel Smalley'], shippingOnEmpty: 150 });

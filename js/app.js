@@ -1,5 +1,5 @@
 import { $, h, loadData } from './core.js';
-import { startAuth, isAdmin, mountAccount, signIn, signUp } from './cloud.js';
+import { startAuth, isAdmin, mountAccount, signIn, signUp, consumeAuthMessage } from './cloud.js';
 import { renderLogin } from './pages/auth.js';
 import * as calculator from './pages/calculator.js';
 import * as estimate from './pages/estimate.js';
@@ -28,6 +28,7 @@ function navRoutes() {
 }
 
 function route() {
+  if (!unlocked) return;
   const [, name = 'calculator', sub] = location.hash.split('/');
   const routes = navRoutes();
   const r = routes.find((x) => x[0] === name) || routes[0];
@@ -41,27 +42,48 @@ function route() {
 }
 
 let started = false;
+let unlocked = false;
+
+function lockShell() {
+  unlocked = false;
+  document.body.classList.add('auth-locked');
+  $('#nav').replaceChildren();
+  document.getElementById('account')?.replaceChildren();
+}
+
 function boot() {
+  unlocked = true;
+  document.body.classList.remove('auth-locked');
   if (!started) {
     started = true;
-    window.addEventListener('hashchange', route);
+    window.addEventListener('hashchange', () => { if (unlocked) route(); });
     window.addEventListener('nwd-synced', () => {
+      if (!unlocked) return;
       const name = location.hash.split('/')[1] || '';
       if (name === 'saved' || name === 'admin') route();
     });
+    window.addEventListener('nwd-access', () => { if (unlocked) route(); });
   }
   mountAccount(document.getElementById('account'));
   route();
 }
 
 (async () => {
-  try { await loadData(); } catch (e) { $('#app').textContent = 'Could not load data files: ' + e.message; return; }
+  lockShell();
   await startAuth({
-    onReady: boot,
+    onReady: async () => {
+      try {
+        await loadData();
+      } catch (e) {
+        document.body.classList.remove('auth-locked');
+        $('#app').textContent = 'Could not load data files: ' + e.message;
+        return;
+      }
+      boot();
+    },
     onSignedOut: () => {
-      $('#nav').replaceChildren();
-      document.getElementById('account')?.replaceChildren();
-      renderLogin($('#app'), { signIn, signUp });
+      lockShell();
+      renderLogin($('#app'), { signIn, signUp, message: consumeAuthMessage() });
     },
   });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

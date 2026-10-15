@@ -228,7 +228,7 @@ export function render(root) {
       const seriesDef = brandById(l.brand)?.series?.find((s) => s.id === l.series);
       row.append(h('div', { class: 'edit' },
         h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', { type: 'text', value: l.label, oninput: (ev) => { l.label = ev.target.value; save(); } })),
-        h('div', { class: 'grid3' }, stepper('Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 })),
+        h('div', { class: 'grid3' }, stepper(isMilgardDoorLine(l) ? 'Net frame width' : 'Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper(isMilgardDoorLine(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 })),
         stepper('Units in this line', l.unitsPerLine || 1, (v) => { l.unitsPerLine = parseInt(v, 10) || 1; reprice(l); save(); refreshTotals(); }, { min: 1 }),
         customPriceFields(l, () => { reprice(l); save(); refreshTotals(); }, 'li-' + l.id),
         seriesDef && h('b', {}, 'Window type'),

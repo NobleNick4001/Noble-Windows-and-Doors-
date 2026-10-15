@@ -15,7 +15,7 @@ Calculator · Estimate (builder + printable/PDF page + purchase agreement) · Sa
 ## Pricing model
 - **Fitted material prices** come from `data/variable-rates.json`. Those numbers are **selling** prices at 45% margin. The app does not run them through `marginFactor()`. Formula, in inches of unit size: `UI = width + height`, `sqft = width × height / 144`, `price = base + ($/UI × UI) + ($/sqft × sqft)`, then the color tier and any add-ons. Round only the final unit price.
   - **Andersen 100** (not awning): Sandtone and Dark Bronze / Dark Bronze are priced like Black (ratio 1). Dark Bronze / White, Terratone, and Black/White use × 1.003. White / White is ratio 1, then **−$191.71 per unit**. Flush fin + interior trim and grilles between the glass are $ per UI, scaled by the color tier. TruScene is $130 per window. Tempered, laminated, and obscure stay at 12% each.
-  - **Milgard** V250, V300, and V400 windows, and V300, V400, and A250 patio doors (2, 3, and 4 panel), use the OneLink grid in `data/milgard-onelink.json`. Width and height round up to the next grid size. Outside the grid, a safety formula is used. The customer price is never under OneLink. SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen. PureView is optional. There is no V350. Patio door color is an upcharge on the White door price: `ceil(k × (flat + per inch of width + per inch of height))`. V300 and V400 offer White, Adobe, Black / White, Black / Black, and Classic Brown / Espresso / Bronze. A250 offers Bronze Anodized and Clear Anodized at the White price.
+  - **Milgard** V250, V300, and V400 windows, and V300, V400, and A250 patio doors (2, 3, and 4 panel), use the OneLink grid in `data/milgard-onelink.json`. Door width and height are the net frame size. A standard-size door (net height exactly 79.5, 81.5, or 95.5, and net width up to 71.5 or exactly 95.5) uses the standard table when that series has one. Every other door uses the custom grid, rounded up. Window sizes round up to the next grid size. Outside the grid, a safety formula is used. The customer price is never under OneLink. PureView is not in the V300 or V400 2-panel or 3-panel base; the PureView toggle adds it. SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen. PureView is optional. There is no V350. Patio door color is an upcharge on the White door price: `ceil(k × (flat + per inch of width + per inch of height))`. V300 and V400 offer White, Adobe, Black / White, Black / Black, and Classic Brown / Espresso / Bronze. A250 offers Bronze Anodized and Clear Anodized at the White price.
   - **IWC** is active for 8200 block-frame windows (XO and picture) and 8900 block-frame deluxe doors (2-panel OX/XO and 4-panel OXXO), Bronze Anodized only. Door prices include the deluxe screen, stainless rollers, black flush handle, and tempered argon glass.
 - **Anything the fit does not cover** keeps the stored `data/rates.json` path: selling rate = stored p75 × `0.60 / (1 - grossMargin)`. **`grossMargin` (currently 0.45) changes only that path.** That path still includes Andersen awning and Milgard shapes the OneLink grid does not cover (arch and half-vent). Those cells stay flagged estimated the same way as before. Labor, tax, shipping, and flat add-ons are not scaled.
 - **Custom unit (enter supplier price)** is the line for composites and other specials, including Milgard V400 Tuscany composites and IWC colors other than Bronze Anodized (Clear Anodized, Mojave Beige, White), plus configs the fit does not cover. The salesperson enters the supplier’s customer price. It is used as-is: no margin and no rate math. Labor is still chosen separately. Promo codes do not discount it unless the code sets `appliesToCustom`.
@@ -70,5 +70,53 @@ From the estimate, **Agreement** opens Noble's two-page purchase contract for th
     js/pages/{calculator,estimate,contract,options,gallery,overlay,settings,obscure,frame-types}.js
     data/*.json  assets/  tools/  screenshots/
 
+## Who can sign in
+
+The calculator, estimates, and every other page stay hidden until someone signs in. The login that counts is the allowlist in Supabase (`public.allowed_users`), not the copy of names in `js/cloud.js`.
+
+Seeded accounts:
+
+| Name | Email | Role |
+|---|---|---|
+| Nicholas Sommer | mgr@noblewandd.com | admin |
+| Eric Havins | eric@noblewandd.com | sales |
+| George Piekarski | mgr@noblegcllc.com | sales |
+| Daniel Smalley | dan@noblewandd.com | sales |
+
+Nick adds a later rep from the Admin page (name, email, role). That person then creates a password on the sign-in screen. Revoke blocks new sign-ins, hides estimates and profiles from that login, deletes their Supabase sessions, and the app signs them out the next time the device is online. Restore lets them sign in again.
+
+A rep who already signed in can keep building quotes with no signal. The app checks the allowlist again whenever the iPad is back online. A brand-new device still needs a connection the first time.
+
+## What Nick runs in Supabase
+
+Do this once, on the Supabase project the app already uses, before anyone relies on this version. The website code cannot turn the allowlist on by itself.
+
+1. Open the project in the Supabase dashboard. Go to **SQL Editor**, start a new query, and paste the whole file `supabase/migrations/003_allowlist.sql`. Run it. Success is enough. Running the same file again is safe and will not un-revoke someone.
+2. Go to **Authentication → Hooks**.
+   - **Before user created**: turn it on, choose Postgres, and select `public.hook_before_user_created`. This stops a stranger from creating an account.
+   - **Custom access token**: turn it on, choose Postgres, and select `public.custom_access_token_hook`. This stops a revoked or unknown email from signing in or refreshing a session.
+3. Deploy the edge function `revoke-sessions` (Dashboard → Edge Functions, or `supabase functions deploy revoke-sessions --project-ref nmyatpcjqfokmfbssimc` from this folder). Supabase fills in `SUPABASE_SERVICE_ROLE_KEY` for the function. Do not put that key in the website, in git, or in an email. The function signs the revoked person out through Supabase Auth. The SQL in step 1 also deletes their sessions, so access is already blocked if the function is deployed a few minutes later.
+4. Sign out on each iPad and sign back in once, while online, so the new check is stored on the device.
+5. Daniel creates his own password from **Create account** if he does not have one yet. If the screen says to confirm the email, either open that message or, under **Authentication → Providers → Email**, turn off **Confirm email** so the team can sign in right away.
+
+After that, Nick does not need the SQL editor to add or remove a rep. Admin → Add rep, or Revoke / Restore.
+
+## Pricing files are still public on GitHub Pages
+
+Sign-in does not hide `data/*.json`. GitHub Pages and a raw preview link will still hand those files to anyone who requests the URL, including `data/milgard-onelink.json` and `data/rates.json`. Supabase row security covers estimates and accounts only. The service worker also keeps a copy of those files on a device that has opened the app while signed in.
+
+To stop that, move the site off GitHub Pages:
+
+1. Put the repo on **Cloudflare Pages**. No build command. The output directory is the repo root.
+2. Use a hostname you control, such as `sales.noblewandd.com`. Access can only sit in front of a hostname on Cloudflare.
+3. In **Cloudflare Zero Trust**, create an Access application for that hostname.
+4. Allow policy: only the work emails (Nicholas, Eric, George, Daniel, and anyone Nick adds later). One-time email PIN or Google is enough. Everyone else is stopped before HTML, JavaScript, or the pricing JSON is sent.
+5. Keep the Supabase login behind Access. Access hides the files. Supabase still decides which rep sees which estimate, and Revoke still signs them out.
+6. When Nick adds a rep, add the email in the Admin page and in the Access policy (or in one Access group he edits).
+7. Turn **GitHub Pages off** for this repo so the old public URL stops serving the JSON.
+8. Each iPad opens the new hostname once while online. After Access lets them in, the service worker can cache the app for offline quotes.
+
+That move is hosting, not an app change. Do not switch the live link until the Access policy lists the same people as the allowlist.
+
 ## Add to a bigger host
-Any static host works (GitHub Pages, Netlify, Cloudflare Pages). No build command; publish the folder root.
+Any static host works (GitHub Pages, Netlify, Cloudflare Pages). No build command; publish the folder root. GitHub Pages cannot require sign-in before it serves the pricing files. Cloudflare Pages plus Access can. See the section above.
