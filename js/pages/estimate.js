@@ -196,7 +196,7 @@ export function render(root) {
   wrap.append(h('div', { class: 'row between wrap' }, h('div', {}, h('h1', {}, 'Estimate'), h('div', { class: 'muted' }, `${e.number} · ${fdate(e.created)} · ${statusWord}`), signed ? h('div', { class: 'fine', id: 'agreement-signed' }, 'Agreement signed') : null),
     h('div', { class: 'row wrap gap' },
       h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, '+ New'),
-      h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
+      h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name && !(e.overlays || []).length) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
       h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' || hubUi.busy ? true : null, onclick: () => presentEstimate(rerender) }, 'Mark presented'),
       h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
       h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
@@ -358,11 +358,37 @@ export function render(root) {
   const payPct = () => Number(data.agreement?.depositPct) || 60;
   refreshTotals();
   wrap.append(tot);
+  wrap.append(overlayCard(e, save, rerender));
   wrap.append(h('div', { class: 'card' }, h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes (shown on estimate)'), h('textarea', { rows: 3, id: 'e-notes', oninput: (ev) => { e.notes = ev.target.value; save(); } }, e.notes)),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Estimate valid for (days)'), h('input', { type: 'text', inputmode: 'numeric', value: e.validDays, oninput: (ev) => { e.validDays = parseInt(ev.target.value) || 30; save(); } }))));
   root.replaceChildren(wrap);
 }
 
+function overlayCard(e, save, rerender) {
+  const shots = e.overlays || [];
+  const card = h('div', { class: 'card', id: 'overlay-card' },
+    h('div', { class: 'row between wrap gap' },
+      h('h3', {}, 'Window overlays'),
+      h('a', { class: 'btn sm', id: 'btn-add-overlay', href: '#/preview' }, 'Add window photo')));
+  if (!shots.length) card.append(h('p', { class: 'fine' }, 'A before-and-after photo from Window overlay is saved here and included on the print view and the emailed PDF.'));
+  shots.forEach((shot, i) => card.append(h('div', { class: 'ov-shot' },
+    h('img', { src: shot.image, alt: shot.caption || 'Window overlay' }),
+    h('div', { class: 'row between wrap gap' },
+      h('span', {}, shot.caption || 'Window overlay'),
+      h('button', { type: 'button', class: 'btn sm danger', onclick: () => { e.overlays.splice(i, 1); save(); rerender(); } }, 'Remove')),
+    shot.note ? h('p', { class: 'fine' }, shot.note) : null)));
+  return card;
+}
+function overlaySheet(e) {
+  const shots = e.overlays || [];
+  if (!shots.length) return null;
+  return h('div', { id: 'sh-overlays' },
+    h('h3', {}, 'Window overlay'),
+    ...shots.map((shot) => h('figure', { class: 'sh-overlay' },
+      h('img', { src: shot.image, alt: shot.caption || 'Window overlay' }),
+      h('figcaption', {}, shot.caption || 'Window overlay'),
+      shot.note ? h('div', { class: 'fine' }, shot.note) : null)));
+}
 function licenseLines(c) {
   return String(c?.license || '').split('\n').map((s) => s.trim()).filter(Boolean);
 }
@@ -403,6 +429,7 @@ function estimateSheet(e) {
     h('div', { class: 'line' }, h('span', {}, `Deposit (${pct}%)`), h('b', { id: 'sh-deposit' }, fmt(pay.deposit))),
     h('div', { class: 'line' }, h('span', {}, `Final (${100 - pct}%)`), h('b', { id: 'sh-final' }, fmt(pay.balance)))));
   if (e.notes) sheet.append(h('h3', {}, 'Notes'), h('p', { class: 'pre' }, e.notes));
+  sheet.append(overlaySheet(e));
   sheet.append(h('h3', {}, 'Terms'), h('p', { class: 'pre fine' }, settings.terms),
     h('div', { class: 'sig' }, h('div', {}, 'Accepted by (signature) ______________________________'), h('div', {}, 'Date ______________')));
   return sheet;

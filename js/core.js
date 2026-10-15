@@ -574,7 +574,7 @@ export const estimates = {
   startNew() { this._cur = this.blank(); this.setCurrent(this._cur.id); return this._cur; },
   persist() {
     const e = this._cur; if (!e) return;
-    const has = e.lines.length || (e.extras || []).length || e.stuccoRepair?.on || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || Number(e.percentDiscount) > 0 || e.contract;
+    const has = e.lines.length || (e.extras || []).length || e.stuccoRepair?.on || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || Number(e.percentDiscount) > 0 || e.contract || (e.overlays || []).length;
     if (has || this.all()[e.id]) this.save(e);
   },
   duplicate(id) {
