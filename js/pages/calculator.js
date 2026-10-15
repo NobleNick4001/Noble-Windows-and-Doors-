@@ -1,4 +1,5 @@
 import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, summaryLines, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
+import { renderMilgard } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
@@ -98,7 +99,7 @@ export function customPriceFields(line, onChange, idp = 'in') {
   return h('div', { class: 'custom-price' },
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Unit description'), h('input', { type: 'text', id: idp + '-custom-desc', value: line.customDescription || '', placeholder: 'e.g. V400 Tuscany composite slider', oninput: (e) => { line.customDescription = e.target.value; onChange(); } })),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Supplier price ($ per unit)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-supplier', value: line.supplierPrice ?? '', placeholder: 'customer price from the supplier', oninput: (e) => { line.supplierPrice = e.target.value.replace(/[^0-9.]/g, ''); onChange(); } })),
-    h('p', { class: 'fine' }, 'Used as the customer material price. No extra margin. Promo codes do not discount this line unless the code says so.'));
+    h('p', { class: 'fine' }, 'Used as the customer material price. Promo codes do not discount this line unless the code says so.'));
 }
 function mathText(p, w, h) {
   if (p.mode === 'custom') return 'Supplier price, used as entered.';
@@ -160,6 +161,10 @@ export function installEditor(inst, onChange, idp = 'inst', line = null) {
 
 export function render(root) {
   const brand = normalize();
+  if (brand.id === 'milgard') {
+    renderMilgard(root, { calc, persist, rerender: () => render(root) });
+    return;
+  }
   const wrap = h('div', { class: 'page calc' });
   const tabs = h('div', { class: 'tabs seg' }, data.rates.brands.map((b) => h('button', { class: 'seg-btn' + (b.id === calc.brand ? ' on' : ''), onclick: () => { calc.brand = b.id; persist(); rerender(); } }, b.name, b.status !== 'active' && h('small', {}, ' soon'))));
   wrap.append(h('h1', {}, 'Price Calculator'), tabs);

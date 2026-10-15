@@ -1,4 +1,6 @@
 // Core helpers, data loading, settings, estimate store, pricing.
+import { isMilgardDoorLine, milgardQuote } from './milgard.js';
+export { isMilgardDoorLine };
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -39,14 +41,16 @@ export function toast(msg) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null };
+export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null };
+export const OFFLINE_MESSAGE = "You're offline, try again when connected";
+export function browserOffline() { return typeof navigator !== 'undefined' && navigator.onLine === false; }
 export let settings = {};
 
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'),
+  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement, data.milgardOnelink] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'), getJSON('data/milgard-onelink.json'),
   ]);
   if (data.obscureGlass?.sections) {
     data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
@@ -138,6 +142,7 @@ function classifyLine(line) {
     return { mode: 'variable', family: 'andersen', typeDef, colorDef, addons: A.addons || {} };
   }
   if (brand === 'milgard') {
+    if (milgardQuote(data.milgardOnelink, line)) return { mode: 'onelink' };
     const S = vr.milgard?.[series];
     const typeDef = S?.types?.[type];
     if (typeDef && (S.colorsFitted || []).includes(line.color)) {
@@ -273,6 +278,7 @@ export function quoteLine(line, { ascii = false } = {}) {
   if (ids.has('truscene')) details.push('TruScene screen');
   if (ids.has('flush_fin_trim')) details.push('Flush fin + interior trim');
   if (ids.has('screen')) details.push('Screen');
+  if (line.pureview || ids.has('pureview')) details.push('PureView screen');
   if (Number(line.unitsPerLine) > 1) details.push(`${line.unitsPerLine} units`);
   const times = ascii ? 'x' : '×';
   return {
@@ -314,6 +320,7 @@ export function fittedIncludes(line) {
 }
 export function variableRateInfo(brand, series, color, type) {
   const model = classifyLine({ brand, series, color, type });
+  if (model.mode === 'onelink') return { onelink: true };
   if (model.mode !== 'variable') return null;
   const t = model.typeDef;
   const c = model.colorDef || {};
@@ -347,6 +354,7 @@ export const FRAME_TYPE_WARNING = 'Select frame type — Z-bar adds material cos
 const MILGARD_FRAME_SERIES = new Set(['V250', 'V300', 'V400']);
 export function needsFrameWarning(line) {
   if (!line || line.brand !== 'milgard' || !MILGARD_FRAME_SERIES.has(line.series)) return false;
+  if (isMilgardDoorLine(line)) return false;
   return !lineFrameType(line);
 }
 // Add-ons with auto:"frameType:<id>" are charged from the frame choice, never from a checkbox.
@@ -416,6 +424,16 @@ function buildMaterial(line) {
     return { mode: 'custom', unit, unitBase: unit, optionsEach: 0, rate: null, estimated: false, wh: w + h, fromQuotes: false, detail: null };
   }
   if (!(w > 0) || !(h > 0)) return null;
+  if (model.mode === 'onelink') {
+    const q = milgardQuote(data.milgardOnelink, line);
+    const units = lineUnits(line);
+    const unit = roundMoney(q.material * units);
+    return {
+      mode: 'onelink', unit, unitBase: unit, optionsEach: 0,
+      rate: null, estimated: false, wh: w + h, fromQuotes: true, detail: null,
+      notes: q.notes, errors: q.errors, onelink: q,
+    };
+  }
   if (model.mode === 'variable') {
     const d = variableRaw(model, line);
     const unit = roundMoney(d.raw + strayOptionExtra(line, model, d.colored, w, h));
@@ -438,29 +456,69 @@ export function materialUnitPrice(line) {
   const built = buildMaterial(line);
   return built ? built.unit : null;
 }
+export function linePrice(line) { return priceWindow(line); }
 // ---------- installation / labor (separate from window price and from add-ons) ----------
 export const installType = (id) => data.install.types.find((t) => t.id === id) || data.install.types[0];
 export const defaultInstall = () => ({ type: data.install.defaultType, surcharges: [], override: null, custom: null, frameType: null });
 export const frameTypeById = (id) => data.frameTypes?.types?.find((t) => t.id === id);
 const surchargeDef = (id) => data.install?.surcharges?.find((x) => x.id === id);
-// inst = {type, surcharges[], override (number|null), custom (number|null for 'custom' type)}
-// Labor only. Per-window add-ons are addonUnit and are not folded into this price.
-export function installUnit(inst) {
+const doorAddonDef = (id) => data.install?.doors?.addons?.find((x) => x.id === id);
+const doorPanelKey = (line) => (data.install?.doors?.panels?.[line?.type] != null ? line.type : null);
+// inst = {type, surcharges[], override, custom, headerFeet, writeIn:{description, amount}}
+// Labor only. Add-ons, including door header footage and the write-in, are addonUnit.
+export function installUnit(inst, line) {
   inst = inst || defaultInstall();
   if (inst.override != null && inst.override !== '' && !isNaN(inst.override)) return roundMoney(Number(inst.override));
+  if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
+    const doors = data.install.doors;
+    const base = Number(doors.panels[line.type]) || 0;
+    const tall = Number(line.h) > (Number(doors.tallOverInches) || 84) ? Number(doors.tallAdd) || 0 : 0;
+    return roundMoney(base + tall);
+  }
   const t = installType(inst.type);
   const base = t.custom && inst.custom != null && inst.custom !== '' ? Number(inst.custom) || 0 : t.price;
   return roundMoney(base);
 }
-export function addonNames(inst) {
+export function addonNames(inst, line) {
+  if (line && isMilgardDoorLine(line)) {
+    const names = (inst?.surcharges || []).map((id) => {
+      const def = doorAddonDef(id);
+      if (!def) return '';
+      if (def.per === 'linearFoot') {
+        const feet = Number(inst.headerFeet) || 0;
+        return `${def.name} (${feet} ft)`;
+      }
+      return def.name;
+    }).filter(Boolean);
+    const write = Number(inst?.writeIn?.amount) || 0;
+    if (write || String(inst?.writeIn?.description || '').trim()) names.push(inst.writeIn.description || 'Write-in');
+    return names;
+  }
   return (inst?.surcharges || []).map((id) => surchargeDef(id)?.name).filter(Boolean);
 }
-export function addonUnit(inst) {
+export function addonUnit(inst, line) {
+  if (line && isMilgardDoorLine(line)) {
+    let sur = 0;
+    for (const id of inst?.surcharges || []) {
+      const def = doorAddonDef(id);
+      if (!def) continue;
+      if (def.per === 'linearFoot') sur += (Number(def.amount) || 0) * (Number(inst.headerFeet) || 0);
+      else sur += Number(def.amount) || 0;
+    }
+    sur += Number(inst?.writeIn?.amount) || 0;
+    return roundMoney(sur);
+  }
   const sur = (inst?.surcharges || []).reduce((s, id) => s + (Number(surchargeDef(id)?.amount) || 0), 0);
   return roundMoney(sur);
 }
-export function installLabel(inst) {
-  inst = inst || defaultInstall(); const t = installType(inst.type);
+export function installLabel(inst, line) {
+  inst = inst || defaultInstall();
+  if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
+    const name = { '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel' }[line.type] || 'Patio door';
+    const tall = Number(line.h) > (Number(data.install?.doors?.tallOverInches) || 84) ? ', over 7 ft' : '';
+    return `${name} slider install${tall}`;
+  }
+  const t = installType(inst.type);
   const frame = frameTypeById(inst.frameType);
   return frame ? `${frame.name} (${t.name})` : t.name;
 }
@@ -593,7 +651,7 @@ export function promoResult(e, windows = 0, install = 0) {
     if (freeN < 1) note = `Needs ${group} or more windows. One free window per ${group} (the cheapest window price, including glass).`;
     else {
       const units = [];
-      for (const l of priced) for (let i = 0; i < (Number(l.qty) || 0); i++) units.push({ material: Number(l.unit) || 0, labor: installUnit(l.install) });
+      for (const l of priced) for (let i = 0; i < (Number(l.qty) || 0); i++) units.push({ material: Number(l.unit) || 0, labor: installUnit(l.install, l) });
       units.sort((a, b) => a.material - b.material);
       for (const u of units.slice(0, freeN)) { windowAmount += u.material; if (promo.appliesToLabor) laborAmount += u.labor; }
       windowAmount = r2(windowAmount); laborAmount = r2(laborAmount);
@@ -606,8 +664,8 @@ export function totals(e) {
   const lines = e.lines || [];
   const qtyOf = (l) => Number(l.qty) || 0;
   const windows = r2(lines.reduce((s, l) => s + (Number(l.unit) || 0) * qtyOf(l), 0));
-  const install = r2(lines.reduce((s, l) => s + installUnit(l.install) * qtyOf(l), 0));
-  const addons = r2(lines.reduce((s, l) => s + addonUnit(l.install) * qtyOf(l), 0));
+  const install = r2(lines.reduce((s, l) => s + installUnit(l.install, l) * qtyOf(l), 0));
+  const addons = r2(lines.reduce((s, l) => s + addonUnit(l.install, l) * qtyOf(l), 0));
   const stucco = stuccoState(e);
   const extras = r2((e.extras || []).reduce((s, x) => s + (Number(x.amount) || 0), 0));
   const promo = promoResult(e, windows, install);

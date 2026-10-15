@@ -1,9 +1,11 @@
-// Offline support: network-first (so edited JSON/rates show up immediately), cache fallback when offline.
-const CACHE = 'nwd-sales-v28';
-const PRECACHE = ['./', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'js/app.js', 'js/core.js', 'js/cloud.js', 'js/frames.js', 'js/pdf.js', 'js/sign.js', 'js/vendor/jspdf.umd.min.js',
-  'js/pages/calculator.js', 'js/pages/estimate.js', 'js/pages/contract.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/overlay.js', 'js/pages/settings.js', 'js/pages/obscure.js', 'js/pages/frame-types.js', 'js/pages/auth.js', 'js/pages/admin.js',
-  'data/rates.json', 'data/variable-rates.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'data/promos.json', 'data/purchase-agreement.json', 'assets/gallery/gallery.json',
-  'assets/noble-logo-trim.png', 'assets/icon-192.png', 'assets/icon-512.png',
+// Offline shell for iPad (Safari / Add to Home Screen).
+// Network-first, then this versioned cache. A new CACHE name drops the old one on
+// activate, so price files update the next time the iPad is online.
+const CACHE = 'nwd-sales-v29-onelink';
+const PRECACHE = ['./', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'js/app.js', 'js/core.js', 'js/milgard.js', 'js/cloud.js', 'js/frames.js', 'js/pdf.js', 'js/sign.js', 'js/vendor/jspdf.umd.min.js',
+  'js/pages/calculator.js', 'js/pages/milgard-ui.js', 'js/pages/estimate.js', 'js/pages/contract.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/overlay.js', 'js/pages/settings.js', 'js/pages/obscure.js', 'js/pages/frame-types.js', 'js/pages/auth.js', 'js/pages/admin.js',
+  'data/rates.json', 'data/variable-rates.json', 'data/milgard-onelink.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'data/promos.json', 'data/purchase-agreement.json', 'assets/gallery/gallery.json',
+  'assets/noble-logo-trim.png', 'assets/noble-logo.jpg', 'assets/icon-192.png', 'assets/icon-512.png',
   'assets/obscure/cascade.png', 'assets/obscure/fern.png', 'assets/obscure/obscure.png', 'assets/obscure/reed.png', 'assets/obscure/satin-etch.png'];
 // Gallery JPEGs are not precached (48 photos). The fetch handler below stores each one on first view.
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting())); });

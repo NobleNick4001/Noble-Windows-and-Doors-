@@ -1,5 +1,5 @@
 {
- "_readme": "RATE TABLE (material only, fallback). Stored p75/max are quoted customer $/inch and already include a 40% margin (customer = cost / 0.60). Selling rate on this path = stored x 0.60 / (1 - grossMargin). grossMargin (0.45) applies ONLY to combinations that are not in data/variable-rates.json. Fitted quote prices (Andersen 100 except awning, Milgard V300 White/Adobe, Milgard A250 Bronze, IWC 8200 and 8900 Bronze Anodized) live in data/variable-rates.json and are already selling prices at 45%. Do not run those through marginFactor. Labor, tax, shipping, and flat add-ons are not scaled. 'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). Sandtone selling price matches Black (variable model). Dark Bronze / White is the two-tone exterior. Dark Bronze / Dark Bronze is the same-color tier. IWC is active for 8200 windows and 8900 doors in Bronze Anodized. Other IWC colors use the custom supplier-price line. See README.md.",
+ "_readme": "RATE TABLE (material only, fallback). Stored p75/max are quoted customer $/inch and already include a 40% margin (customer = cost / 0.60). Selling rate on this path = stored x 0.60 / (1 - grossMargin). grossMargin (0.45) applies ONLY to combinations that are not in data/variable-rates.json. Andersen 100 (except awning) and IWC 8200/8900 Bronze Anodized live in data/variable-rates.json and are selling prices. Milgard V250/V300/V400 windows and V300/V400/A250 patio doors use the OneLink grid in data/milgard-onelink.json (customer = OneLink cost / 0.55). Do not run fitted prices through marginFactor. Labor, tax, shipping, and flat add-ons are not scaled. 'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). Sandtone selling price matches Black (variable model). Dark Bronze / White is the two-tone exterior. Dark Bronze / Dark Bronze is the same-color tier. IWC is active for 8200 windows and 8900 doors in Bronze Anodized. Other IWC colors use the custom supplier-price line. See README.md.",
  "version": 2,
  "generated": "2026-10-11",
  "formula": "(width + height) * storedRate * 0.60 / (1 - grossMargin)",
@@ -40,6 +40,10 @@
   {
    "id": "2panel",
    "name": "2-Panel Sliding Door (OX/XO)"
+  },
+  {
+   "id": "3panel",
+   "name": "3-Panel Sliding Door"
   },
   {
    "id": "4panel",
@@ -141,16 +145,18 @@
      "name": "V250",
      "colors": [
       "ww",
+      "adobe",
+      "bronze",
       "bw",
-      "bb",
-      "adobe"
+      "bb"
      ],
      "types": [
       "hslider",
+      "xox",
       "vslider",
       "picture",
       "casement",
-      "arch"
+      "awning"
      ]
     },
     {
@@ -158,18 +164,21 @@
      "name": "V300",
      "colors": [
       "ww",
+      "adobe",
+      "bronze",
       "bw",
-      "bb",
-      "adobe"
+      "bb"
      ],
      "types": [
       "hslider",
+      "xox",
       "vslider",
       "picture",
       "casement",
-      "arch",
-      "xox",
-      "hvb"
+      "awning",
+      "2panel",
+      "3panel",
+      "4panel"
      ]
     },
     {
@@ -177,16 +186,21 @@
      "name": "V400",
      "colors": [
       "ww",
+      "adobe",
+      "bronze",
       "bw",
-      "bb",
-      "adobe"
+      "bb"
      ],
      "types": [
       "hslider",
+      "xox",
       "vslider",
       "picture",
       "casement",
-      "arch"
+      "awning",
+      "2panel",
+      "3panel",
+      "4panel"
      ]
     },
     {
@@ -194,17 +208,13 @@
      "name": "A250",
      "colors": [
       "ww",
-      "bw",
-      "bb",
-      "bronze"
+      "bronze",
+      "clear-anodized"
      ],
      "types": [
-      "hslider",
-      "vslider",
-      "picture",
-      "casement",
-      "arch",
-      "xox"
+      "2panel",
+      "3panel",
+      "4panel"
      ]
     }
    ],

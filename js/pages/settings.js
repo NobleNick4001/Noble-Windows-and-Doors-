@@ -19,7 +19,7 @@ export function render(root) {
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: s.roundToDollar ? 'checked' : null, onchange: (e) => { s.roundToDollar = e.target.checked; commit(); } }), h('span', {}, 'Round prices to whole dollars')),
     f('Estimate valid for (days)', () => s.validDays, (v) => (s.validDays = parseInt(v) || 30), 'number'),
     h('p', { class: 'fine' }, 'Every estimate includes Shipping & Handling of $150 and sales tax of 9.1% on materials after promo codes and the additional percent discount. Tax does not apply to labor, add-ons, stucco, extras, or shipping. Promo codes and the additional discount do not discount shipping. The deposit is 60% and the final payment is 40%.'),
-    h('p', { class: 'fine' }, `Fitted series use selling prices from `, h('code', {}, 'data/variable-rates.json'), ' (already at 45%). ', h('code', {}, 'grossMargin'), ' in ', h('code', {}, 'data/rates.json'), ' reprices only the combinations that file does not cover. Installation, add-ons, and stucco are calculated per window and shown to the customer as one Installation / Labor line (', h('code', {}, 'data/install.json'), ').')));
+    h('p', { class: 'fine' }, 'Milgard windows and patio doors use the OneLink grid. Andersen and IWC keep their fitted prices. Installation, add-ons, and stucco are one Installation / Labor line.')));
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Company info (shown on estimates)'),
     f('Salesperson (Submitted by on the purchase agreement)', () => s.salesperson || '', (v) => (s.salesperson = v), 'text', 's-salesperson'),
     f('Company name', () => s.company.name, (v) => (s.company.name = v)), f('Address', () => s.company.address, (v) => (s.company.address = v)), f('Phone', () => s.company.phone, (v) => (s.company.phone = v), 'tel'),
@@ -44,6 +44,7 @@ export function render(root) {
     for (const se of b.series) for (const c of se.colors) rows.push(h('tr', {}, h('td', {}, se.id), h('td', {}, colorName(c)), ...typeIds.map((t) => {
       if (!se.types.includes(t)) return h('td', {}, '—');
       const info = variableRateInfo(b.id, se.id, c, t);
+      if (info?.onelink) return h('td', { class: 'from-quotes' }, 'OneLink', h('div', { class: 'fine' }, 'grid'));
       if (info) {
         const bits = [];
         if (info.base) bits.push(info.base.toFixed(2));
@@ -60,10 +61,10 @@ export function render(root) {
       return h('td', { class: r?.estimated ? 'est' : '' }, r ? r.rate.toFixed(2) + (r.estimated ? ' E' : '') : '—');
     })));
     const note = b.id === 'milgard'
-      ? 'from quotes = selling price fitted from quotes (base, $ per UI, $ per sq ft), already at 45%. No extra margin. E = stored $/inch for a color or series the fit does not cover. V300 White and Adobe, and A250 Bronze, use the fit. V250 Adobe is still white/white × the multiplier.'
+      ? 'OneLink = grid price for V250, V300, and V400 windows and for V300, V400, and A250 patio doors. Customer price is never under OneLink. E marks a stored rate the grid does not cover.'
       : b.id === 'iwc'
         ? '8200 windows and 8900 doors in Bronze Anodized are from quotes. Clear Anodized, Mojave Beige, and White use the custom supplier-price line.'
-        : 'from quotes = selling price (base, $ per UI, $ per sq ft), already at 45%. Sandtone is priced like Black. White/White subtracts $191.71 per unit. Dark Bronze / White, Terratone, and Black/White use × 1.003. E marks the old $/inch table, used for awning.';
+        : 'From quotes: base, $ per UI, and $ per sq ft. Sandtone is priced like Black. White/White subtracts $191.71 per unit. Dark Bronze / White, Terratone, and Black/White use × 1.003. E marks the old $/inch table, used for awning.';
     wrap.append(h('div', { class: 'card' }, h('h3', {}, `${b.name} material rates`), h('div', { class: 'scroll' }, h('table', { class: 'rates' }, h('thead', {}, h('tr', {}, h('th', {}, 'Series'), h('th', {}, 'Color'), ...typeIds.map((t) => h('th', {}, typeName(t))))), h('tbody', {}, rows))),
       h('p', { class: 'fine' }, note)));
   }
