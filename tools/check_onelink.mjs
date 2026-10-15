@@ -1,7 +1,7 @@
 // OneLink prices must match the grid and must never land under the OneLink observation.
 // Run: node tools/check_onelink.mjs
 import { readFileSync } from 'node:fs';
-import { data, materialUnitPrice, priceWindow, installUnit, addonUnit, totals } from '../js/core.js';
+import { data, materialUnitPrice, priceWindow, installUnit, addonUnit, totals, quoteLine, quoteTotalRows } from '../js/core.js';
 
 const load = (p) => JSON.parse(readFileSync(p, 'utf8'));
 data.rates = load('data/rates.json');
@@ -120,6 +120,68 @@ for (const [kind, series, type, w, h, extra, obs] of cases) {
 }
 near(win('V250', 'hslider', 36, 24), 347.38, 'V250 XO 36x24 grid', 0.02);
 near(win('V300', '2panel', 72, 80), 2932.65, 'V300 XO door 72x80', 0.02);
+
+const seriesId = (name) => name.startsWith('V300') ? 'V300' : name.startsWith('V400') ? 'V400' : name.startsWith('A250') ? 'A250' : '';
+const configType = (name) => name.startsWith('2-panel') ? '2panel' : name.startsWith('3-panel') ? '3panel' : name.startsWith('4-panel') ? '4panel' : '';
+const doorColorId = (series, ext, interior) => {
+  if (series === 'A250') return ext === 'Clear Anodized' ? 'clear-anodized' : 'bronze-anodized';
+  if (ext === 'White') return 'ww';
+  if (ext === 'Adobe') return 'adobe';
+  if (ext === 'Black' && interior === 'White') return 'bw';
+  if (ext === 'Black' && interior === 'Black') return 'bb';
+  return 'door-dark';
+};
+const colorRows = csv('door_colors.csv');
+const baseObs = new Map();
+for (const row of colorRows) {
+  const series = seriesId(row.series);
+  const base = series === 'A250' ? row.ext_color === 'Clear Anodized' : row.ext_color === 'White' && row.int_color === 'White';
+  if (base) baseObs.set(`${series}|${configType(row.config)}|${row.width}|${row.height}`, num(row.customer_price));
+}
+for (const row of colorRows) {
+  const series = seriesId(row.series);
+  const type = configType(row.config);
+  const color = doorColorId(series, row.ext_color, row.int_color);
+  const w = num(row.width), h = num(row.height);
+  const price = materialUnitPrice({ brand: 'milgard', series, type, color, w, h });
+  const where = `${series} ${type} ${w}x${h} ${row.ext_color}/${row.int_color}`;
+  notUnder(price, num(row.customer_price), where);
+  const observedBase = baseObs.get(`${series}|${type}|${row.width}|${row.height}`);
+  if (observedBase != null && color !== 'ww' && series !== 'A250') {
+    const white = materialUnitPrice({ brand: 'milgard', series, type, color: 'ww', w, h });
+    notUnder(price - white, num(row.customer_price) - observedBase, where + ' upcharge');
+  }
+  if (series === 'A250') {
+    const other = color === 'clear-anodized' ? 'bronze-anodized' : 'clear-anodized';
+    near(price, materialUnitPrice({ brand: 'milgard', series, type, color: other, w, h }), where + ' anodized match', 0.001);
+  }
+}
+const whiteDoor = materialUnitPrice({ brand: 'milgard', series: 'V300', type: '2panel', color: 'ww', w: 72, h: 80 });
+const blackDoor = materialUnitPrice({ brand: 'milgard', series: 'V300', type: '2panel', color: 'bb', w: 72, h: 80 });
+near(whiteDoor, 2932.65, 'V300 white door base', 0.02);
+near(blackDoor, 2932.65 + 818, 'V300 black/black door', 0.02);
+check(blackDoor >= 2969.59, 'black/black not under OneLink ' + blackDoor);
+const named = quoteLine({ brand: 'milgard', series: 'V300', type: '2panel', color: 'bb', w: 72, h: 80 });
+check(named.details.includes('Black / Black'), 'quote color ' + named.details.join(' | '));
+const anod = quoteLine({ brand: 'milgard', series: 'A250', type: '2panel', color: 'clear-anodized', w: 72, h: 80 });
+check(anod.details.includes('Clear Anodized'), 'A250 quote color');
+check(!quoteLine({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: 36, h: 24 }).details.includes('Classic Brown'), 'window color names stay');
+
+const quoteJob = totals({
+  lines: [
+    { brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: 36, h: 24, qty: 1, unit: 382.10, install: { type: 'standard', surcharges: [] } },
+    { brand: 'milgard', series: 'V300', type: '2panel', color: 'bb', w: 72, h: 80, qty: 1, unit: blackDoor, install: { type: 'door', surcharges: [] } },
+  ],
+  extras: [], promoCode: '', stuccoRepair: { on: false },
+});
+const quoteRows = quoteTotalRows(quoteJob);
+check(quoteRows.map((r) => r.label).join('|') === 'Windows & doors|Tax 9.1% (materials only)|Shipping|Materials subtotal|Installation', 'quote row order ' + quoteRows.map((r) => r.label).join('|'));
+near(quoteRows.find((r) => r.id === 'windows').amount, 382.10 + blackDoor, 'quote materials', 0.02);
+near(quoteRows.find((r) => r.id === 'install').amount, 360 + 850, 'quote installation is labor only', 0.02);
+near(quoteRows.find((r) => r.id === 'materialsSub').amount, quoteJob.taxable + quoteJob.tax + quoteJob.shipping, 'materials subtotal', 0.02);
+near(quoteJob.materialsSub + quoteJob.labor, quoteJob.total, 'total is materials subtotal plus installation', 0.02);
+near(quoteJob.tax, Math.round(quoteJob.windows * 0.091 * 100) / 100, 'tax is 9.1% of materials', 0.02);
+check(quoteRows.find((r) => r.id === 'install').amount !== quoteRows.find((r) => r.id === 'windows').amount, 'installation is not the material total');
 
 const shown = priceWindow({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: 36, h: 24, qty: 2 });
 check(shown && shown.mode === 'onelink' && shown.total === Math.round(shown.unit * 2 * 100) / 100, 'linePrice qty');

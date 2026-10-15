@@ -1,5 +1,5 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE } from '../core.js';
-import { isMilgardDoorLine } from '../milgard.js';
+import { isMilgardDoorLine, doorColorLabel } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
@@ -15,7 +15,8 @@ const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', 
 function lineDesc(l) {
   const custom = l.customDescription ? `${l.customDescription} — ` : '';
   const mull = Number(l.unitsPerLine) > 1 ? ` · ${l.unitsPerLine} units` : '';
-  return `${custom}${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${colorById(l.color)?.name || l.color}${mull}`;
+  const color = isMilgardDoorLine(l) ? (doorColorLabel(l.series, l.color) || colorById(l.color)?.name || l.color) : (colorById(l.color)?.name || l.color);
+  return `${custom}${brandById(l.brand)?.name || l.brand} ${l.series} ${typeName(l.type)}, ${color}${mull}`;
 }
 function optNames(l) { return lineOptionNames(l); }
 export function compactWindowList(lines, { always = false, id = 'compact-windows' } = {}) {
@@ -232,8 +233,8 @@ export function render(root) {
         customPriceFields(l, () => { reprice(l); save(); refreshTotals(); }, 'li-' + l.id),
         seriesDef && h('b', {}, 'Window type'),
         seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
-        seriesDef && h('b', {}, 'Frame color'),
-        seriesDef && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
+        seriesDef && !isMilgardDoorLine(l) && h('b', {}, 'Frame color'),
+        seriesDef && !isMilgardDoorLine(l) && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
         (l.pricingMode === 'onelink' || l.brand === 'milgard' && (isMilgardDoorLine(l) || ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning'].includes(l.type)))
           ? milgardLineEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-')
           : upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),

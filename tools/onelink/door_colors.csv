@@ -1,0 +1,62 @@
+series,config,width,height,ext_color,int_color,customer_price,list_price,notes
+V300 Trinsic,2-panel XO,72,80,White,White,2152.48,2839.00,line 1
+V300 Trinsic,2-panel XO,72,95.5,White,White,3217.72,4244.00,line 2
+V300 Trinsic,2-panel XO,72,80,Black,White,2863.87,3928.00,line 3
+V300 Trinsic,2-panel XO,72,95.5,Black,White,3965.53,5439.00,line 4
+V300 Trinsic,2-panel XO,96,80,Black,White,3464.64,4752.00,line 5
+V300 Trinsic,2-panel XO,72,80,Black,Black,2969.59,4073.00,line 6
+V300 Trinsic,2-panel XO,72,95.5,Black,Black,4091.66,5612.00,line 7
+V300 Trinsic,2-panel XO,96,80,Black,Black,3594.42,4930.00,line 8
+V300 Trinsic,2-panel XO,72,80,Adobe,Adobe,2204.03,2907.00,line 9; interior locked to Adobe
+V300 Trinsic,2-panel XO,72,95.5,Adobe,Adobe,3269.28,4312.00,line 10
+V300 Trinsic,2-panel XO,96,80,Adobe,Adobe,2715.81,3582.00,line 11
+V300 Trinsic,2-panel XO,72,80,Classic Brown,White,3198.01,4218.00,line 12; interior locked White
+V300 Trinsic,2-panel XO,72,95.5,Classic Brown,White,4386.84,5786.00,line 13
+V300 Trinsic,2-panel XO,96,80,Classic Brown,White,3872.03,5107.00,line 14
+V300 Trinsic,2-panel XO,72,80,Espresso,White,3198.01,4218.00,line 15; interior locked White
+V300 Trinsic,2-panel XO,72,95.5,Espresso,White,4386.84,5786.00,line 16
+V300 Trinsic,2-panel XO,96,80,Espresso,White,3872.03,5107.00,line 17
+V300 Trinsic,2-panel XO,72,80,Bronze,White,3198.01,4218.00,line 18; interior locked White
+V300 Trinsic,2-panel XO,72,95.5,Bronze,White,4386.84,5786.00,line 19
+V300 Trinsic,2-panel XO,96,80,Bronze,White,3872.03,5107.00,line 20
+V300 Trinsic,3-panel XOO,108,80,White,White,5436.16,7170.00,line 21; base; Milgard to Glaze required
+V300 Trinsic,3-panel XOO,108,80,Adobe,Adobe,5487.72,7238.00,line 22
+V300 Trinsic,3-panel XOO,108,80,Black,White,6365.69,8731.00,line 23
+V300 Trinsic,3-panel XOO,108,80,Black,Black,6547.24,8980.00,line 24
+V300 Trinsic,3-panel XOO,108,80,Classic Brown,White,6998.78,9231.00,line 25
+V300 Trinsic,3-panel XOO,108,80,Espresso,White,6998.78,9231.00,line 26
+V300 Trinsic,3-panel XOO,108,80,Bronze,White,6998.78,9231.00,line 27
+V400 Tuscany,2-panel XO,72,80,White,White,2439.08,3091.00,line 28; SmartTouch handle
+V400 Tuscany,2-panel XO,72,95.5,White,White,3564.32,4517.00,line 29
+V400 Tuscany,2-panel XO,72,80,Adobe,Adobe,2492.74,3159.00,line 30; interior locked Adobe
+V400 Tuscany,2-panel XO,72,95.5,Adobe,Adobe,3617.98,4585.00,line 31
+V400 Tuscany,2-panel XO,96,80,Adobe,Adobe,3041.95,3855.00,line 32
+V400 Tuscany,2-panel XO,72,80,Black,White,3184.40,4180.00,line 33
+V400 Tuscany,2-panel XO,72,95.5,Black,White,4351.51,5712.00,line 34
+V400 Tuscany,2-panel XO,96,80,Black,White,3828.14,5025.00,line 35
+V400 Tuscany,2-panel XO,72,80,Black,Black,3294.86,4325.00,line 36
+V400 Tuscany,2-panel XO,72,95.5,Black,Black,4483.30,5885.00,line 37
+V400 Tuscany,2-panel XO,96,80,Black,Black,3963.74,5203.00,line 38
+V400 Tuscany,2-panel XO,72,80,Classic Brown,White,3527.24,4470.00,line 39; interior locked White
+V400 Tuscany,2-panel XO,72,95.5,Classic Brown,White,4781.10,6059.00,line 40
+V400 Tuscany,2-panel XO,96,80,Classic Brown,White,4245.31,5380.00,line 41
+V400 Tuscany,2-panel XO,72,80,Espresso,White,3527.24,4470.00,line 42; interior locked White
+V400 Tuscany,2-panel XO,72,95.5,Espresso,White,4781.10,6059.00,line 43
+V400 Tuscany,2-panel XO,96,80,Espresso,White,4245.31,5380.00,line 44
+V400 Tuscany,2-panel XO,72,80,Bronze,White,3527.24,4470.00,line 45; interior locked White
+V400 Tuscany,2-panel XO,72,95.5,Bronze,White,4781.10,6059.00,line 46
+V400 Tuscany,2-panel XO,96,80,Bronze,White,4245.31,5380.00,line 47
+A250 Thermally Improved Aluminum,2-panel XO,72,80,Clear Anodized,Clear Anodized,2509.10,2281.00,line 48; base; Lifetime Limited (Full Lifetime not offered); Standard Fiberglass screen (Upgraded not offered); interior follows exterior
+A250 Thermally Improved Aluminum,2-panel XO,72,95.5,Clear Anodized,Clear Anodized,3582.70,3257.00,line 49; base
+A250 Thermally Improved Aluminum,2-panel XO,72,80,Bronze Anodized,Bronze Anodized,2509.10,2281.00,line 50
+A250 Thermally Improved Aluminum,2-panel XO,72,95.5,Bronze Anodized,Bronze Anodized,3582.70,3257.00,line 51
+A250 Thermally Improved Aluminum,2-panel XO,96,80,Bronze Anodized,Bronze Anodized,3054.70,2777.00,line 52
+A250 Thermally Improved Aluminum,3-panel XOO,108,80,Clear Anodized,Clear Anodized,3609.10,3281.00,line 53; base
+A250 Thermally Improved Aluminum,3-panel XOO,108,80,Bronze Anodized,Bronze Anodized,3609.10,3281.00,line 54
+A250 Thermally Improved Aluminum,4-panel OXXO (OXXOL),143.5,80,Clear Anodized,Clear Anodized,6762.80,6148.00,line 55; base
+A250 Thermally Improved Aluminum,4-panel OXXO (OXXOL),143.5,80,Bronze Anodized,Bronze Anodized,6762.80,6148.00,line 56
+V300 Trinsic,4-panel OXXO (OXXOL),143.5,80,White,White,6755.40,8910.00,line 57; base; Milgard to Glaze
+V300 Trinsic,4-panel OXXO (OXXOL),143.5,80,Black,Black,8189.15,11232.00,line 58; Milgard to Glaze
+V300 Trinsic,4-panel OXXO (OXXOL),143.5,80,Bronze,White,8757.00,11550.00,line 59; interior locked White; Milgard to Glaze
+V400 Tuscany,3-panel XOO,108,80,White,White,5911.08,7491.00,line 60; base; SmartTouch; Milgard to Glaze
+V400 Tuscany,3-panel XOO,108,80,Bronze,White,7537.40,9552.00,line 61; interior locked White; SmartTouch; Milgard to Glaze

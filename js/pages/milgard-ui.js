@@ -1,5 +1,5 @@
-import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById } from '../core.js';
-import { isMilgardDoorLine, milgardQuote, engineFor, DOOR_CONFIG, WINDOW_STYLES } from '../milgard.js';
+import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows } from '../core.js';
+import { isMilgardDoorLine, milgardQuote, engineFor, DOOR_CONFIG, WINDOW_STYLES, doorColorChoices, doorColorLabel } from '../milgard.js';
 
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
@@ -34,7 +34,10 @@ function ensure(calc) {
   if (!series.includes(calc.series)) calc.series = series[0];
   const styles = STYLES[calc.product].map((x) => x[0]);
   if (!styles.includes(calc.type)) calc.type = styles[0];
-  if (calc.product === 'window' && !COLORS.some((c) => c[0] === calc.color)) calc.color = 'ww';
+  if (calc.product === 'door') {
+    const choices = doorColorChoices(calc.series);
+    if (!choices.some((c) => c[0] === calc.color)) calc.color = choices[0][0];
+  } else if (!COLORS.some((c) => c[0] === calc.color)) calc.color = 'ww';
   if (calc.product === 'window' && calc.install.type !== 'custom') {
     calc.install.type = FRAME_LABOR[calc.frame] || 'standard';
     calc.install.frameType = calc.frame;
@@ -107,7 +110,10 @@ function quoteText(l) {
     ? ({ '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel OXXO' }[l.type] + ' patio door')
     : (data.milgardOnelink?.names?.[l.type] || typeName(l.type));
   const extra = [];
-  if (!door && l.color && l.color !== 'ww') extra.push(colorById(l.color)?.name || l.color);
+  if (door) {
+    const name = doorColorLabel(l.series, l.color);
+    if (name && (l.series === 'A250' || l.color !== 'ww')) extra.push(name);
+  } else if (l.color && l.color !== 'ww') extra.push(colorById(l.color)?.name || l.color);
   if (l.grids && l.grids !== 'none') extra.push(l.grids + ' grids');
   if (l.obscure && l.obscure !== 'none') extra.push(l.obscure === 'satin' ? 'Satin Etch' : 'P516');
   if (l.tempered) extra.push('tempered');
@@ -159,6 +165,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Height (in)'), hInput, hHint)));
   left.append(errEl);
 
+  if (calc.product === 'door') {
+    left.append(seg('Color', doorColorChoices(calc.series), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
+  }
   if (calc.product === 'window') {
     left.append(seg('Color', COLORS, calc.color, (id) => { calc.color = id; persist(); rerender(); }));
     left.append(seg('Grids', GRIDS, calc.grids, (id) => { calc.grids = id; persist(); rerender(); }));
@@ -258,14 +267,12 @@ export function renderMilgard(root, { calc, persist, rerender }) {
         h('span', { class: 'row nowrap' }, h('b', {}, fmt((Number(l.unit) || 0) * (Number(l.qty) || 0))),
           h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, '✕'))));
     });
-    const rows = [
-      ['Windows & doors', t.windows],
-      ['Installation', t.labor],
-    ];
-    if (t.discount) rows.push([t.discountLabel, -t.discount]);
-    if (t.percentDiscountAmount) rows.push([t.percentDiscountLabel, -t.percentDiscountAmount]);
-    rows.push([`Tax ${t.taxPct}% (materials)`, t.tax], ['Shipping & handling', t.shipping]);
-    for (const [label, amount] of rows) quoteEl.append(h('div', { class: 'line' }, h('span', {}, label), h('b', {}, fmt(amount))));
+    for (const row of quoteTotalRows(t)) {
+      quoteEl.append(h('div', {
+        class: 'line' + (row.strong ? ' strong' : '') + (row.discount ? ' discount' : ''),
+        id: row.id === 'materialsSub' ? 'materials-subtotal' : row.id === 'install' ? 'quote-install' : row.id === 'tax' ? 'quote-tax' : row.id === 'shipping' ? 'quote-shipping' : null,
+      }, h('span', {}, row.label), h('b', {}, fmt(row.amount))));
+    }
     quoteEl.append(h('div', { class: 'line strong' }, h('span', {}, 'Total'), h('b', { id: 'quote-total' }, fmt(t.total))));
     quoteEl.append(h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate'));
   }
@@ -394,12 +401,17 @@ function syncFlags(line) {
 export function milgardLineEditor(line, onChange, idp = 'mg-') {
   const change = () => { syncFlags(line); onChange(); };
   if (isMilgardDoorLine(line)) {
-    if (line.series === 'A250') return h('p', { class: 'fine' }, 'A250 includes the standard fiberglass screen.');
-    return h('div', {},
-      h('label', { class: 'check' }, h('input', {
+    const colors = h('div', { class: 'chips', id: idp + 'door-colors' }, doorColorChoices(line.series).map(([id, name]) => h('button', {
+      type: 'button', class: 'chip pick' + (line.color === id ? ' on' : ''), id: idp + 'color-' + id,
+      onclick: () => { line.color = id; change(); },
+    }, name)));
+    const extra = line.series === 'A250'
+      ? h('p', { class: 'fine' }, 'A250 includes the standard fiberglass screen. Bronze Anodized and Clear Anodized are the same price.')
+      : h('label', { class: 'check' }, h('input', {
         type: 'checkbox', id: idp + 'pureview', checked: line.pureview ? 'checked' : null,
         onchange: (e) => { line.pureview = e.target.checked; change(); },
-      }), h('span', {}, 'PureView screen'), h('em', {}, ' +$137')));
+      }), h('span', {}, 'PureView screen'), h('em', {}, ' +$137'));
+    return h('div', {}, colors, extra);
   }
   const color = (id, label) => h('button', {
     type: 'button', class: 'chip pick' + (line.color === id ? ' on' : ''),
