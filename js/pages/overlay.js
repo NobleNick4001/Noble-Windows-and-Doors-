@@ -176,8 +176,9 @@ function captionFor(row) {
   const type = m.types.find((t) => t.id === S.type)?.name || S.type;
   const color = m.colors.find((c) => c.id === S.color)?.name || S.color;
   const bits = [series, type, color];
-  if (S.frame) {
-    const frameName = (m.frames || []).find((f) => f.id === S.frame)?.name;
+  const frame = frameId(row);
+  if (frame) {
+    const frameName = (m.frames || []).find((f) => f.id === frame)?.name;
     if (frameName) bits.push(frameName);
   }
   if (S.zbar) bits.push('Z-bar');

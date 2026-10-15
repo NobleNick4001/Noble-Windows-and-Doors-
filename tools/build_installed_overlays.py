@@ -29,19 +29,8 @@ XO = ATT / '01M50SN4JW3KRVWHXHXQ8E6MKT.jpg'
 SH = ATT / '01M50SN4JW22W1KCCV20R1DC4R.jpg'
 AX = ATT / '01M50SN4JW1N5V1ZEGTZVY80RZ.png'
 
-ANDERSEN_COLORS = {
-    'white': (244, 244, 241),
-    'sandtone': (203, 187, 160),
-    'terratone': (138, 106, 79),
-    'dkbronze': (74, 59, 47),
-    'black': None,
-}
-MILGARD_COLORS = {
-    'white': (244, 244, 241),
-    'adobe': (200, 162, 122),
-    'bronze': (91, 70, 54),
-    'black': None,
-}
+ANDERSEN_COLORS = {'black': None}
+MILGARD_COLORS = {'black': None}
 NEW_COLORS = [
     {'id': 'sandtone', 'name': 'Sandtone', 'rateId': 'sandtone', 'swatch': '#CBBBA0'},
     {'id': 'terratone', 'name': 'Terratone', 'rateId': 'terratone', 'swatch': '#8A6A4F'},
@@ -359,13 +348,10 @@ def main():
     pic_bgr, pic_frame = picture_cutout()
     sh_bgr, sh_frame = sh_cutout()
     ax_bgr, ax_frame, ax_scene = ax_cutout()
-    xo_bgr, xo_frame = xo_cutout()
 
     cv2.imwrite('/tmp/preview-picture.jpg', magenta(pic_bgr, pic_frame))
     cv2.imwrite('/tmp/preview-sh.jpg', magenta(sh_bgr, sh_frame))
     cv2.imwrite('/tmp/preview-ax.jpg', magenta(ax_bgr, ax_frame))
-    black_xo = restore_lifted_black(xo_bgr, xo_frame)
-    cv2.imwrite('/tmp/preview-xo.jpg', magenta(black_xo, xo_frame))
 
     manifest = json.loads((OUT / 'manifest.json').read_text())
     fresh = []
@@ -377,10 +363,7 @@ def main():
     manifest['assets'] = fresh
     if not any(s['id'] == 'andersen100' for s in manifest['series']):
         manifest['series'].append({'id': 'andersen100', 'name': 'Andersen 100'})
-    have = {c['id'] for c in manifest['colors']}
-    for color in NEW_COLORS:
-        if color['id'] not in have:
-            manifest['colors'].append(color)
+    manifest['colors'] = [c for c in manifest['colors'] if c['id'] not in {'sandtone', 'terratone', 'dkbronze'}]
     manifest['frames'] = [
         {'id': '', 'name': 'Product photo'},
         {'id': 'block', 'name': 'Block frame'},
@@ -388,9 +371,8 @@ def main():
     ]
     write_assets(manifest, pic_bgr, pic_frame, ANDERSEN_COLORS, 'andersen100', 'picture', '', 'picture')
     # The stucco photo with the real vertical rail is the XO block slider.
-    # The taller crushed opening is the single hung.
+    # The single hung stays out of the overlay; that photo was shot at an angle.
     write_assets(manifest, sh_bgr, sh_frame, MILGARD_COLORS, 'V300', 'hslider', 'block', 'v300-block-h')
-    write_assets(manifest, xo_bgr, xo_frame, MILGARD_COLORS, 'V300', 'vslider', 'block', 'v300-block-v', restore_black=True)
     write_assets(manifest, ax_bgr, ax_frame, ANDERSEN_COLORS, 'andersen100', 'hslider', 'nailfin', 'nailfin')
     (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print('assets', len(manifest['assets']))
