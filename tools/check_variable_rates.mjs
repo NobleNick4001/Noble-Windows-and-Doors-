@@ -69,7 +69,9 @@ for (const line of [
 const xo = priceWindow({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: 36, h: 24 });
 check(xo && xo.mode === 'onelink' && Math.abs(xo.unit - 347.38) <= 0.02, 'V250 XO 36x24 ' + xo?.unit);
 const door = priceWindow({ brand: 'milgard', series: 'V300', type: '2panel', color: 'ww', w: 72, h: 80 });
-check(door && Math.abs(door.unit - 2932.65) <= 0.02, 'V300 XO door 72x80 ' + door?.unit);
+check(door && Math.abs(door.unit - 2803) <= 0.02, 'V300 XO door 72x80 ' + door?.unit);
+const standardDoor = priceWindow({ brand: 'milgard', series: 'V300', type: '2panel', color: 'ww', w: 71.5, h: 79.5 });
+check(standardDoor && Math.abs(standardDoor.unit - 2152.48) <= 0.02, 'V300 standard net frame 71.5x79.5 ' + standardDoor?.unit);
 const doorLine = { brand: 'milgard', series: 'V300', type: '2panel', color: 'ww', w: 72, h: 90, qty: 1, unit: door.unit, install: { type: 'door', surcharges: ['door-header', 'door-cutdown'], headerFeet: '2.5', writeIn: { amount: '40' } } };
 check(installUnit(doorLine.install, doorLine) === 950, 'door labor 850 + 100 tall ' + installUnit(doorLine.install, doorLine));
 check(addonUnit(doorLine.install, doorLine) === 850 * 2.5 + 1500 + 40, 'header, cut down, write-in ' + addonUnit(doorLine.install, doorLine));

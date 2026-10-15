@@ -1,5 +1,5 @@
 // Core helpers, data loading, settings, estimate store, pricing.
-import { isMilgardDoorLine, milgardQuote } from './milgard.js';
+import { isMilgardDoorLine, milgardQuote, doorColorLabel } from './milgard.js';
 export { isMilgardDoorLine };
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -223,7 +223,7 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
   const product = [includeBrand ? brandName : '', custom, seriesLabel(line), typeName(line.type)].filter(Boolean).join(' ');
   const title = `${line.label || 'Window'} — ${product}`.trim();
   const times = ascii ? 'x' : '×';
-  const bits = [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, shortColorName(colorName(line.color)), ...lineOptionNames(line)];
+  const bits = [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, isMilgardDoorLine(line) ? (doorColorLabel(line.series, line.color) || colorName(line.color)) : shortColorName(colorName(line.color)), ...lineOptionNames(line)];
   if (Number(line.unitsPerLine) > 1) bits.push(`${line.unitsPerLine} units`);
   bits.push(`Qty ${Number(line.qty) || 1}`);
   return {
@@ -259,7 +259,7 @@ export function quoteLine(line, { ascii = false } = {}) {
   const ids = new Set([...(line.addons || []), ...(line.options || [])]);
   const details = [];
   if (custom) details.push(custom);
-  const color = colorName(line.color);
+  const color = isMilgardDoorLine(line) ? (doorColorLabel(line.series, line.color) || colorName(line.color)) : colorName(line.color);
   if (color) details.push(color);
   const frame = quoteFrameName(line);
   if (frame) details.push(frame);
@@ -679,12 +679,29 @@ export function totals(e) {
   const taxable = Math.max(0, r2(afterPromo - percentDiscountAmount));
   const tax = r2(taxable * SALES_TAX_PCT / 100);
   const subtotal = r2(windows + labor + extras + shipping - discount - percentDiscountAmount);
+  const materialsSub = r2(taxable + tax + shipping);
   return {
     windows, install, addons, labor, shipping, stucco: stucco.total, stuccoName: stucco.name, stuccoQty: stucco.qty, stuccoUnit: stucco.unit, stuccoOn: stucco.on,
     extras, discount, discountLabel: promo.label, promo, percentDiscount, percentDiscountAmount, percentDiscountLabel,
-    subtotal, taxable, tax, taxPct: SALES_TAX_PCT, total: r2(subtotal + tax),
+    subtotal, materialsSub, taxable, tax, taxPct: SALES_TAX_PCT, total: r2(subtotal + tax),
     count: lines.reduce((s, l) => s + qtyOf(l), 0),
   };
+}
+// On-screen quote. Materials, tax, and shipping stay together. Installation is every
+// window and door labor line plus add-ons, and it is not part of the material price or the tax.
+export function quoteTotalRows(t) {
+  const rows = [{ id: 'windows', label: 'Windows & doors', amount: t.windows }];
+  const laborOff = t.promo?.laborAmount || 0;
+  const materialOff = r2((t.discount || 0) - laborOff);
+  if (materialOff) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -materialOff, discount: true });
+  if (t.percentDiscountAmount) rows.push({ id: 'percentDiscount', label: t.percentDiscountLabel || 'Additional discount', amount: -t.percentDiscountAmount, discount: true });
+  rows.push({ id: 'tax', label: `Tax ${t.taxPct}% (materials only)`, amount: t.tax });
+  rows.push({ id: 'shipping', label: 'Shipping', amount: t.shipping });
+  rows.push({ id: 'materialsSub', label: 'Materials subtotal', amount: t.materialsSub, strong: true });
+  rows.push({ id: 'install', label: 'Installation', amount: t.labor, strong: true });
+  if (laborOff) rows.push({ id: 'laborDiscount', label: t.discountLabel || 'Discount', amount: -laborOff, discount: true });
+  if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
+  return rows;
 }
 // Client-facing rows: itemized materials stay on the window lines. Labor, add-ons, and stucco are one Installation / Labor amount.
 // includeMaterials false skips the window subtotal and the two material discounts when those rows are already printed above the totals.

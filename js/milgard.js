@@ -9,6 +9,27 @@ export const WINDOW_SERIES = ['V250', 'V300', 'V400'];
 export const DOOR_SERIES = ['V300', 'V400', 'A250'];
 export const DOOR_CONFIG = { '2panel': 'XO', '3panel': 'XOO', '4panel': 'OXXO' };
 export const WINDOW_STYLES = ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning'];
+// [line color id, label, doorColors rule key]. White and both A250 anodized finishes use the White door price.
+export const VINYL_DOOR_COLORS = [
+  ['ww', 'White', 'white'],
+  ['adobe', 'Adobe', 'adobe'],
+  ['bw', 'Black / White', 'black_white'],
+  ['bb', 'Black / Black', 'black_black'],
+  ['door-dark', 'Classic Brown / Espresso / Bronze', 'dark'],
+];
+export const A250_DOOR_COLORS = [
+  ['bronze-anodized', 'Bronze Anodized', 'white'],
+  ['clear-anodized', 'Clear Anodized', 'white'],
+];
+export function doorColorChoices(series) {
+  return series === 'A250' ? A250_DOOR_COLORS : VINYL_DOOR_COLORS;
+}
+export function doorColorLabel(series, colorId) {
+  return doorColorChoices(series).find((c) => c[0] === colorId)?.[1] || '';
+}
+export function doorColorRuleKey(series, colorId) {
+  return doorColorChoices(series).find((c) => c[0] === colorId)?.[2] || 'white';
+}
 
 export function makeEngine(D) {
   const p45 = (l) => l * 0.417 / 0.55;
@@ -80,6 +101,16 @@ export function makeEngine(D) {
     if (o.frame === 'block') items.push(['block', D.up.block.flat]);
     return { items, notes, errors: validate(series, style, w, h), material: items.reduce((s, i) => s + i[1], 0), limits: limits(series, style) };
   }
+  function standardDoor(series, cfg, w, h) {
+    const sd = D.doorsStd && D.doorsStd[series + '_' + cfg];
+    if (!sd?.rows) return null;
+    const key = Object.keys(sd.rows).find((k) => Math.abs(Number(k) - h) < 0.001);
+    if (!key) return null;
+    const exact = (sd.exactW || []).some((x) => Math.abs(Number(x) - w) < 0.001);
+    if (!(w <= Number(sd.continuousMaxW) + 0.001 || exact)) return null;
+    const cell = sd.rows[key].find((pair) => Number(pair[0]) + 0.001 >= w);
+    return cell ? Number(cell[1]) : null;
+  }
   function door(series, cfg, w, h, o) {
     o = o || {};
     const m = D.doors[series + '_' + cfg];
@@ -93,12 +124,25 @@ export function makeEngine(D) {
     const j = m.heightBrackets.findIndex((x) => h <= x);
     const jj = j < 0 ? m.heightBrackets.length - 1 : j;
     const i = m.widthSteps.findIndex((x) => x >= w);
-    const v = i >= 0
+    const custom = i >= 0
       ? m.price45[i][jj]
       : m.price45[m.price45.length - 1][jj] + m.perInchBeyondLast * (w - m.widthSteps[m.widthSteps.length - 1]);
+    const standard = standardDoor(series, cfg, w, h);
+    const v = standard != null ? standard : custom;
     const items = [['base', v]];
+    const ruleKey = o.doorColor || 'white';
+    const rule = series === 'A250' || ruleKey === 'white' ? null : D.doorColors?.[series]?.[ruleKey];
+    if (rule) {
+      const k = Number(rule.k?.[cfg]);
+      const raw = k * (Number(rule.flat) + Number(rule.perW) * w + Number(rule.perH) * h);
+      const up = Number.isFinite(raw) ? Math.max(0, Math.ceil(raw)) : 0;
+      if (up) items.push(['color', up]);
+    }
     if (o.pureview && series !== 'A250') items.push(['pureview', D.doorPV]);
     const notes = [];
+    if (w > 0 && h > 0) notes.push(standard != null ? 'Standard net frame size' : 'Custom size. Net frame rounds up on the custom grid.');
+    if (ruleKey === 'adobe') notes.push('Adobe interior');
+    if (ruleKey === 'dark') notes.push('White interior');
     if (h > 82 && h < 84) notes.push('82–84" tall uses the tall-door price');
     if (cfg === 'XOO') notes.push('Field Glaze = Milgard to Glaze');
     return { items, notes, errors: e, material: items.reduce((s, it) => s + it[1], 0), limits: L };
@@ -131,7 +175,8 @@ export function optionsFromLine(line) {
   const tempered = !!(line?.tempered || (line?.addons || []).includes('tempered') || (line?.options || []).includes('tempered'));
   const pureview = !!(line?.pureview || (line?.addons || []).includes('pureview'));
   const frame = line?.frame || line?.install?.frameType || '';
-  const o = { color, grids, obscure, tempered, pureview };
+  const o = { color, grids, obscure, tempered, pureview, doorColor: 'white' };
+  if (isMilgardDoorLine(line)) o.doorColor = doorColorRuleKey(line.series, line.color);
   if (frame === 'zbar' || frame === 'block') o.frame = frame;
   return o;
 }
