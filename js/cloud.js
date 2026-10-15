@@ -11,11 +11,38 @@ export const ACCOUNTS = [
   { email: 'mgr@noblewandd.com', role: 'admin', fullName: 'Nicholas Sommer' },
   { email: 'eric@noblewandd.com', role: 'sales', fullName: 'Eric Havins' },
   { email: 'mgr@noblegcllc.com', role: 'sales', fullName: 'George Piekarski' },
+  { email: 'dan@noblewandd.com', role: 'sales', fullName: 'Daniel Smalley' },
 ];
 
+const AUTH_STORAGE_KEY = 'sb-nmyatpcjqfokmfbssimc-auth-token';
+const ACCESS_KEY = 'nwd.access';
+
+// Seeded names for offline display. The allowlist in Supabase decides who may sign in.
+// An email that is not in this list is not treated as a sales rep.
 export function roleForEmail(email) {
   const hit = ACCOUNTS.find((a) => a.email === String(email || '').trim().toLowerCase());
-  return hit?.role || 'sales';
+  return hit?.role || null;
+}
+
+export function sessionFromStorage(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return null; }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const session = parsed.currentSession?.access_token ? parsed.currentSession : parsed;
+  const token = session.access_token;
+  const email = String(session.user?.email || '').trim().toLowerCase();
+  const id = String(session.user?.id || '');
+  if (typeof token !== 'string' || token.length < 20) return null;
+  if (!id || !email.includes('@')) return null;
+  return { access_token: token, user: { id, email } };
+}
+
+export function offlineAccessOk(access, session) {
+  if (!access || access.allowed !== true || !session?.user?.email) return false;
+  const role = access.role === 'admin' ? 'admin' : access.role === 'sales' ? 'sales' : null;
+  if (!role) return false;
+  return String(access.email || '').trim().toLowerCase() === session.user.email;
 }
 export function nameForEmail(email) {
   const hit = ACCOUNTS.find((a) => a.email === String(email || '').trim().toLowerCase());
@@ -29,6 +56,11 @@ let timer = null;
 let flushing = null;
 let readyHook = null;
 let signedOutHook = null;
+let accessOk = false;
+let lastConfirm = 0;
+let pendingMessage = '';
+let signingOut = false;
+let watchingAccess = false;
 
 export function userId() { return me; }
 export function currentProfile() { return profile; }
@@ -231,7 +263,13 @@ async function doFlush() {
   const { data: sessionData } = await sb.auth.getSession();
   const session = sessionData?.session;
   if (!session) { setSyncState('wait'); return hubReport; }
-  me = session.user.id;
+  const gate = await confirmAccess(sb, session, { maxAge: 8000 });
+  if (!gate.ok) {
+    if (gate.reason === 'denied') await forceSignOut('This account no longer has access.');
+    else setSyncState('off');
+    return hubReport;
+  }
+  applyProfile(session, gate.access);
   const batch = loadQueue();
   saveQueue([]);
   const remain = [];
@@ -474,19 +512,147 @@ export async function recordSigned(e) {
   return hub || { ok: false, skipped: true };
 }
 
-async function loadProfile(sb) {
-  const { data } = await sb.from('profiles').select('id, email, full_name, role').eq('id', me).maybeSingle();
-  profile = data || { id: me, role: 'sales', email: '', full_name: '' };
+function readCachedAccess() {
+  const row = store.get(ACCESS_KEY, null);
+  return row && typeof row === 'object' ? row : null;
 }
 
-async function afterLogin(session) {
+function writeCachedAccess(row) {
+  store.set(ACCESS_KEY, row);
+}
+
+export function consumeAuthMessage() {
+  const msg = pendingMessage;
+  pendingMessage = '';
+  return msg;
+}
+
+function friendlyAuth(message) {
+  const msg = String(message || '');
+  if (/not allowed to create an account/i.test(msg)) return 'This email is not allowed to create an account.';
+  if (/not allowed/i.test(msg)) return 'This email is not allowed to sign in.';
+  if (/database error saving new user/i.test(msg)) return 'This email is not allowed to create an account.';
+  if (/could not find the function|schema cache|current_access/i.test(msg)) return 'Access control is not turned on in Supabase yet. Run the new migration, then try again.';
+  return msg || 'Sign-in failed.';
+}
+
+function applyProfile(session, access) {
+  const email = String(session?.user?.email || access?.email || '').trim().toLowerCase();
+  const role = access?.role === 'admin' ? 'admin' : 'sales';
   me = session.user.id;
-  rememberAccount(me);
-  const sb = await getSupabase();
-  if (sb) await loadProfile(sb);
+  accessOk = true;
+  profile = {
+    id: me,
+    email,
+    full_name: access?.fullName || access?.full_name || nameForEmail(email) || email,
+    role,
+  };
+}
+
+function bootFromCache(session, access) {
+  applyProfile(session, {
+    email: access.email,
+    role: access.role,
+    fullName: access.fullName || access.full_name || nameForEmail(session.user.email),
+  });
+  readyHook?.();
+  mountAccount(document.getElementById('account'));
+}
+
+async function confirmAccess(sb, session, opts = {}) {
+  const email = String(session?.user?.email || '').trim().toLowerCase();
+  const token = session?.access_token;
+  if (!email || !session?.user?.id || typeof token !== 'string' || token.length < 20) {
+    return { ok: false, reason: 'nosession' };
+  }
+  const cached = readCachedAccess();
+  const maxAge = opts.maxAge || 0;
+  if (maxAge && accessOk && cached?.allowed === true && cached.email === email && Date.now() - lastConfirm < maxAge) {
+    return { ok: true, access: cached };
+  }
+  const { data, error } = await sb.rpc('current_access');
+  if (error) {
+    if (offlineAccessOk(cached, { user: { email } })) return { ok: true, access: cached, transient: true };
+    return { ok: false, reason: 'error', error: friendlyAuth(error.message) };
+  }
+  const row = Array.isArray(data) ? data[0] : (data && typeof data === 'object' ? data : null);
+  if (!row || row.allowed !== true) {
+    writeCachedAccess({ email, allowed: false, role: null, fullName: '', checkedAt: Date.now() });
+    accessOk = false;
+    lastConfirm = 0;
+    return { ok: false, reason: 'denied' };
+  }
+  const access = {
+    email: String(row.email || email).toLowerCase(),
+    allowed: true,
+    role: row.role === 'admin' ? 'admin' : 'sales',
+    fullName: row.full_name || nameForEmail(email) || email,
+    checkedAt: Date.now(),
+  };
+  writeCachedAccess(access);
+  lastConfirm = Date.now();
+  return { ok: true, access };
+}
+
+async function afterLogin(session, access) {
+  rememberAccount(session.user.id);
+  applyProfile(session, access);
   await flush();
   readyHook?.();
   mountAccount(document.getElementById('account'));
+}
+
+async function forceSignOut(message) {
+  if (signingOut) return;
+  signingOut = true;
+  pendingMessage = message || '';
+  const email = profile?.email || readCachedAccess()?.email || '';
+  writeCachedAccess({ email, allowed: false, role: null, fullName: '', checkedAt: Date.now() });
+  accessOk = false;
+  lastConfirm = 0;
+  me = null;
+  profile = null;
+  try {
+    const sb = await getSupabase();
+    if (sb) await sb.auth.signOut({ scope: 'local' });
+    else localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch {
+    try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch { /* storage blocked */ }
+  }
+  mountAccount(document.getElementById('account'));
+  signedOutHook?.();
+  signingOut = false;
+}
+
+async function recheckAccess(andFlush) {
+  if (!me || signingOut || browserOffline() || !navigator.onLine) return;
+  const sb = await getSupabase();
+  if (!sb) return;
+  const { data } = await sb.auth.getSession();
+  if (!data?.session) return;
+  const gate = await confirmAccess(sb, data.session);
+  if (!gate.ok) {
+    if (gate.reason === 'denied') await forceSignOut('This account no longer has access.');
+    return;
+  }
+  const previous = profile?.role;
+  applyProfile(data.session, gate.access);
+  mountAccount(document.getElementById('account'));
+  if (previous && previous !== profile.role) window.dispatchEvent(new Event('nwd-access'));
+  if (andFlush) flush();
+}
+
+function watchAccess() {
+  if (watchingAccess) return;
+  watchingAccess = true;
+  window.addEventListener('online', () => { recheckAccess(true); });
+  window.addEventListener('offline', () => setSyncState('off'));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') recheckAccess(false);
+  });
+  setInterval(() => {
+    if (document.visibilityState === 'visible') recheckAccess(false);
+  }, 45000);
 }
 
 export function mountAccount(el) {
@@ -500,25 +666,31 @@ export function mountAccount(el) {
 }
 
 export async function signOut() {
-  const sb = await getSupabase();
-  me = null;
-  profile = null;
-  if (sb) await sb.auth.signOut();
-  mountAccount(document.getElementById('account'));
-  signedOutHook?.();
+  await forceSignOut('');
 }
 
 export async function signIn(email, password) {
+  if (browserOffline()) return { error: OFFLINE_MESSAGE };
   const sb = await getSupabase();
   if (!sb) return { error: browserOffline() ? OFFLINE_MESSAGE : 'Sign-in needs a connection.' };
   const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyAuth(error.message) };
   if (!data.session) return { error: 'Check your email to confirm the account, then sign in.' };
-  await afterLogin(data.session);
+  const gate = await confirmAccess(sb, data.session);
+  if (!gate.ok) {
+    try { await sb.auth.signOut({ scope: 'local' }); } catch { /* already blocked */ }
+    accessOk = false;
+    me = null;
+    profile = null;
+    if (gate.reason === 'denied') return { error: 'This email is not allowed to sign in.' };
+    return { error: gate.error || 'Could not confirm this account is allowed.' };
+  }
+  await afterLogin(data.session, gate.access);
   return { ok: true };
 }
 
 export async function signUp(email, password, fullName) {
+  if (browserOffline()) return { error: OFFLINE_MESSAGE };
   const sb = await getSupabase();
   if (!sb) return { error: browserOffline() ? OFFLINE_MESSAGE : 'Create account needs a connection.' };
   const known = nameForEmail(email);
@@ -527,9 +699,18 @@ export async function signUp(email, password, fullName) {
     password,
     options: { data: { full_name: known || fullName || '' } },
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyAuth(error.message) };
   if (!data.session) return { error: 'Account created. Confirm the email, or turn off email confirmation in Supabase, then sign in.' };
-  await afterLogin(data.session);
+  const gate = await confirmAccess(sb, data.session);
+  if (!gate.ok) {
+    try { await sb.auth.signOut({ scope: 'local' }); } catch { /* already blocked */ }
+    accessOk = false;
+    me = null;
+    profile = null;
+    if (gate.reason === 'denied') return { error: 'This email is not allowed to create an account.' };
+    return { error: gate.error || 'Could not confirm this account is allowed.' };
+  }
+  await afterLogin(data.session, gate.access);
   return { ok: true };
 }
 
@@ -537,22 +718,48 @@ export async function startAuth({ onReady, onSignedOut } = {}) {
   installSync();
   readyHook = onReady;
   signedOutHook = onSignedOut;
-  window.addEventListener('online', () => flush());
-  window.addEventListener('offline', () => setSyncState('off'));
+  watchAccess();
   const sb = await getSupabase();
   if (!sb) {
-    const cached = localStorage.getItem('sb-nmyatpcjqfokmfbssimc-auth-token');
-    if (cached) { onReady?.(); return; }
+    const session = sessionFromStorage(localStorage.getItem(AUTH_STORAGE_KEY));
+    const access = readCachedAccess();
+    if (offlineAccessOk(access, session)) {
+      bootFromCache(session, access);
+      return;
+    }
     await showLogin('Sign-in needs a connection the first time. Estimates already on this device stay here.');
     return;
   }
   sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT') { me = null; profile = null; }
-    if (event === 'TOKEN_REFRESHED' && session) me = session.user.id;
+    if (event === 'SIGNED_OUT' && !signingOut && me) forceSignOut('This account no longer has access.');
+    if (event === 'TOKEN_REFRESHED' && session) recheckAccess(false);
   });
   const { data } = await sb.auth.getSession();
   if (!data.session) { await showLogin(''); return; }
-  await afterLogin(data.session);
+  const gate = await confirmAccess(sb, data.session);
+  if (!gate.ok) {
+    if (gate.reason === 'denied') {
+      try { await sb.auth.signOut({ scope: 'local' }); } catch { /* token already useless */ }
+      writeCachedAccess({
+        email: String(data.session.user?.email || '').toLowerCase(),
+        allowed: false,
+        role: null,
+        fullName: '',
+        checkedAt: Date.now(),
+      });
+      await showLogin('This account no longer has access.');
+      return;
+    }
+    const session = sessionFromStorage(JSON.stringify(data.session));
+    const access = readCachedAccess();
+    if (offlineAccessOk(access, session)) {
+      bootFromCache(session, access);
+      return;
+    }
+    await showLogin(gate.error || 'Could not confirm this account is allowed.');
+    return;
+  }
+  await afterLogin(data.session, gate.access);
 }
 
 async function showLogin(message) {
@@ -560,18 +767,82 @@ async function showLogin(message) {
   renderLogin(document.getElementById('app'), { message, signIn, signUp });
 }
 
-export async function setUserRole(id, role) {
+function needsConnection() {
+  if (browserOffline()) return OFFLINE_MESSAGE;
+  return '';
+}
+
+export async function setUserRole(email, role) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
   const sb = await getSupabase();
-  if (!sb) return { error: 'Offline' };
-  const { error } = await sb.from('profiles').update({ role }).eq('id', id);
+  if (!sb) return { error: 'Needs a connection.' };
+  const { error } = await sb.rpc('admin_set_role', {
+    p_email: String(email || '').trim().toLowerCase(),
+    p_role: role,
+  });
   if (error) return { error: error.message };
-  if (id === me) await loadProfile(sb);
+  if (String(email || '').trim().toLowerCase() === String(profile?.email || '')) {
+    profile = { ...profile, role: role === 'admin' ? 'admin' : 'sales' };
+    const cached = readCachedAccess();
+    if (cached) writeCachedAccess({ ...cached, role: profile.role, checkedAt: Date.now() });
+    mountAccount(document.getElementById('account'));
+    window.dispatchEvent(new Event('nwd-access'));
+  }
   return { ok: true };
 }
 
-export async function reassignEstimate(remoteId, ownerId) {
+export async function addRep(email, fullName, role) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
   const sb = await getSupabase();
-  if (!sb) return { error: 'Offline' };
+  if (!sb) return { error: 'Needs a connection.' };
+  const { error } = await sb.rpc('admin_add_user', {
+    p_email: String(email || '').trim().toLowerCase(),
+    p_name: String(fullName || '').trim(),
+    p_role: role,
+  });
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+export async function revokeAccess(email) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.' };
+  const address = String(email || '').trim().toLowerCase();
+  const { error } = await sb.rpc('admin_revoke_user', { p_email: address });
+  if (error) return { error: error.message };
+  const kicked = await sb.functions.invoke('revoke-sessions', { body: { email: address } });
+  return { ok: true, sessionFunction: !kicked.error };
+}
+
+export async function restoreAccess(email) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.' };
+  const { error } = await sb.rpc('admin_restore_user', { p_email: String(email || '').trim().toLowerCase() });
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
+export async function loadRoster() {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.' };
+  const { data, error } = await sb.rpc('admin_list_users');
+  if (error) return { error: error.message };
+  return { people: Array.isArray(data) ? data : [] };
+}
+
+export async function reassignEstimate(remoteId, ownerId) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.' };
   const { error } = await sb.from('estimates').update({ owner_id: ownerId }).eq('id', remoteId);
   if (error) return { error: error.message };
   const local = findByRemote(remoteId);
@@ -580,8 +851,10 @@ export async function reassignEstimate(remoteId, ownerId) {
 }
 
 export async function loadAdmin() {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
   const sb = await getSupabase();
-  if (!sb) return { error: 'Offline' };
+  if (!sb) return { error: 'Needs a connection.' };
   const [people, rows] = await Promise.all([
     sb.from('profiles').select('id, email, full_name, role').order('full_name'),
     sb.from('estimates').select('id, owner_id, customer_name, customer_email, customer_phone, status, total_amount, updated_at, document, contracts(id, signer_name, signed_at)').order('updated_at', { ascending: false }),

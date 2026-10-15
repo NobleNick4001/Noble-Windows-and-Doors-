@@ -79,6 +79,8 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .syncdot{width:10px;height:10px;border-radius:50%;background:#8fd18a;flex:none;display:inline-block}
 .syncdot.wait{background:#f28c28}.syncdot.off{background:#e07a7a}
 .auth-wrap{max-width:440px;margin:6vh auto}
+body.auth-locked .top{display:none}
+body.auth-locked main{padding-bottom:1.2rem}
 .sig-preview{display:block;max-width:240px;height:auto;background:#fff;border:1px solid var(--line);border-radius:8px;margin:.35rem 0}
 @media (max-width:760px){#account .who{display:none}}
 .install-ed{display:flex;flex-direction:column;gap:.3rem}
