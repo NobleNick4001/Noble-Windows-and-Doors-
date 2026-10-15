@@ -9,8 +9,8 @@ const fail = (msg) => { failed++; console.error('FAIL', msg); };
 const ok = (msg) => console.log('OK  ', msg);
 
 const manifest = JSON.parse(read('data/overlay/manifest.json'));
-if (!Array.isArray(manifest.assets) || manifest.assets.length !== 72) fail('manifest should list 72 overlays');
-else ok('72 overlay assets');
+if (!Array.isArray(manifest.assets) || manifest.assets.length !== 75) fail('manifest should list 75 overlays, got ' + (manifest.assets || []).length);
+else ok('75 overlay assets');
 
 const colors = ['white', 'adobe', 'black', 'bronze'];
 const types = ['hslider', 'vslider', 'picture'];
@@ -38,6 +38,48 @@ for (const series of ['V250', 'V300', 'V400']) {
     }
   }
 }
+const installed = [
+  ['andersen100_picture_black.webp', 'andersen100', 'picture', '', 'black'],
+  ['V300_hslider_black_block.webp', 'V300', 'hslider', 'block', 'black'],
+  ['andersen100_hslider_black_nailfin.webp', 'andersen100', 'hslider', 'nailfin', 'black'],
+];
+const banned = [
+  'andersen100_picture_white.webp',
+  'andersen100_picture_sandtone.webp',
+  'andersen100_picture_terratone.webp',
+  'andersen100_picture_dkbronze.webp',
+  'V300_hslider_white_block.webp',
+  'V300_hslider_adobe_block.webp',
+  'V300_hslider_bronze_block.webp',
+  'V300_vslider_black_block.webp',
+  'V300_vslider_white_block.webp',
+  'andersen100_hslider_white_nailfin.webp',
+  'andersen100_hslider_sandtone_nailfin.webp',
+];
+for (const [name, series, type, frame, color] of installed) {
+  const row = manifest.assets.find((a) => a.file === `data/overlay/${name}`);
+  if (!row) { fail('missing installed overlay ' + name); continue; }
+  if (row.approximate) fail(name + ' should be a real photo');
+  if (row.note) fail(name + ' should not carry a recolor note');
+  if (row.zbar) fail(name + ' should not be a z-bar');
+  if (row.series !== series || row.type !== type || (row.frame || '') !== frame || row.color !== color) fail(name + ' fields');
+  const file = join(root, row.file);
+  const head = readFileSync(file).subarray(0, 12);
+  if (head.toString('ascii', 0, 4) !== 'RIFF' || head.toString('ascii', 8, 12) !== 'WEBP') fail(name + ' is not webp');
+  bytes += statSync(file).size;
+}
+const listed = manifest.assets.map((a) => a.file).join(' ');
+for (const token of banned) {
+  if (listed.includes(token)) fail('recolor or single-hung block overlay still listed: ' + token);
+}
+if (manifest.colors.some((c) => ['sandtone', 'terratone', 'dkbronze'].includes(c.id))) fail('overlay color list should not add recolor-only colors');
+else ok('only real installed photos were added');
+const seriesIds = manifest.series.map((s) => s.id);
+if (!seriesIds.includes('andersen100')) fail('Andersen 100 should be an overlay series');
+else ok('Andersen 100 is in the overlay series list');
+if ((manifest.frames || []).map((f) => f.id).join(',') !== ',block,nailfin') fail('frame list should be product photo, block, nail fin');
+else ok('frame list');
+
 if (bytes > 6 * 1024 * 1024) fail('overlay webps are ' + bytes + ' bytes');
 else ok('overlay webps ' + (bytes / 1024).toFixed(0) + 'KB');
 
@@ -47,9 +89,11 @@ if (colorNames.white !== 'White / White' || colorNames.adobe !== 'Adobe' || colo
 } else ok('color names match the app');
 
 const page = read('js/pages/overlay.js');
-for (const needle of ['ov-zbar', 'ov-op', 'ov-save', 'estimates.save', 'e.overlays', 'warp(', 'Show original photo', 'data/overlay/manifest.json']) {
+for (const needle of ['ov-zbar', 'ov-op', 'ov-save', 'estimates.save', 'e.overlays', 'warp(', 'Show original photo', 'data/overlay/manifest.json', 'pick-frame-block', 'pick-frame-nailfin', 'S.frame']) {
   if (!page.includes(needle)) fail('overlay.js missing ' + needle);
 }
+if (!page.includes("match(a, '')")) fail('overlay lookup should fall back to the product photo');
+else ok('overlay lookup matches frame and falls back');
 ok('overlay page warps, sets opacity, and saves onto the estimate');
 
 const pdf = read('js/pdf.js');

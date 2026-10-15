@@ -74,7 +74,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v28'" in sw, 'service worker cache should be nwd-sales-v28')
+check("const CACHE = 'nwd-sales-v38-real-photos'" in sw, 'service worker cache should be nwd-sales-v38-real-photos')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
 check('data/purchase-agreement.json' in sw, 'purchase agreement should be precached')
@@ -122,9 +122,9 @@ check('C650' not in public_text(glass) and 'C700' not in public_text(glass), 'do
 
 gallery = json.load(open('assets/gallery/gallery.json'))
 gs = gallery['slides']
-check(len(gs) == 48, 'gallery should have 48 photos')
-check(all(s.get('source') == 'nick' for s in gs[:23]), 'first 23 slides are Nick photos')
-check(all(s.get('group') == 'noble-projects' for s in gs[23:]), 'website photos follow as Noble projects')
+check(len(gs) == 50, 'gallery should have 50 photos')
+check(all(s.get('source') == 'nick' for s in gs[:25]), 'first 25 slides are Nick photos')
+check(all(s.get('group') == 'noble-projects' for s in gs[25:]), 'website photos follow as Noble projects')
 check([g['label'] for g in gallery['groups']] == ['Milgard V300', 'Milgard V400 Tuscany', 'Andersen 100', 'Andersen 100 Retrofit', 'Multi Slides', 'Noble projects'], 'filter labels')
 check(all(os.path.isfile('assets/gallery/' + s['src']) for s in gs), 'a gallery file is missing')
 check(sum(1 for s in gs if s.get('lowRes')) == 16, '760px site photos should be flagged lowRes')
