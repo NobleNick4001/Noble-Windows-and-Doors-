@@ -1,6 +1,7 @@
 // OneLink prices must match the grid and must never land under the OneLink observation.
 // Run: node tools/check_onelink.mjs
 import { readFileSync } from 'node:fs';
+import { milgardQuote } from '../js/milgard.js';
 import { data, materialUnitPrice, priceWindow, installUnit, addonUnit, totals, quoteLine, quoteTotalRows } from '../js/core.js';
 
 const load = (p) => JSON.parse(readFileSync(p, 'utf8'));
@@ -205,6 +206,27 @@ const job = totals({ lines: [tall], extras: [], promoCode: '', stuccoRepair: { o
 near(job.labor, 1350 + add, 'combined installation', 0.02);
 check(job.shipping === 150 && job.taxPct === 9.1, 'shipping and tax unchanged');
 check(!JSON.stringify(data.rates.brands.find((b) => b.id === 'milgard').series).includes('V350'), 'no V350');
+
+// A250 aluminum windows: $ per inch of (W + H). Clear and Bronze Anodized are the same price.
+const a250 = (type, w, h, color, extra = {}) => materialUnitPrice({ brand: 'milgard', series: 'A250', type, color, w, h, grids: 'none', obscure: 'none', ...extra });
+const A250_RATE = { picture: 15.27, hslider: 20.07, xox: 23.60, vslider: 19.33, casement: 25.24 };
+for (const [type, rate] of Object.entries(A250_RATE)) {
+  const w = type === 'xox' ? 72 : type === 'casement' ? 30 : 36, hh = 48;
+  near(a250(type, w, hh, 'bronze-anodized'), rate * (w + hh), `A250 ${type} bronze`, 0.01);
+  near(a250(type, w, hh, 'clear-anodized'), a250(type, w, hh, 'bronze-anodized'), `A250 ${type} clear = bronze`, 0.001);
+}
+near(a250('picture', 48, 48, 'bronze-anodized'), 1465.92, 'A250 picture 48x48 bronze', 0.01);
+near(a250('vslider', 35, 59, 'clear-anodized'), 1817.02, 'A250 single hung 35x59 clear', 0.01);
+near(a250('picture', 48, 48, 'bronze-anodized', { tempered: true }), 1465.92 * 1.6, 'A250 tempered picture', 0.01);
+near(a250('picture', 48, 48, 'bronze-anodized', { tempered: true, obscure: 'p516' }), 1465.92 * 2.3, 'A250 tempered + obscure picture', 0.01);
+near(a250('casement', 30, 48, 'clear-anodized', { tempered: true }), 25.24 * 78 * 1.2, 'A250 tempered casement', 0.01);
+near(a250('picture', 72, 60, 'clear-anodized'), 15.27 * 132 * 1.6, 'A250 picture over 25 sq ft is tempered', 0.01);
+near(a250('picture', 48, 48, 'bronze-anodized', { grids: 'flat', pureview: true, frame: 'zbar' }), 1465.92, 'A250 ignores grids, PureView, Z-bar', 0.01);
+check(priceWindow({ brand: 'milgard', series: 'A250', type: 'picture', color: 'bronze-anodized', w: 48, h: 48, qty: 1 })?.mode === 'onelink', 'A250 window uses the A250 rate');
+check(milgardQuote(data.milgardOnelink, { brand: 'milgard', series: 'A250', type: 'awning', w: 30, h: 24 }) === null, 'A250 awning is not priced');
+check(milgardQuote(data.milgardOnelink, { brand: 'milgard', series: 'A250', type: 'hslider', w: 48, h: 36, tempered: true }).errors.length > 0, 'A250 slider tempered is refused');
+const a250Job = totals({ lines: [{ brand: 'milgard', series: 'A250', type: 'picture', color: 'bronze-anodized', w: 48, h: 48, qty: 1, unit: 1465.92, install: { type: 'standard', surcharges: [] } }], extras: [], promoCode: '', stuccoRepair: { on: false } });
+near(a250Job.labor, 360, 'A250 window labor is the usual $360', 0.01);
 
 if (errs.length) {
   console.log('FAILED', errs.length);

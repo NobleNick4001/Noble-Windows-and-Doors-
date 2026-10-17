@@ -44,6 +44,8 @@ export function render(root) {
     for (const se of b.series) for (const c of se.colors) rows.push(h('tr', {}, h('td', {}, se.id), h('td', {}, colorName(c)), ...typeIds.map((t) => {
       if (!se.types.includes(t)) return h('td', {}, '—');
       const info = variableRateInfo(b.id, se.id, c, t);
+      const a250Rate = b.id === 'milgard' && se.id === 'A250' ? data.milgardOnelink?.a250Windows?.perUI?.[t] : null;
+      if (info?.onelink && a250Rate) return h('td', { class: 'from-quotes' }, a250Rate.toFixed(2), h('div', { class: 'fine' }, '$ per UI · from quotes'));
       if (info?.onelink) return h('td', { class: 'from-quotes' }, 'OneLink', h('div', { class: 'fine' }, 'grid'));
       if (info) {
         const bits = [];
@@ -61,7 +63,7 @@ export function render(root) {
       return h('td', { class: r?.estimated ? 'est' : '' }, r ? r.rate.toFixed(2) + (r.estimated ? ' E' : '') : '—');
     })));
     const note = b.id === 'milgard'
-      ? 'OneLink = grid price for V250, V300, and V400 windows and for V300, V400, and A250 patio doors. Customer price is never under OneLink. E marks a stored rate the grid does not cover.'
+      ? 'OneLink = grid price for V250, V300, and V400 windows and for V300, V400, and A250 patio doors. Customer price is never under OneLink. A250 windows are $ per inch of width + height from Milgard A250 quotes (Clear and Bronze Anodized same price). E marks a stored rate the grid does not cover.'
       : b.id === 'iwc'
         ? '8200 windows and 8900 doors in Bronze Anodized are from quotes. Clear Anodized, Mojave Beige, and White use the custom supplier-price line.'
         : 'From quotes: base, $ per UI, and $ per sq ft. Sandtone is priced like Black. White/White subtracts $191.71 per unit. Dark Bronze / White, Terratone, and Black/White use × 1.003. E marks the old $/inch table, used for awning.';
