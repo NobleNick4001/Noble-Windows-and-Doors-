@@ -1,11 +1,12 @@
 // Milgard OneLink pricing. Customer price = OneLink cost / 0.55, rounded up to the
 // next grid size so a quote is never under OneLink. Grids and door tables live in
-// data/milgard-onelink.json. Andersen and IWC do not use this module.
+// data/milgard-onelink.json. A250 aluminum windows are priced per inch of width + height
+// from data/milgard-onelink.json "a250Windows". Andersen and IWC do not use this module.
 const COLOR = {
   ww: 'white', white: 'white', adobe: 'adobe', bronze: 'bronze',
   bw: 'black_ext', black_ext: 'black_ext', bb: 'black_black', black_black: 'black_black',
 };
-export const WINDOW_SERIES = ['V250', 'V300', 'V400'];
+export const WINDOW_SERIES = ['V250', 'V300', 'V400', 'A250'];
 export const DOOR_SERIES = ['V300', 'V400', 'A250'];
 export const DOOR_CONFIG = { '2panel': 'XO', '3panel': 'XOO', '4panel': 'OXXO' };
 export const WINDOW_STYLES = ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning'];
@@ -21,6 +22,17 @@ export const A250_DOOR_COLORS = [
   ['bronze-anodized', 'Bronze Anodized', 'white'],
   ['clear-anodized', 'Clear Anodized', 'white'],
 ];
+// A250 windows: two anodized finishes, same price.
+export const A250_WINDOW_COLORS = [
+  ['clear-anodized', 'Clear Anodized'],
+  ['bronze-anodized', 'Bronze Anodized'],
+];
+export const A250_WINDOW_STYLES = ['hslider', 'xox', 'vslider', 'picture', 'casement'];
+// What glass upgrades are priced for an A250 window style (from the Milgard A250 quote).
+export function a250GlassOptions(D, style) {
+  const A = D?.a250Windows || {};
+  return { tempered: !!A.temperedFactor?.[style], obscure: !!A.temperedObscureFactor?.[style] };
+}
 export function doorColorChoices(series) {
   return series === 'A250' ? A250_DOOR_COLORS : VINYL_DOOR_COLORS;
 }
@@ -67,8 +79,31 @@ export function makeEngine(D) {
     return { v: formula45(style, w, h), src: 'formula' };
   }
   function lin(r, sq) { return r.flat + r.perSqFt * sq; }
+  // A250 aluminum window: customer rate per inch of (W + H). Clear and Bronze Anodized are the same price.
+  // Tempered and tempered + obscure are multiples of the plain price; types without data are refused.
+  function a250Window(style, w, h, o) {
+    const A = D.a250Windows;
+    const sq = w * h / 144, items = [], notes = [], errors = validate('A250', style, w, h);
+    const base = A.perUI[style] * (w + h);
+    items.push(['base', base]);
+    const obscure = o.obscure && o.obscure !== 'none';
+    const forced = style === 'picture' && sq > D.temperedForceSqFt;
+    const tf = A.temperedFactor?.[style], of = A.temperedObscureFactor?.[style];
+    if (obscure) {
+      if (of) {
+        items.push(['tempered_obscure', base * (of - 1)]);
+        notes.push('A250 obscure glass is priced as tempered + obscure');
+      } else errors.push('Obscure glass is not priced for this A250 style');
+    } else if (o.tempered || forced) {
+      if (tf) items.push(['tempered', base * (tf - 1)]);
+      else errors.push('Tempered glass is not priced for this A250 style');
+      if (forced) notes.push('Tempered required above 25 sq ft (included)');
+    }
+    return { items, notes, errors, material: items.reduce((s, i) => s + i[1], 0), limits: limits('A250', style) };
+  }
   function window(series, style, w, h, o) {
     o = o || {};
+    if (series === 'A250') return a250Window(style, w, h, o);
     const sq = w * h / 144, items = [], notes = [];
     const b = base250(style, w, h);
     let base = b.v;
@@ -192,5 +227,6 @@ export function milgardQuote(D, line) {
     return { kind: 'door', cfg, ...E.door(line.series, cfg, w, h, optionsFromLine(line)) };
   }
   if (!WINDOW_SERIES.includes(line.series) || !D.grids?.[line.type]) return null;
+  if (line.series === 'A250' && !D.a250Windows?.perUI?.[line.type]) return null;
   return { kind: 'window', ...E.window(line.series, line.type, w, h, optionsFromLine(line)) };
 }

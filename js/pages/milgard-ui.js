@@ -1,7 +1,7 @@
 import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows } from '../core.js';
-import { isMilgardDoorLine, milgardQuote, engineFor, DOOR_CONFIG, WINDOW_STYLES, doorColorChoices, doorColorLabel } from '../milgard.js';
+import { isMilgardDoorLine, milgardQuote, engineFor, DOOR_CONFIG, WINDOW_STYLES, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions } from '../milgard.js';
 
-const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400']];
+const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const STYLES = {
   window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['awning', 'Awning']],
@@ -12,6 +12,20 @@ const GRIDS = [['none', 'None'], ['flat', 'Flat'], ['sculptured', 'Sculptured'],
 const OBSCURE = [['none', 'Clear'], ['p516', 'P516'], ['satin', 'Satin Etch']];
 const FRAMES = [['zbar', 'Z-bar'], ['nailfin', 'Nail fin'], ['block', 'Block']];
 const FRAME_LABOR = { zbar: 'standard', nailfin: 'stucco-fin', block: 'block' };
+const A250_NOTE = 'A250 aluminum: Clear Anodized and Bronze Anodized are the same price. Priced per inch of width + height from Milgard A250 quotes. No grids or PureView.';
+// Window styles and colors for a series (A250 windows have their own short lists).
+const windowStyles = (series) => series === 'A250' ? STYLES.window.filter(([id]) => A250_WINDOW_STYLES.includes(id)) : STYLES.window;
+const windowColors = (series) => series === 'A250' ? A250_WINDOW_COLORS : COLORS;
+const stylesFor = (calc) => calc.product === 'door' ? STYLES.door : windowStyles(calc.series);
+// Clear upgrades an A250 window style has no price for.
+function trimA250(obj) {
+  if (obj.series !== 'A250' || DOOR_CONFIG[obj.type]) return;
+  const g = a250GlassOptions(data.milgardOnelink, obj.type);
+  obj.grids = 'none';
+  obj.pureview = false;
+  if (!g.obscure) obj.obscure = 'none';
+  if (!g.tempered && !g.obscure) obj.tempered = false;
+}
 
 const decimal = (raw) => {
   const cleaned = String(raw ?? '').replace(/[^0-9.]/g, '');
@@ -32,12 +46,16 @@ function ensure(calc) {
   if (calc.writeInAmt == null) calc.writeInAmt = '';
   const series = (calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES).map((x) => x[0]);
   if (!series.includes(calc.series)) calc.series = series[0];
-  const styles = STYLES[calc.product].map((x) => x[0]);
+  const styles = stylesFor(calc).map((x) => x[0]);
   if (!styles.includes(calc.type)) calc.type = styles[0];
   if (calc.product === 'door') {
     const choices = doorColorChoices(calc.series);
     if (!choices.some((c) => c[0] === calc.color)) calc.color = choices[0][0];
-  } else if (!COLORS.some((c) => c[0] === calc.color)) calc.color = 'ww';
+  } else {
+    const choices = windowColors(calc.series);
+    if (!choices.some((c) => c[0] === calc.color)) calc.color = choices[0][0];
+    trimA250(calc);
+  }
   if (calc.product === 'window' && calc.install.type !== 'custom') {
     calc.install.type = FRAME_LABOR[calc.frame] || 'standard';
     calc.install.frameType = calc.frame;
@@ -146,7 +164,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     calc.product = kind;
     if (kind === 'door' && !DOOR_SERIES.some((s) => s[0] === calc.series)) calc.series = 'V300';
     if (kind === 'window' && !WINDOW_SERIES.some((s) => s[0] === calc.series)) calc.series = 'V250';
-    const styles = STYLES[kind].map((s) => s[0]);
+    const styles = stylesFor(calc).map((s) => s[0]);
     if (!styles.includes(calc.type)) calc.type = styles[0];
     persist(); rerender();
   };
@@ -156,7 +174,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   left.append(h('p', { class: 'fine' }, 'SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen. Door sizes are the net frame, not the rough opening.'));
   left.append(seg('Product', [['window', 'Window'], ['door', 'Patio door']], calc.product, setKind));
   left.append(seg('Series', calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES, calc.series, (id) => { calc.series = id; persist(); rerender(); }));
-  left.append(seg('Style', STYLES[calc.product], calc.type, (id) => { calc.type = id; persist(); rerender(); }));
+  left.append(seg('Style', stylesFor(calc), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
+  const a250Win = calc.product === 'window' && calc.series === 'A250';
+  const glass = a250Win ? a250GlassOptions(data.milgardOnelink, calc.type) : { tempered: true, obscure: true };
+  if (a250Win) left.append(h('p', { class: 'fine', id: 'a250-note' }, A250_NOTE));
 
   const wInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-w', value: calc.w ?? '', placeholder: '0', oninput: (e) => { calc.w = decimal(e.target.value); persist(); update(); } });
   const hInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-h', value: calc.h ?? '', placeholder: '0', oninput: (e) => { calc.h = decimal(e.target.value); persist(); update(); } });
@@ -170,9 +191,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     left.append(seg('Color', doorColorChoices(calc.series), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
   }
   if (calc.product === 'window') {
-    left.append(seg('Color', COLORS, calc.color, (id) => { calc.color = id; persist(); rerender(); }));
-    left.append(seg('Grids', GRIDS, calc.grids, (id) => { calc.grids = id; persist(); rerender(); }));
-    left.append(seg('Obscure glass', OBSCURE, calc.obscure, (id) => { calc.obscure = id; persist(); rerender(); }));
+    left.append(seg('Color', windowColors(calc.series), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
+    if (!a250Win) left.append(seg('Grids', GRIDS, calc.grids, (id) => { calc.grids = id; persist(); rerender(); }));
+    if (glass.obscure) left.append(seg('Obscure glass', OBSCURE, calc.obscure, (id) => { calc.obscure = id; persist(); rerender(); }));
     left.append(seg('Frame', FRAMES, calc.frame, (id) => {
       calc.frame = id;
       calc.install.type = FRAME_LABOR[id];
@@ -182,7 +203,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   }
 
   const toggles = h('div', {});
-  if (calc.product === 'window') {
+  if (calc.product === 'window' && glass.tempered) {
     toggles.append(h('label', { class: 'check' }, h('input', {
       type: 'checkbox', id: 'opt-tempered', checked: calc.tempered ? 'checked' : null,
       onchange: (e) => { calc.tempered = e.target.checked; persist(); update(); },
@@ -195,7 +216,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       onchange: (e) => { calc.pureview = e.target.checked; persist(); update(); },
     }), h('span', {}, 'PureView screen'), h('em', {}, calc.product === 'door' ? ' +$137' : '')));
   }
-  left.append(h('div', { class: 'lbl' }, 'Upgrades'), toggles);
+  if (toggles.childNodes.length) left.append(h('div', { class: 'lbl' }, 'Upgrades'), toggles);
   left.append(h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Qty'), h('input', {
     type: 'text', inputmode: 'numeric', id: 'in-q', value: calc.qty || 1,
     oninput: (e) => { calc.qty = e.target.value.replace(/[^0-9]/g, ''); persist(); update(); },
@@ -414,6 +435,14 @@ export function milgardLineEditor(line, onChange, idp = 'mg-') {
       }), h('span', {}, 'PureView screen'), h('em', {}, ' +$137'));
     return h('div', {}, colors, extra);
   }
+  const a250 = line.series === 'A250';
+  if (a250) {
+    const before = [line.grids, line.obscure, line.tempered, line.pureview].join('|');
+    trimA250(line);
+    // A style change can leave an upgrade A250 has no price for. Drop it and reprice once.
+    if ([line.grids, line.obscure, line.tempered, line.pureview].join('|') !== before) { syncFlags(line); queueMicrotask(onChange); }
+  }
+  const glass = a250 ? a250GlassOptions(data.milgardOnelink, line.type) : { tempered: true, obscure: true };
   const color = (id, label) => h('button', {
     type: 'button', class: 'chip pick' + (line.color === id ? ' on' : ''),
     onclick: () => { line.color = id; change(); },
@@ -423,17 +452,18 @@ export function milgardLineEditor(line, onChange, idp = 'mg-') {
     onchange: (e) => { line[key] = e.target.checked; change(); },
   }), h('span', {}, label));
   return h('div', {},
-    h('div', { class: 'chips' }, COLORS.map(([id, name]) => color(id, name))),
-    h('div', { class: 'chips' }, GRIDS.map(([id, name]) => h('button', {
+    h('div', { class: 'chips' }, windowColors(line.series).map(([id, name]) => color(id, name))),
+    a250 ? null : h('div', { class: 'chips' }, GRIDS.map(([id, name]) => h('button', {
       type: 'button', class: 'chip pick' + ((line.grids || 'none') === id ? ' on' : ''),
       onclick: () => { line.grids = id; change(); },
     }, name + ' grids'))),
-    h('div', { class: 'chips' }, OBSCURE.map(([id, name]) => h('button', {
+    glass.obscure ? h('div', { class: 'chips' }, OBSCURE.map(([id, name]) => h('button', {
       type: 'button', class: 'chip pick' + ((line.obscure || 'none') === id ? ' on' : ''),
       onclick: () => { line.obscure = id; change(); },
-    }, name))),
-    flag('tempered', 'tempered', 'Tempered glass'),
-    line.type === 'picture' ? null : flag('pureview', 'pureview', 'PureView screen'));
+    }, name))) : null,
+    glass.tempered ? flag('tempered', 'tempered', 'Tempered glass') : null,
+    a250 ? h('p', { class: 'fine' }, A250_NOTE) : null,
+    line.type === 'picture' || a250 ? null : flag('pureview', 'pureview', 'PureView screen'));
 }
 
 export function doorInstallEditor(line, onChange, idp = 'door-') {

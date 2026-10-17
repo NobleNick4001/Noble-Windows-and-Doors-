@@ -217,6 +217,11 @@
       "clear-anodized"
      ],
      "types": [
+      "hslider",
+      "xox",
+      "vslider",
+      "picture",
+      "casement",
       "2panel",
       "3panel",
       "4panel"
