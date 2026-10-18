@@ -178,6 +178,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   const a250Win = calc.product === 'window' && calc.series === 'A250';
   const glass = a250Win ? a250GlassOptions(data.milgardOnelink, calc.type) : { tempered: true, obscure: true };
   if (a250Win) left.append(h('p', { class: 'fine', id: 'a250-note' }, A250_NOTE));
+  left.append(h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', {
+    type: 'text', id: 'in-label', value: calc.label || '', placeholder: 'e.g. Kitchen slider',
+    oninput: (e) => { calc.label = e.target.value; persist(); },
+  })));
 
   const wInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-w', value: calc.w ?? '', placeholder: '0', oninput: (e) => { calc.w = decimal(e.target.value); persist(); update(); } });
   const hInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-h', value: calc.h ?? '', placeholder: '0', oninput: (e) => { calc.h = decimal(e.target.value); persist(); update(); } });
@@ -220,10 +224,6 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   left.append(h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Qty'), h('input', {
     type: 'text', inputmode: 'numeric', id: 'in-q', value: calc.qty || 1,
     oninput: (e) => { calc.qty = e.target.value.replace(/[^0-9]/g, ''); persist(); update(); },
-  })));
-  left.append(h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', {
-    type: 'text', id: 'in-label', value: calc.label || '', placeholder: 'e.g. Kitchen slider',
-    oninput: (e) => { calc.label = e.target.value; persist(); },
   })));
 
   left.append(h('h3', {}, 'Installation'));
