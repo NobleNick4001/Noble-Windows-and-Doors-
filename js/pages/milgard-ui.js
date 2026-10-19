@@ -248,8 +248,8 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   function update() {
     const L = limitsNow();
-    wHint.textContent = L ? `Allowed ${L.wmin}–${L.wmax}"` : '';
-    hHint.textContent = L ? `Allowed ${L.hmin}–${L.hmax}"${L.curve ? ' (max shrinks on wide units)' : ''}` : '';
+    wHint.textContent = L ? (L.hintW || `Allowed ${L.wmin}–${L.wmax}"`) : '';
+    hHint.textContent = L ? (L.hintH || `Allowed ${L.hmin}–${L.hmax}"${L.curve ? ' (max shrinks on wide units)' : ''}`) : '';
     const line = draftLine(calc);
     const q = milgardQuote(data.milgardOnelink, line);
     const sized = line.w > 0 && line.h > 0;
