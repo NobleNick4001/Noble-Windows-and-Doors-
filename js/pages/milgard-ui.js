@@ -1,10 +1,10 @@
-import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows } from '../core.js';
-import { isMilgardDoorLine, milgardQuote, engineFor, DOOR_CONFIG, WINDOW_STYLES, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions } from '../milgard.js';
+import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL } from '../core.js';
+import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions, styleLimits } from '../milgard.js';
 
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const STYLES = {
-  window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['awning', 'Awning']],
+  window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['dcasement', 'Double casement'], ['awning', 'Awning'], ['archtop', 'Arch top']],
   door: [['2panel', '2-panel XO'], ['3panel', '3-panel'], ['4panel', '4-panel OXXO']],
 };
 const COLORS = [['ww', 'White'], ['adobe', 'Adobe'], ['bronze', 'Bronze'], ['bw', 'Black ext'], ['bb', 'Black/Black']];
@@ -141,7 +141,17 @@ function quoteText(l) {
   return `${qty}× ${l.series} ${style} ${l.w}×${l.h}${extra.length ? ' · ' + extra.join(', ') : ''}`;
 }
 
+function focusRoom() {
+  requestAnimationFrame(() => {
+    const el = document.getElementById('in-label');
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+    el.scrollIntoView({ block: 'center' });
+  });
+}
+
 export function renderMilgard(root, { calc, persist, rerender }) {
+  const view = captureView();
   ensure(calc);
   const wrap = h('div', { class: 'page calc calc-milgard' });
   wrap.append(h('h1', {}, 'Price Calculator'));
@@ -178,17 +188,20 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   const a250Win = calc.product === 'window' && calc.series === 'A250';
   const glass = a250Win ? a250GlassOptions(data.milgardOnelink, calc.type) : { tempered: true, obscure: true };
   if (a250Win) left.append(h('p', { class: 'fine', id: 'a250-note' }, A250_NOTE));
-  left.append(h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', {
+  const roomField = h('label', { class: 'field room-label' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', {
     type: 'text', id: 'in-label', value: calc.label || '', placeholder: 'e.g. Kitchen slider',
+    autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false',
     oninput: (e) => { calc.label = e.target.value; persist(); },
-  })));
+  }));
 
   const wInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-w', value: calc.w ?? '', placeholder: '0', oninput: (e) => { calc.w = decimal(e.target.value); persist(); update(); } });
   const hInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-h', value: calc.h ?? '', placeholder: '0', oninput: (e) => { calc.h = decimal(e.target.value); persist(); update(); } });
   const sizeLabel = calc.product === 'door' ? 'net frame' : '';
-  left.append(h('div', { class: 'grid2' },
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame width (in)' : 'Width (in)'), wInput, wHint),
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame height (in)' : 'Height (in)'), hInput, hHint)));
+  left.append(h('div', { class: 'room-size' },
+    roomField,
+    h('div', { class: 'grid2' },
+      h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame width (in)' : 'Width (in)'), wInput, wHint),
+      h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame height (in)' : 'Height (in)'), hInput, hHint))));
   left.append(errEl);
 
   if (calc.product === 'door') {
@@ -238,12 +251,13 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   addBtn.onclick = () => addLine();
   update();
+  restoreView(view);
 
   function limitsNow() {
     const D = data.milgardOnelink;
     if (!D) return null;
     if (calc.product === 'door') return D.doorLimits[calc.series + '_' + DOOR_CONFIG[calc.type]] || null;
-    return engineFor(D)?.limits(calc.series, calc.type) || null;
+    return styleLimits(D, calc.series, calc.type);
   }
 
   function update() {
@@ -257,9 +271,14 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     errEl.textContent = errors.join(' ');
     addBtn.disabled = !sized || errors.length > 0;
     const qty = line.qty;
+    priceEl.classList.remove('pending');
     if (!sized || !q || errors.length) {
       priceEl.textContent = '—';
       unitEl.textContent = 'per unit';
+    } else if (q.pricePending) {
+      priceEl.textContent = PRICE_PENDING_LABEL;
+      priceEl.classList.add('pending');
+      unitEl.textContent = 'not a real OneLink price';
     } else {
       const each = Math.round(q.material * 100) / 100;
       priceEl.textContent = fmt(each * qty);
@@ -286,7 +305,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     e.lines.forEach((l, i) => {
       quoteEl.append(h('div', { class: 'line' },
         h('span', {}, quoteText(l)),
-        h('span', { class: 'row nowrap' }, h('b', {}, fmt((Number(l.unit) || 0) * (Number(l.qty) || 0))),
+        h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending ? 'pending-price' : '' }, linePriceText(l)),
           h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, '✕'))));
     });
     for (const row of quoteTotalRows(t)) {
@@ -315,17 +334,18 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       options: optionIds(calc), addons: addonIds(calc),
       grids: line.grids, obscure: line.obscure, tempered: line.tempered, pureview: line.pureview, frame: line.frame,
       supplierPrice: null, customDescription: '',
-      unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: null, rateSet: settings.rateSet,
-      estimated: false, pricingMode: 'onelink',
+      unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: p.rate, rateSet: settings.rateSet,
+      estimated: false, pricingMode: 'onelink', pricePending: !!p.pricePending,
       install: inst, installUnit: installUnit(inst, line),
     });
     estimates.persist();
+    calc.label = '';
     calc.w = '';
     calc.h = '';
     persist();
     toast(`Added to ${e.number}`);
     rerender();
-    requestAnimationFrame(() => document.getElementById('in-w')?.focus());
+    focusRoom();
   }
 }
 

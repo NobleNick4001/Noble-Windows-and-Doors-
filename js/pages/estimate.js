@@ -1,5 +1,5 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE } from '../core.js';
-import { isMilgardDoorLine, doorColorLabel } from '../milgard.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL } from '../core.js';
+import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
@@ -26,7 +26,7 @@ export function compactWindowList(lines, { always = false, id = 'compact-windows
     for (const l of section.lines) {
       const row = compactWindowLine(l);
       root.append(h('div', { class: 'win-card' },
-        h('div', { class: 'win-top' }, h('span', { class: 'win-title' }, row.title), h('b', { class: 'win-price' }, fmt(row.price))),
+        h('div', { class: 'win-top' }, h('span', { class: 'win-title' }, row.title), h('b', { class: 'win-price' + (row.priceText ? ' pending-price' : '') }, row.priceText || fmt(row.price))),
         h('div', { class: 'win-sub' }, row.detail)));
     }
   }
@@ -34,9 +34,13 @@ export function compactWindowList(lines, { always = false, id = 'compact-windows
 }
 function reprice(l) {
   const p = priceWindow(l);
-  if (p) { l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; }
-  else { l.unitBase = 0; l.optionsEach = 0; l.unit = 0; }
+  if (p) { l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; l.pricePending = !!p.pricePending; }
+  else { l.unitBase = 0; l.optionsEach = 0; l.unit = 0; l.pricePending = false; }
   l.installUnit = installUnit(l.install, l);
+}
+const MILGARD_OPTION_TYPES = ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning', ...PENDING_WINDOW_STYLES];
+function usesMilgardEditor(l) {
+  return l.pricingMode === 'onelink' || (l.brand === 'milgard' && (isMilgardDoorLine(l) || MILGARD_OPTION_TYPES.includes(l.type)));
 }
 async function presentEstimate(rerender) {
   if (hubUi.busy) return;
@@ -180,6 +184,7 @@ function hubspotPicker(e, rerender) {
 
 export function render(root) {
   sendUi.confirm = '';
+  const view = captureView();
   const e = estimates.current();
   e.extras ||= [];
   e.stuccoRepair ||= { on: false, qty: null };
@@ -210,6 +215,7 @@ export function render(root) {
 
   // lines
   const lines = h('div', { class: 'card' }, h('h3', {}, 'Windows'));
+  if (e.lines.some((l) => l.pricePending)) lines.append(h('p', { class: 'warn', id: 'price-pending-banner' }, 'One or more windows say Price pending. That is a placeholder, not a OneLink price, and it is left out of the total until a real rate is entered.'));
   if (!e.lines.length) lines.append(h('p', { class: 'muted' }, 'No windows yet. ', h('a', { href: '#/calculator' }, 'Add one from the calculator →')));
   e.lines.forEach((l, idx) => {
     const isOpen = open.has(l.id);
@@ -219,7 +225,7 @@ export function render(root) {
           h('div', { class: 'fine' }, `Install: ${installLabel(l.install, l)}`),
           needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
           addonNames(l.install, l).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install, l).join(', ')}`) : null),
-        h('div', { class: 'li-price' }, h('b', {}, fmt((Number(l.unit) || 0) * (Number(l.qty) || 0))))),
+        h('div', { class: 'li-price' }, h('b', { class: l.pricePending ? 'pending-price' : '' }, linePriceText(l)))),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
         h('button', { class: 'btn sm danger', onclick: () => { e.lines.splice(idx, 1); save(); rerender(); } }, 'Remove')));
@@ -229,13 +235,22 @@ export function render(root) {
       row.append(h('div', { class: 'edit' },
         seriesDef && h('b', {}, 'Window type'),
         seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
-        h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', { type: 'text', value: l.label, oninput: (ev) => { l.label = ev.target.value; save(); } })),
-        h('div', { class: 'grid3' }, stepper(isMilgardDoorLine(l) ? 'Net frame width' : 'Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper(isMilgardDoorLine(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 })),
+        h('div', { class: 'room-size' },
+          h('label', { class: 'field room-label' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', {
+            type: 'text', id: 'room-' + l.id, value: l.label || '', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false',
+            oninput: (ev) => {
+              l.label = ev.target.value;
+              const title = row.querySelector('.li-text b');
+              if (title) title.textContent = ev.target.value;
+              save();
+            },
+          })),
+          h('div', { class: 'grid3' }, stepper(isMilgardDoorLine(l) ? 'Net frame width' : 'Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper(isMilgardDoorLine(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
         stepper('Units in this line', l.unitsPerLine || 1, (v) => { l.unitsPerLine = parseInt(v, 10) || 1; reprice(l); save(); refreshTotals(); }, { min: 1 }),
         customPriceFields(l, () => { reprice(l); save(); refreshTotals(); }, 'li-' + l.id),
         seriesDef && !isMilgardDoorLine(l) && h('b', {}, 'Frame color'),
         seriesDef && !isMilgardDoorLine(l) && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
-        (l.pricingMode === 'onelink' || l.brand === 'milgard' && (isMilgardDoorLine(l) || ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning'].includes(l.type)))
+        usesMilgardEditor(l)
           ? milgardLineEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-')
           : upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
         h('b', {}, 'Installation'),
@@ -362,6 +377,7 @@ export function render(root) {
   wrap.append(h('div', { class: 'card' }, h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes (shown on estimate)'), h('textarea', { rows: 3, id: 'e-notes', oninput: (ev) => { e.notes = ev.target.value; save(); } }, e.notes)),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Estimate valid for (days)'), h('input', { type: 'text', inputmode: 'numeric', value: e.validDays, oninput: (ev) => { e.validDays = parseInt(ev.target.value) || 30; save(); } }))));
   root.replaceChildren(wrap);
+  restoreView(view);
 }
 
 function overlayCard(e, save, rerender) {
@@ -402,7 +418,7 @@ function estimateSheet(e) {
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));
   const tw = h('table', { class: 'sh-table sh-wide' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
-  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, fmt(l.unit)), h('td', { class: 'r' }, fmt(l.unit * l.qty)))));
+  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.pricePending ? PRICE_PENDING_LABEL : fmt(l.unit)), h('td', { class: 'r' }, linePriceText(l)))));
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
   if (t.percentDiscountAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-percent-discount-row' }, h('td', { colspan: 5, class: 'r' }, t.percentDiscountLabel), h('td', { class: 'r' }, fmt(-t.percentDiscountAmount))));
@@ -415,6 +431,7 @@ function estimateSheet(e) {
   if (t.percentDiscountAmount) foot.append(footLine(t.percentDiscountLabel, -t.percentDiscountAmount, { discount: true, id: 'sh-compact-percent' }));
   compact.append(foot);
   sheet.append(h('h3', {}, 'Windows (materials, including glass)'), tw, compact);
+  if (e.lines.some((l) => l.pricePending)) sheet.append(h('p', { class: 'warn', id: 'sh-price-pending' }, 'Price pending is a placeholder. It is not a OneLink price and it is not included in the total.'));
   if (e.extras.length) {
     const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))));
     tx.append(h('tr', { class: 'sub' }, h('td', { class: 'r' }, 'Additional items subtotal'), h('td', { class: 'r' }, fmt(t.extras))));

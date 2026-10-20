@@ -215,7 +215,7 @@ function writeCompactWindows(w, lines) {
     w.text(section.brandName, { size: 11, bold: true, gap: 2, color: [29, 117, 188] });
     for (const l of section.lines) {
       const row = compactWindowLine(l, { includeBrand: false, ascii: true });
-      w.pair(row.title, fmt(row.price), { size: 10, bold: true, gap: 0 });
+      w.pair(row.title, row.priceText || fmt(row.price), { size: 10, bold: true, gap: 0 });
       w.text(row.detail, { size: 8, gap: 4, color: [92, 101, 112] });
     }
   }
@@ -285,10 +285,14 @@ export function elevationModel(line, box = ELEVATION_BOX) {
     if (w > 0.8 && h > 0.8) panes.push({ x, y, w, h, op: op || '' });
   };
   let arch = null;
-  if (type === 'arch') {
+  if (type === 'arch' || type === 'archtop') {
     arch = { outer: archOutline(dw, dh, 0), inner: archOutline(dw, dh, face) };
     const body = arch.inner.body;
     add(body.x, body.y, body.w, body.h, '');
+  } else if (type === 'dcasement') {
+    const each = (iw - sash) / 2;
+    add(ix, iy, each, ih, 'casement');
+    add(ix + each + sash, iy, each, ih, 'casement-right');
   } else if (type === 'hslider' || type === '2panel') {
     const each = (iw - sash) / 2;
     add(ix, iy, each, ih, '');
@@ -403,6 +407,8 @@ function drawMark(doc, pane, ox, oy) {
   }
   if (pane.op === 'casement' && pane.w > 6 && pane.h > 6) {
     chevron(doc, x + pane.w - pad, y + pane.h / 2, x + pad, y + pad, x + pad, y + pane.h - pad);
+  } else if (pane.op === 'casement-right' && pane.w > 6 && pane.h > 6) {
+    chevron(doc, x + pad, y + pane.h / 2, x + pane.w - pad, y + pad, x + pane.w - pad, y + pane.h - pad);
   } else if (pane.op === 'awning' && pane.w > 6 && pane.h > 6) {
     chevron(doc, x + pane.w / 2, y + pane.h - pad, x + pad, y + pad, x + pane.w - pad, y + pad);
   }
@@ -614,7 +620,7 @@ export async function makeEstimatePdf(e, opts = {}) {
     x += cols[4].w;
     paint(String(item.qty), cols[5], base, 8, false, 'center');
     x += cols[5].w;
-    paint(fmt(item.price), cols[6], base, 8, true, 'right');
+    paint(item.priceText || fmt(item.price), cols[6], base, 8, true, 'right');
     y += drawn.h;
     rule(y, 0.4, [197, 205, 214]);
     y += 4;
