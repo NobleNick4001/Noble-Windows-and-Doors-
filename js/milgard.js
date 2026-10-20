@@ -72,6 +72,38 @@ export function makeEngine(D) {
     const f = D.fits[style];
     return p45((f.base + f.perUI * (w + h) + f.perSqFt * w * h / 144) * f.safety);
   }
+  function widthLerp(widths, row, w) {
+    if (w <= widths[0]) return row[0];
+    const last = widths.length - 1;
+    if (w >= widths[last]) return row[last];
+    for (let i = 1; i < widths.length; i++) {
+      if (w <= widths[i]) {
+        const span = widths[i] - widths[i - 1];
+        const t = span ? (w - widths[i - 1]) / span : 0;
+        return row[i - 1] + (row[i] - row[i - 1]) * t;
+      }
+    }
+    return row[last];
+  }
+  // White net-frame customer price for a V300 XO, from the OneLink tall sheet.
+  // Null means keep the existing grid (everything under 59.5" tall).
+  // 59.5" through 60" is a floor on that grid: 48x59.5 is $871.91, about a
+  // dollar under the 60" row. Over 60" is a separate tier (66", then 72")
+  // because OneLink jumps about $243 between 60" and 66". 84" wide is its own column.
+  function v300XoWhite(w, h) {
+    const T = D.v300XoTall;
+    if (!T?.widths || !T.price45) return null;
+    const row60 = T.price45[0], row66 = T.price45[1], row72 = T.price45[2];
+    if (!(row60 && row66 && row72)) return null;
+    if (h > 60) return widthLerp(T.widths, h <= 66 ? row66 : row72, w);
+    if (h + 1e-6 < 59.5) return null;
+    const at60 = widthLerp(T.widths, row60, w);
+    const drop = widthLerp(T.widths, row60, T.control?.w ?? 48) - (T.control?.price45 ?? at60);
+    const at595 = at60 - drop;
+    if (h >= 60) return at60;
+    const t = (h - 59.5) / 0.5;
+    return at595 + (at60 - at595) * t;
+  }
   function base250(style, w, h) {
     const g = D.grids[style];
     const Wi = g.W.findIndex((x) => x >= w), Hi = g.H.findIndex((x) => x >= h);
@@ -134,6 +166,11 @@ export function makeEngine(D) {
     }
     if (o.frame === 'zbar') items.push(['zbar', lin(D.up.zbar, sq)]);
     if (o.frame === 'block') items.push(['block', D.up.block.flat]);
+    if (series === 'V300' && style === 'hslider') {
+      const sheet = v300XoWhite(w, h);
+      const baseItem = sheet != null ? items.find((i) => i[0] === 'base') : null;
+      if (baseItem) baseItem[1] = h > 60 ? sheet : Math.max(baseItem[1], sheet);
+    }
     return { items, notes, errors: validate(series, style, w, h), material: items.reduce((s, i) => s + i[1], 0), limits: limits(series, style) };
   }
   function standardDoor(series, cfg, w, h) {

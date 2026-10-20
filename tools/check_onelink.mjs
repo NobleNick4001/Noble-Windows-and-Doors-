@@ -1,7 +1,7 @@
 // OneLink prices must match the grid and must never land under the OneLink observation.
 // Run: node tools/check_onelink.mjs
 import { readFileSync } from 'node:fs';
-import { milgardQuote } from '../js/milgard.js';
+import { milgardQuote, engineFor } from '../js/milgard.js';
 import { data, materialUnitPrice, priceWindow, installUnit, addonUnit, totals, quoteLine, quoteTotalRows } from '../js/core.js';
 
 const load = (p) => JSON.parse(readFileSync(p, 'utf8'));
@@ -227,6 +227,65 @@ check(milgardQuote(data.milgardOnelink, { brand: 'milgard', series: 'A250', type
 check(milgardQuote(data.milgardOnelink, { brand: 'milgard', series: 'A250', type: 'hslider', w: 48, h: 36, tempered: true }).errors.length > 0, 'A250 slider tempered is refused');
 const a250Job = totals({ lines: [{ brand: 'milgard', series: 'A250', type: 'picture', color: 'bronze-anodized', w: 48, h: 48, qty: 1, unit: 1465.92, install: { type: 'standard', surcharges: [] } }], extras: [], promoCode: '', stuccoRepair: { on: false } });
 near(a250Job.labor, 360, 'A250 window labor is the usual $360', 0.01);
+
+// V300 Trinsic XO: 72" tall at every width, 17.75–84" wide. Heights over 60" use the tall sheet.
+const Eng = engineFor(data.milgardOnelink);
+const xoLim = Eng.limits('V300', 'hslider');
+check(xoLim.wmin === 17.75 && xoLim.wmax === 84 && xoLim.hmin === 11.5 && xoLim.hmax === 72 && !xoLim.curve, 'V300 XO limits ' + JSON.stringify(xoLim));
+check(Eng.limits('V250', 'hslider').wmax === 95.5 && Eng.limits('V250', 'hslider').hmax === 71.5, 'V250 XO limits unchanged');
+check(Eng.validate('V300', 'hslider', 17.75, 11.5).length === 0, 'V300 XO minimum allowed');
+check(Eng.validate('V300', 'hslider', 84, 72).length === 0, 'V300 XO 84x72 allowed');
+check(Eng.validate('V300', 'hslider', 36, 72).length === 0 && Eng.validate('V300', 'hslider', 60, 72).length === 0, 'V300 height max stays 72 at other widths');
+check(Eng.validate('V300', 'hslider', 48, 72.01).some((e) => /Height/.test(e)), 'V300 over 72 blocked');
+check(Eng.validate('V300', 'hslider', 84.01, 60).some((e) => /Width/.test(e)), 'V300 over 84 blocked');
+check(Eng.validate('V300', 'hslider', 17.74, 48).some((e) => /Width/.test(e)), 'V300 under 17.75 blocked');
+near(win('V300', 'hslider', 48, 59.5), 871.91, 'V300 XO white 48x59.5', 0.01);
+near(win('V300', 'hslider', 48, 60), 872.67, 'V300 XO white 48x60', 0.01);
+near(win('V300', 'hslider', 48, 66), 1117.56, 'V300 XO white 48x66', 0.01);
+near(win('V300', 'hslider', 48, 72), 1126.66, 'V300 XO white 48x72', 0.01);
+near(win('V300', 'hslider', 48, 61), 1117.56, 'V300 just over 60 uses the 66in tier', 0.01);
+near(win('V300', 'hslider', 48, 67), 1126.66, 'V300 just over 66 uses the 72in tier', 0.01);
+near(win('V300', 'hslider', 48, 48), 709.79, 'V300 48x48 unchanged', 0.02);
+near(win('V300', 'hslider', 48, 54), 980.95, 'V300 48x54 unchanged', 0.02);
+near(win('V300', 'hslider', 48, 55), 797.95, 'V300 48x55 unchanged', 0.02);
+near(win('V300', 'hslider', 36, 24), 484.62, 'V300 36x24 unchanged', 0.02);
+near(win('V300', 'hslider', 42, 59.5), 974.64, 'V300 42x59.5 already above the sheet', 0.02);
+near(win('V250', 'hslider', 48, 59.5), 639.90, 'V250 48x59.5 unchanged', 0.02);
+near(win('V400', 'hslider', 48, 60), 876.40, 'V400 48x60 unchanged', 0.02);
+const tallSheet = csv('v300_xo_tall.csv').filter((row) => row.h !== '59.5');
+check(tallSheet.length === 18, 'tall sheet rows ' + tallSheet.length);
+for (const row of tallSheet) {
+  const price = win('V300', 'hslider', num(row.w), num(row.h));
+  notUnder(price, num(row.customer_price), `V300 XO ${row.w}x${row.h} sheet floor`);
+  if (num(row.h) > 60) near(price, num(row.customer_price), `V300 XO ${row.w}x${row.h} tall tier`, 0.01);
+}
+const zbar = materialUnitPrice({ brand: 'milgard', series: 'V300', type: 'hslider', color: 'ww', w: 48, h: 59.5, frame: 'zbar' });
+check(zbar > 871.91, 'Z-bar material stays on top of the white price ' + zbar);
+const black = win('V300', 'hslider', 48, 66, { color: 'bw' });
+check(black > 1117.56, 'tall tier still adds color ' + black);
+check(installUnit({ type: 'standard', surcharges: [] }) === 360, 'retrofit labor 360');
+check(installUnit({ type: 'block', surcharges: [] }) === 380, 'block labor 380');
+check(installUnit({ type: 'stucco-fin', surcharges: [] }) === 400, 'nail fin labor 400');
+check(addonUnit({ type: 'standard', surcharges: ['oversize'] }) === 85, 'large unit 85');
+check(addonUnit({ type: 'standard', surcharges: ['second-story'] }) === 75, 'two-story 75');
+
+// A250 single hung: 24" rough opening is 23.5" net frame. Other series stay put.
+const sh = Eng.limits('A250', 'vslider');
+check(sh.wmin === 11.5 && sh.wmax === 47.5 && sh.hmin === 23.5 && sh.hmax === 71.5, 'A250 single hung limits ' + JSON.stringify(sh));
+check(/24/.test(sh.hintH) && /23\.5/.test(sh.hintH), 'A250 hint names the rough opening');
+check(Eng.validate('A250', 'vslider', 30, 23).some((e) => /Height/.test(e)), 'A250 23in blocked');
+check(Eng.validate('A250', 'vslider', 30, 20).some((e) => /Height/.test(e)), 'A250 20in blocked');
+check(Eng.validate('A250', 'vslider', 30, 17.5).some((e) => /Height/.test(e)), 'A250 old 17.5in minimum blocked');
+check(Eng.validate('A250', 'vslider', 30, 23.5).length === 0, 'A250 23.5 net frame allowed');
+check(Eng.validate('A250', 'vslider', 30, 24).length === 0, 'A250 24in allowed');
+check(Eng.validate('A250', 'vslider', 11.5, 23.5).length === 0, 'A250 narrow minimum allowed');
+check(Eng.validate('A250', 'vslider', 11.49, 48).some((e) => /Width/.test(e)), 'A250 under 11.5 blocked');
+check(Eng.validate('A250', 'vslider', 47.5, 71.5).length === 0, 'A250 max net frame allowed');
+check(Eng.validate('A250', 'vslider', 48, 48).some((e) => /Width/.test(e)), 'A250 48 net frame blocked');
+check(Eng.validate('A250', 'vslider', 30, 72).some((e) => /Height/.test(e)), 'A250 72 net frame blocked');
+check(Eng.validate('V250', 'vslider', 30, 18).length === 0, 'V250 single hung minimum unchanged');
+check(Eng.limits('V300', 'vslider').hmin === 23.5 && Eng.limits('V300', 'vslider').hmax === 96 && Eng.limits('V300', 'vslider').wmax === 48, 'V300 single hung limits unchanged');
+check(Eng.limits('A250', 'hslider').hmin === 11.5, 'A250 slider minimum unchanged');
 
 if (errs.length) {
   console.log('FAILED', errs.length);

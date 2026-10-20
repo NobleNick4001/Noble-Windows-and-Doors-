@@ -227,12 +227,12 @@ export function render(root) {
       const upd = (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); };
       const seriesDef = brandById(l.brand)?.series?.find((s) => s.id === l.series);
       row.append(h('div', { class: 'edit' },
+        seriesDef && h('b', {}, 'Window type'),
+        seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
         h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', { type: 'text', value: l.label, oninput: (ev) => { l.label = ev.target.value; save(); } })),
         h('div', { class: 'grid3' }, stepper(isMilgardDoorLine(l) ? 'Net frame width' : 'Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper(isMilgardDoorLine(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 })),
         stepper('Units in this line', l.unitsPerLine || 1, (v) => { l.unitsPerLine = parseInt(v, 10) || 1; reprice(l); save(); refreshTotals(); }, { min: 1 }),
         customPriceFields(l, () => { reprice(l); save(); refreshTotals(); }, 'li-' + l.id),
-        seriesDef && h('b', {}, 'Window type'),
-        seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
         seriesDef && !isMilgardDoorLine(l) && h('b', {}, 'Frame color'),
         seriesDef && !isMilgardDoorLine(l) && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
         (l.pricingMode === 'onelink' || l.brand === 'milgard' && (isMilgardDoorLine(l) || ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning'].includes(l.type)))
