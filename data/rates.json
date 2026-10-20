@@ -22,6 +22,14 @@
    "name": "Casement"
   },
   {
+   "id": "dcasement",
+   "name": "Double casement"
+  },
+  {
+   "id": "archtop",
+   "name": "Equal-leg arch top"
+  },
+  {
    "id": "arch",
    "name": "Shape / Arch Top"
   },
@@ -162,7 +170,9 @@
       "vslider",
       "picture",
       "casement",
-      "awning"
+      "dcasement",
+      "awning",
+      "archtop"
      ]
     },
     {
@@ -181,7 +191,9 @@
       "vslider",
       "picture",
       "casement",
+      "dcasement",
       "awning",
+      "archtop",
       "2panel",
       "3panel",
       "4panel"
@@ -203,7 +215,9 @@
       "vslider",
       "picture",
       "casement",
+      "dcasement",
       "awning",
+      "archtop",
       "2panel",
       "3panel",
       "4panel"

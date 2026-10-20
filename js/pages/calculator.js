@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView } from '../core.js';
 import { renderMilgard } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
 
@@ -159,12 +159,22 @@ export function installEditor(inst, onChange, idp = 'inst', line = null) {
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Override install price ($ per window, optional)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-override', value: inst.override ?? '', placeholder: 'leave blank to use the price above', oninput: (e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); inst.override = v === '' ? null : v; onChange(); } })));
 }
 
+function focusRoom() {
+  requestAnimationFrame(() => {
+    const el = document.getElementById('in-label');
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+    el.scrollIntoView({ block: 'center' });
+  });
+}
+
 export function render(root) {
   const brand = normalize();
   if (brand.id === 'milgard') {
     renderMilgard(root, { calc, persist, rerender: () => render(root) });
     return;
   }
+  const view = captureView();
   const wrap = h('div', { class: 'page calc' });
   const tabs = h('div', { class: 'tabs seg' }, data.rates.brands.map((b) => h('button', { class: 'seg-btn' + (b.id === calc.brand ? ' on' : ''), onclick: () => { calc.brand = b.id; persist(); rerender(); } }, b.name, b.status !== 'active' && h('small', {}, ' soon'))));
   wrap.append(h('h1', {}, 'Price Calculator'), tabs);
@@ -172,7 +182,9 @@ export function render(root) {
   if (brand.status !== 'active' || !brand.series.length) {
     wrap.append(h('div', { class: 'card soon' }, h('h2', {}, `${brand.name} rates coming soon`),
       h('p', {}, `The ${brand.name} rate table hasn't been loaded yet. When Nick has the quotes, the rates drop into `, h('code', {}, 'data/rates.json'), ' and this tab turns on automatically — no code changes needed.')));
-    root.replaceChildren(wrap); return;
+    root.replaceChildren(wrap);
+    restoreView(view);
+    return;
   }
   const series = brand.series.find((s) => s.id === calc.series);
   const args = () => ({ brand: calc.brand, series: calc.series, color: calc.color, type: calc.type, w: parseFloat(calc.w), h: parseFloat(calc.h), qty: parseInt(calc.qty) || 1, unitsPerLine: Number(calc.unitsPerLine) || 1, options: calc.options, addons: calc.addons, supplierPrice: calc.supplierPrice, customDescription: calc.customDescription, install: calc.install });
@@ -182,8 +194,9 @@ export function render(root) {
     h('div', { class: 'card' }, h('h3', {}, 'Series'), h('div', { class: 'chips' }, brand.series.map((s) => h('button', { class: 'chip' + (s.id === calc.series ? ' on' : ''), onclick: () => { calc.series = s.id; persist(); rerender(); } }, s.name)))),
     h('div', { class: 'card' }, h('h3', {}, series.id === '8900' ? 'Door type' : 'Window type'), h('div', { class: 'tiles' }, [...series.types, 'custom_supplier'].map((t) => h('button', { class: 'tile' + (t === calc.type ? ' on' : ''), onclick: () => { calc.type = t; persist(); rerender(); } }, icon(t, frameKeyFor(calc.color)), h('span', {}, typeName(t)))))),
     h('div', { class: 'card' }, h('h3', {}, 'Size'),
-      h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', { type: 'text', id: 'in-label', value: calc.label, placeholder: 'e.g. Master bedroom, Kitchen sink', oninput: (e) => { calc.label = e.target.value; persist(); } })),
-      h('div', { class: 'grid3' }, stepper('Width', calc.w, (v) => { calc.w = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-w' }), stepper('Height', calc.h, (v) => { calc.h = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-h' }), stepper('Qty', calc.qty, (v) => { calc.qty = v; persist(); update(); }, { step: 1, min: 1, id: 'in-q' })),
+      h('div', { class: 'room-size' },
+        h('label', { class: 'field room-label' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', { type: 'text', id: 'in-label', value: calc.label || '', placeholder: 'e.g. Master bedroom, Kitchen sink', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', oninput: (e) => { calc.label = e.target.value; persist(); } })),
+        h('div', { class: 'grid3' }, stepper('Width', calc.w, (v) => { calc.w = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-w' }), stepper('Height', calc.h, (v) => { calc.h = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-h' }), stepper('Qty', calc.qty, (v) => { calc.qty = v; persist(); update(); }, { step: 1, min: 1, id: 'in-q' }))),
       stepper('Units in this line', calc.unitsPerLine, (v) => { calc.unitsPerLine = v; persist(); update(); }, { step: 1, min: 1, id: 'in-units' }),
       h('p', { class: 'fine' }, 'A factory mull is this many units, each priced at this size. There is no separate mull charge.'),
       customPriceFields(calc, () => { persist(); update(); })),
@@ -199,6 +212,7 @@ export function render(root) {
   const right = h('div', { class: 'col sticky' }, priceBox, miniEstimate());
   wrap.append(h('div', { class: 'two' }, left, right));
   root.replaceChildren(wrap);
+  restoreView(view);
 
   function update() {
     const p = priceWindow(args());
@@ -241,7 +255,7 @@ export function render(root) {
     const e = estimates.current();
     e.lines.push({ id: uid(), label: calc.label || (calc.type === 'custom_supplier' || String(typeName(calc.type)).toLowerCase().includes('door') ? `Unit ${e.lines.length + 1}` : `Window ${e.lines.length + 1}`), brand: calc.brand, series: calc.series, type: calc.type, color: calc.color, w: a.w || 0, h: a.h || 0, qty: a.qty, unitsPerLine: a.unitsPerLine, options: [...(calc.options || [])], addons: [...(calc.addons || [])], supplierPrice: calc.type === 'custom_supplier' || isCustomLine(calc) ? calc.supplierPrice : null, customDescription: calc.customDescription || '', unitBase: p.unitBase, optionsEach: p.optionsEach, unit: p.unit, rate: p.rate, rateSet: settings.rateSet, estimated: p.estimated, pricingMode: p.mode,
       install: JSON.parse(JSON.stringify(calc.install)), installUnit: installUnit(calc.install) });
-    estimates.persist(); calc.label = ''; persist(); toast(`Added to ${e.number}`); rerender();
+    estimates.persist(); calc.label = ''; persist(); toast(`Added to ${e.number}`); rerender(); focusRoom();
   }
   function miniEstimate() {
     const e = estimates.current(); const t = totals(e);

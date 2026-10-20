@@ -28,7 +28,7 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
   const glass = `fill="#bfe3f5" fill-opacity="${glassOpacity}"`;
   const rect = (x, y, w, hh, fill, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${fill}" stroke="${e}" stroke-width="1.5" ${extra}/>`;
   let body = '';
-  const isArch = type === 'arch';
+  const isArch = type === 'arch' || type === 'archtop';
   const archR = W / 2;
   if (isArch) {
     // arch-top: rectangle body with semicircular head (head radius = W/2, capped)
@@ -66,12 +66,21 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
       body += rect(gx, gy + gh - st, gw, st, i) + rect(gx, gy + half + st / 2, st, half - st / 2, i) + rect(gx + gw - st, gy + half + st / 2, st, half - st / 2, i);
       const ax = W / 2;
       body += `<path d="M${ax},${gy + gh * 0.62} v${gh * 0.2} m-${st * 0.9},-${st * 1.2} l${st * 0.9},${st * 1.2} l${st * 0.9},-${st * 1.2}" stroke="${e}" stroke-width="2.5" fill="none" opacity=".55"/>`;
-    } else if (type === 'casement') {
+    } else if (type === 'casement' || type === 'dcasement') {
       body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
       body += rect(gx, gy, gw, st, i) + rect(gx, gy + gh - st, gw, st, i) + rect(gx, gy, st, gh, i) + rect(gx + gw - st, gy, st, gh, i);
-      // hinge-side triangle (hinge on left): lines from right-middle to left corners
-      body += `<path d="M${gx + gw - st},${gy + gh / 2} L${gx + st},${gy + st} M${gx + gw - st},${gy + gh / 2} L${gx + st},${gy + gh - st}" stroke="${e}" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".6"/>`;
-      body += `<rect x="${gx + gw - st - 4}" y="${gy + gh / 2 - 14}" width="9" height="28" rx="3" fill="${e}" opacity=".7"/>`;
+      if (type === 'dcasement') {
+        const half = gw / 2;
+        const midL = gx + half - st * 0.2;
+        const midR = gx + half + st * 0.2;
+        body += rect(gx + half - st * 0.45, gy, st * 1.2, gh, f);
+        body += `<path d="M${midL},${gy + gh / 2} L${gx + st},${gy + st} M${midL},${gy + gh / 2} L${gx + st},${gy + gh - st}" stroke="${e}" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".6"/>`;
+        body += `<path d="M${midR},${gy + gh / 2} L${gx + gw - st},${gy + st} M${midR},${gy + gh / 2} L${gx + gw - st},${gy + gh - st}" stroke="${e}" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".6"/>`;
+      } else {
+        // hinge-side triangle (hinge on left): lines from right-middle to left corners
+        body += `<path d="M${gx + gw - st},${gy + gh / 2} L${gx + st},${gy + st} M${gx + gw - st},${gy + gh / 2} L${gx + st},${gy + gh - st}" stroke="${e}" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".6"/>`;
+        body += `<rect x="${gx + gw - st - 4}" y="${gy + gh / 2 - 14}" width="9" height="28" rx="3" fill="${e}" opacity=".7"/>`;
+      }
     } else if (type === 'awning') {
       body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
       body += rect(gx, gy, gw, st, i) + rect(gx, gy + gh - st, gw, st, i) + rect(gx, gy, st, gh, i) + rect(gx + gw - st, gy, st, gh, i);

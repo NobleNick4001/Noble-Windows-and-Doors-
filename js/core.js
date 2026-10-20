@@ -40,6 +40,38 @@ export function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+// Keep the caret and scroll when a form is rebuilt. Safari scrolls to the top
+// and drops the keyboard if the focused input is destroyed.
+export function captureView() {
+  const y = window.scrollY || 0;
+  const el = document.activeElement;
+  if (!el || el === document.body || el === document.documentElement || !el.id) return { y };
+  const snap = { y, id: el.id };
+  if (typeof el.selectionStart === 'number') {
+    snap.start = el.selectionStart;
+    snap.end = el.selectionEnd;
+  }
+  return snap;
+}
+export function restoreView(snap) {
+  if (!snap) return;
+  if (snap.id) {
+    const el = document.getElementById(snap.id);
+    if (el && typeof el.focus === 'function') {
+      try { el.focus({ preventScroll: true }); } catch { /* older webviews */ }
+      if (typeof snap.start === 'number' && typeof el.setSelectionRange === 'function') {
+        try { el.setSelectionRange(snap.start, snap.end ?? snap.start); } catch { /* number inputs */ }
+      }
+    }
+  }
+  if (typeof snap.y === 'number') window.scrollTo(0, snap.y);
+}
+export const PRICE_PENDING_LABEL = 'Price pending';
+export function linePriceText(line) {
+  if (line?.pricePending) return PRICE_PENDING_LABEL;
+  return fmt((Number(line?.unit) || 0) * (Number(line?.qty) || 0));
+}
+
 // ---------- data ----------
 export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null };
 export const OFFLINE_MESSAGE = "You're offline, try again when connected";
@@ -230,6 +262,7 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
     title,
     detail: bits.filter(Boolean).join(' · '),
     price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
+    priceText: line.pricePending ? PRICE_PENDING_LABEL : '',
     brandName: brandName || 'Windows',
   };
 }
@@ -279,6 +312,7 @@ export function quoteLine(line, { ascii = false } = {}) {
   if (ids.has('flush_fin_trim')) details.push('Flush fin + interior trim');
   if (ids.has('screen')) details.push('Screen');
   if (line.pureview || ids.has('pureview')) details.push('PureView screen');
+  if (line.pricePending) details.push('Price pending — not a OneLink price');
   if (Number(line.unitsPerLine) > 1) details.push(`${line.unitsPerLine} units`);
   const times = ascii ? 'x' : '×';
   return {
@@ -288,6 +322,7 @@ export function quoteLine(line, { ascii = false } = {}) {
     size: `${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`,
     qty: Number(line.qty) || 1,
     price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
+    priceText: line.pricePending ? PRICE_PENDING_LABEL : '',
   };
 }
 export function windowSections(lines) {
@@ -319,8 +354,13 @@ export function fittedIncludes(line) {
   return 'Included in the price: ' + (Array.isArray(inc) ? inc.join(', ') : inc) + '.';
 }
 export function variableRateInfo(brand, series, color, type) {
-  const model = classifyLine({ brand, series, color, type });
-  if (model.mode === 'onelink') return { onelink: true };
+  const probe = { brand, series, color, type, w: 36, h: 48 };
+  const model = classifyLine(probe);
+  if (model.mode === 'onelink') {
+    const q = milgardQuote(data.milgardOnelink, probe);
+    if (q?.pricePending) return { onelink: true, pricePending: true, perUI: q.perUI || 0 };
+    return { onelink: true };
+  }
   if (model.mode !== 'variable') return null;
   const t = model.typeDef;
   const c = model.colorDef || {};
@@ -427,11 +467,12 @@ function buildMaterial(line) {
   if (model.mode === 'onelink') {
     const q = milgardQuote(data.milgardOnelink, line);
     const units = lineUnits(line);
-    const unit = roundMoney(q.material * units);
+    const pricePending = !!q.pricePending;
+    const unit = pricePending ? 0 : roundMoney(q.material * units);
     return {
       mode: 'onelink', unit, unitBase: unit, optionsEach: 0,
-      rate: null, estimated: false, wh: w + h, fromQuotes: true, detail: null,
-      notes: q.notes, errors: q.errors, onelink: q,
+      rate: q.perUI ?? null, estimated: false, wh: w + h, fromQuotes: !pricePending, detail: null,
+      notes: q.notes, errors: q.errors, onelink: q, pricePending,
     };
   }
   if (model.mode === 'variable') {

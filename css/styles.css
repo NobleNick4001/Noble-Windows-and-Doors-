@@ -30,6 +30,12 @@ details.card summary{cursor:pointer;margin-bottom:.6rem;min-height:30px}
 .btn[disabled]{opacity:.4}
 .link{background:none;border:0;color:var(--blue);font:inherit;padding:.4rem 0;cursor:pointer;text-decoration:underline}
 .field{display:flex;flex-direction:column;gap:.25rem;margin:.3rem 0}.lbl{font-size:.78rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.03em}.lbl em{font-style:normal;text-transform:none}
+.room-size{display:flex;flex-direction:column;gap:.15rem}
+.room-size>.room-label{order:0}
+.room-size>:not(.room-label){order:1}
+.room-label{scroll-margin-top:96px}
+.big.pending{font-size:2rem}
+.pending-price{color:var(--orange-d)}
 input[type=text],input[type=tel],input[type=email],input[type=password],input[type=number],input[type=date],select,textarea{width:100%;min-height:48px;padding:.55rem .75rem;border:1.5px solid #b7cfe2;border-radius:12px;font:inherit;background:#fff;color:var(--ink)}
 input:focus,select:focus,textarea:focus{outline:3px solid rgba(242,140,40,.45);border-color:var(--orange)}
 .stepper input{text-align:center;font-size:1.25rem;font-weight:700}

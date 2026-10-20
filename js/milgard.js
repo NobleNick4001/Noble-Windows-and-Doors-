@@ -28,6 +28,8 @@ export const A250_WINDOW_COLORS = [
   ['bronze-anodized', 'Bronze Anodized'],
 ];
 export const A250_WINDOW_STYLES = ['hslider', 'xox', 'vslider', 'picture', 'casement'];
+// Vinyl-only styles that use pendingWindows until a real OneLink rate is entered.
+export const PENDING_WINDOW_STYLES = ['dcasement', 'archtop'];
 // What glass upgrades are priced for an A250 window style (from the Milgard A250 quote).
 export function a250GlassOptions(D, style) {
   const A = D?.a250Windows || {};
@@ -230,6 +232,67 @@ export function engineFor(D) {
   return engine;
 }
 
+export function pendingStyle(D, style) {
+  const block = D?.pendingWindows;
+  const row = block?.styles?.[style];
+  if (!row) return null;
+  const pricePending = row.pricePending != null ? !!row.pricePending : block.pricePending !== false;
+  return { ...row, id: style, pricePending, perUI: Number(row.perUI) || 0 };
+}
+
+function pendingLimits(D, series, style) {
+  const block = D?.pendingWindows?.limits?.[style];
+  if (!block) return null;
+  const L = Object.assign({}, block.all, block[series] || {});
+  const sashes = Number(L.sashes) || 0;
+  if (sashes > 1 && L.sashWmin != null && L.sashWmax != null) {
+    L.wmin = L.sashWmin * sashes;
+    L.wmax = L.sashWmax * sashes;
+  }
+  return L;
+}
+
+export function styleLimits(D, series, style) {
+  const pending = pendingLimits(D, series, style);
+  if (pending) return pending;
+  const E = engineFor(D);
+  if (!E || !D?.limits?.[style]) return null;
+  return E.limits(series, style);
+}
+
+function pendingErrors(D, series, style, w, h) {
+  const L = pendingLimits(D, series, style);
+  if (!L) return ['This style has no size limits'];
+  if (!(w > 0 && h > 0)) return ['Enter width and height'];
+  const e = [];
+  const sashes = Number(L.sashes) || 0;
+  if (sashes > 1 && L.sashWmin != null) {
+    const sash = w / sashes;
+    if (sash < L.sashWmin - 1e-6 || sash > L.sashWmax + 1e-6) {
+      e.push(`Each sash must be ${L.sashWmin}–${L.sashWmax}" wide (overall ${L.wmin}–${L.wmax}")`);
+    }
+  } else if (w < L.wmin || w > L.wmax) e.push(`Width must be ${L.wmin}–${L.wmax}"`);
+  if (h < L.hmin || h > L.hmax) e.push(`Height must be ${L.hmin}–${L.hmax}"`);
+  if (style === 'archtop' && w > 0 && h <= w / 2) {
+    e.push('Height must be taller than half the width for an equal-leg arch over a unit. Eyebrow and quarter arch are different shapes.');
+  }
+  return e;
+}
+
+function pendingWindow(D, series, style, w, h) {
+  const row = pendingStyle(D, style);
+  const errors = pendingErrors(D, series, style, w, h);
+  const perUI = row?.perUI || 0;
+  const material = (Number(w) + Number(h)) * perUI;
+  const notes = [];
+  if (row?.pricePending) notes.push('Price pending — placeholder rate, not a OneLink price.');
+  if (row?.note) notes.push(row.note);
+  return {
+    items: [['base', material]], notes, errors, material, perUI,
+    limits: pendingLimits(D, series, style), pricePending: !!row?.pricePending,
+  };
+}
+
 export function isMilgardDoorLine(line) {
   if (!line || line.brand !== 'milgard') return false;
   if (!DOOR_SERIES.includes(line.series)) return false;
@@ -262,6 +325,10 @@ export function milgardQuote(D, line) {
     const cfg = DOOR_CONFIG[line.type];
     if (!D.doors?.[line.series + '_' + cfg]) return null;
     return { kind: 'door', cfg, ...E.door(line.series, cfg, w, h, optionsFromLine(line)) };
+  }
+  if (pendingStyle(D, line.type)) {
+    if (!WINDOW_SERIES.includes(line.series) || line.series === 'A250') return null;
+    return { kind: 'window', ...pendingWindow(D, line.series, line.type, w, h) };
   }
   if (!WINDOW_SERIES.includes(line.series) || !D.grids?.[line.type]) return null;
   if (line.series === 'A250' && !D.a250Windows?.perUI?.[line.type]) return null;

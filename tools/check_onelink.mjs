@@ -1,7 +1,7 @@
 // OneLink prices must match the grid and must never land under the OneLink observation.
 // Run: node tools/check_onelink.mjs
 import { readFileSync } from 'node:fs';
-import { milgardQuote, engineFor } from '../js/milgard.js';
+import { milgardQuote, engineFor, styleLimits, isMilgardDoorLine, A250_WINDOW_STYLES } from '../js/milgard.js';
 import { data, materialUnitPrice, priceWindow, installUnit, addonUnit, totals, quoteLine, quoteTotalRows } from '../js/core.js';
 
 const load = (p) => JSON.parse(readFileSync(p, 'utf8'));
@@ -286,6 +286,57 @@ check(Eng.validate('A250', 'vslider', 30, 72).some((e) => /Height/.test(e)), 'A2
 check(Eng.validate('V250', 'vslider', 30, 18).length === 0, 'V250 single hung minimum unchanged');
 check(Eng.limits('V300', 'vslider').hmin === 23.5 && Eng.limits('V300', 'vslider').hmax === 96 && Eng.limits('V300', 'vslider').wmax === 48, 'V300 single hung limits unchanged');
 check(Eng.limits('A250', 'hslider').hmin === 11.5, 'A250 slider minimum unchanged');
+
+// Double casement and equal-leg arch top: placeholder rates, one edit site.
+const pending = data.milgardOnelink.pendingWindows;
+check(pending && pending.pricePending === true, 'pendingWindows is the placeholder block');
+check(pending.styles.dcasement.perUI === 0 && pending.styles.archtop.perUI === 0, 'placeholder perUI stays 0 until a real rate is entered');
+const dc = styleLimits(data.milgardOnelink, 'V400', 'dcasement');
+check(dc.sashWmin === 14 && dc.sashWmax === 36 && dc.sashes === 2 && dc.wmin === 28 && dc.wmax === 72 && dc.hmin === 17.5 && dc.hmax === 72, 'double casement uses casement limits per sash ' + JSON.stringify(dc));
+check(dc.wmax !== 42, 'double casement does not use the V400 single-casement width exception');
+const arch400 = styleLimits(data.milgardOnelink, 'V400', 'archtop');
+const arch250 = styleLimits(data.milgardOnelink, 'V250', 'archtop');
+check(arch400.hmax === 78, 'V400 arch top overall height max ' + arch400.hmax);
+check(arch250.hmax === 96 && arch250.wmin === 14, 'other series arch top stays a placeholder ' + JSON.stringify(arch250));
+const quoteOf = (series, type, w, h, extra = {}) => milgardQuote(data.milgardOnelink, { brand: 'milgard', series, type, color: 'ww', w, h, ...extra });
+const dcOk = quoteOf('V250', 'dcasement', 30, 48);
+check(dcOk.pricePending === true && dcOk.errors.length === 0 && dcOk.material === 0, '30x48 double casement is allowed and pending');
+check(dcOk.notes.some((n) => /Price pending/.test(n)), 'pending note is on the quote');
+check(quoteOf('V250', 'dcasement', 20, 48).errors.some((e) => /sash/.test(e)), '20in overall is too narrow per sash');
+check(quoteOf('V250', 'dcasement', 80, 48).errors.some((e) => /sash/.test(e)), '80in overall is too wide per sash');
+check(quoteOf('V250', 'dcasement', 30, 17).errors.some((e) => /Height/.test(e)), 'double casement height 17 blocked');
+check(quoteOf('V250', 'dcasement', 30, 17.5).errors.length === 0, 'double casement height 17.5 allowed');
+check(quoteOf('V250', 'dcasement', 30, 72).errors.length === 0, 'double casement height 72 allowed');
+check(quoteOf('V250', 'dcasement', 30, 80).errors.some((e) => /Height/.test(e)), 'double casement height 80 blocked');
+check(quoteOf('V400', 'archtop', 36, 78).errors.length === 0, 'V400 arch 36x78 allowed');
+check(quoteOf('V400', 'archtop', 36, 79).errors.some((e) => /Height/.test(e)), 'V400 arch over 78 blocked');
+check(quoteOf('V300', 'archtop', 36, 78).errors.length === 0, 'non-V400 arch 78 allowed on the placeholder');
+check(quoteOf('V300', 'archtop', 36, 97).errors.some((e) => /Height/.test(e)), 'non-V400 arch over placeholder max blocked');
+check(quoteOf('V250', 'archtop', 60, 30).errors.some((e) => /equal-leg/.test(e)), 'short arch is not an equal-leg arch over a unit');
+check(quoteOf('A250', 'dcasement', 30, 48) == null, 'A250 does not price the new styles');
+check(!A250_WINDOW_STYLES.includes('dcasement') && !A250_WINDOW_STYLES.includes('archtop'), 'A250 style list hides the new types');
+const pendingLine = { brand: 'milgard', series: 'V250', type: 'dcasement', color: 'ww', w: 30, h: 48, qty: 1 };
+const pendingPrice = priceWindow(pendingLine);
+check(pendingPrice.pricePending === true && pendingPrice.unit === 0 && pendingPrice.mode === 'onelink', 'screen stores $0 while the price is pending');
+check(!isMilgardDoorLine(pendingLine), 'double casement is a window');
+for (const type of ['dcasement', 'archtop']) {
+  const line = { brand: 'milgard', series: 'V300', type, w: 36, h: 48 };
+  check(installUnit({ type: 'standard', surcharges: [] }, line) === 360, type + ' retrofit labor');
+  check(installUnit({ type: 'block', surcharges: [] }, line) === 380, type + ' block labor');
+  check(installUnit({ type: 'stucco-fin', surcharges: [] }, line) === 400, type + ' nail fin labor');
+  check(addonUnit({ type: 'standard', surcharges: ['oversize'] }, line) === 85, type + ' large');
+  check(addonUnit({ type: 'standard', surcharges: ['second-story'] }, line) === 75, type + ' two-story');
+}
+const live = data.milgardOnelink;
+const ready = JSON.parse(JSON.stringify(live));
+ready.pendingWindows.pricePending = false;
+ready.pendingWindows.styles.dcasement.perUI = 12.5;
+data.milgardOnelink = ready;
+const real = milgardQuote(ready, { brand: 'milgard', series: 'V300', type: 'dcasement', color: 'ww', w: 30, h: 48, tempered: true, grids: 'flat' });
+check(real.pricePending === false && Math.abs(real.material - 78 * 12.5) < 0.001, 'real perUI is (W+H) x rate and ignores option upcharges ' + real.material);
+const readyShown = priceWindow({ brand: 'milgard', series: 'V300', type: 'dcasement', color: 'ww', w: 30, h: 48, qty: 2 });
+check(readyShown.pricePending === false && Math.abs(readyShown.unit - 975) < 0.001, 'priceWindow uses the real perUI once pending is off ' + readyShown.unit);
+data.milgardOnelink = live;
 
 if (errs.length) {
   console.log('FAILED', errs.length);
