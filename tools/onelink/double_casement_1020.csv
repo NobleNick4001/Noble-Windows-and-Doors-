@@ -1,0 +1,21 @@
+series,color,w,h,customer_price_45,list_price,notes
+V300 Trinsic,White/White,30,36,1229.01,675.96,list=cust*0.55 (calc)
+V300 Trinsic,White/White,40,48,1385.96,762.28,list read directly
+V300 Trinsic,White/White,48,54,1482.25,815.24,list read directly
+V300 Trinsic,White/White,56,60,1653.59,909.48,list read directly
+V300 Trinsic,White/White,72,72,1895.45,1042.50,list read directly; max size W72 H72
+V300 Trinsic,Black/White,30,36,1766.59,971.62,list read directly
+V300 Trinsic,Black/White,40,48,1943.76,1069.07,list read directly
+V300 Trinsic,Black/White,48,54,2050.93,1128.01,list read directly
+V300 Trinsic,Black/White,56,60,2246.33,1235.48,list read directly
+V300 Trinsic,Black/White,72,72,2513.91,1382.65,list read directly; max size
+V400 Tuscany,White/White,30,36,1394.32,766.88,list read directly
+V400 Tuscany,White/White,40,48,1571.87,864.53,list read directly
+V400 Tuscany,White/White,48,54,1683.13,925.72,list read directly
+V400 Tuscany,White/White,56,60,1880.40,1034.22,list read directly
+V400 Tuscany,White/White,72,72,2154.22,1184.82,list read directly; max size
+V400 Tuscany,Black/White,30,36,1957.11,1076.41,list read directly
+V400 Tuscany,Black/White,40,48,2155.95,1185.77,list read directly
+V400 Tuscany,Black/White,48,54,2278.60,1253.23,list read directly
+V400 Tuscany,Black/White,56,60,2501.05,1375.58,list read directly
+V400 Tuscany,Black/White,72,72,2801.97,1541.08,list read directly; max size

@@ -47,6 +47,12 @@ export function render(root) {
       const a250Rate = b.id === 'milgard' && se.id === 'A250' ? data.milgardOnelink?.a250Windows?.perUI?.[t] : null;
       if (info?.pricePending) return h('td', { class: 'est' }, 'Price pending', h('div', { class: 'fine' }, 'placeholder, not OneLink'));
       if (info?.onelink && a250Rate) return h('td', { class: 'from-quotes' }, a250Rate.toFixed(2), h('div', { class: 'fine' }, '$ per UI · from quotes'));
+      if (info?.onelink && (info.base || info.perUI)) {
+        const bits = [];
+        if (info.base) bits.push('$' + info.base.toFixed(2));
+        if (info.perUI) bits.push(trimNum(info.perUI) + '/UI');
+        return h('td', { class: 'from-quotes' }, bits.join(' + '), h('div', { class: 'fine' }, 'base + united inches'));
+      }
       if (info?.onelink) return h('td', { class: 'from-quotes' }, 'OneLink', h('div', { class: 'fine' }, 'grid'));
       if (info) {
         const bits = [];
@@ -64,7 +70,7 @@ export function render(root) {
       return h('td', { class: r?.estimated ? 'est' : '' }, r ? r.rate.toFixed(2) + (r.estimated ? ' E' : '') : '—');
     })));
     const note = b.id === 'milgard'
-      ? 'OneLink = grid price for V250, V300, and V400 windows and for V300, V400, and A250 patio doors. Customer price is never under OneLink. A250 windows are $ per inch of width + height from Milgard A250 quotes (Clear and Bronze Anodized same price). Price pending is a placeholder in pendingWindows, not a real OneLink number. E marks a stored rate the grid does not cover.'
+      ? 'OneLink = grid price for V250, V300, and V400 windows and for V300, V400, and A250 patio doors. Customer price is never under OneLink. A250 windows are $ per inch of width + height from Milgard A250 quotes (Clear and Bronze Anodized same price). Double casement White and Black/White are base + $ per inch of width + height (V300 Trinsic, V400 Tuscany). Adobe uses that White price. V250, Bronze, Black/Black, and the arch top stay Price pending. Price pending is a placeholder in pendingWindows, not a real OneLink number. E marks a stored rate the grid does not cover.'
       : b.id === 'iwc'
         ? '8200 windows and 8900 doors in Bronze Anodized are from quotes. Clear Anodized, Mojave Beige, and White use the custom supplier-price line.'
         : 'From quotes: base, $ per UI, and $ per sq ft. Sandtone is priced like Black. White/White subtracts $191.71 per unit. Dark Bronze / White, Terratone, and Black/White use × 1.003. E marks the old $/inch table, used for awning.';
