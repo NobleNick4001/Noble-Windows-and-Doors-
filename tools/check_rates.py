@@ -97,7 +97,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v44-andersen-iq'" in sw, 'service worker cache should be nwd-sales-v44-andersen-iq')
+check("const CACHE = 'nwd-sales-v45-brochures'" in sw, 'service worker cache should be nwd-sales-v45-brochures')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
 check('data/purchase-agreement.json' in sw, 'purchase agreement should be precached')
@@ -117,6 +117,12 @@ check('assets/gallery/gallery.json' in sw, 'gallery manifest should be precached
 check('placeholder-1.svg' not in sw, 'placeholder gallery should not be precached')
 for banned in ('milgard-v300-01.jpg', 'site-finished-01.jpg'):
     check(banned not in sw, 'gallery photo should not be precached: ' + banned)
+check('js/pages/brochures.js' in sw, 'brochures page should be precached')
+precache = sw.split('const PRECACHE', 1)[1].split('];', 1)[0]
+for pdf in ('milgard-trinsic-v300.pdf', 'milgard-tuscany-v400.pdf', 'milgard-vinyl-line.pdf', 'milgard-window-selection-guide.pdf', 'milgard-series-comparison-chart.pdf', 'andersen-100-series.pdf'):
+    check(os.path.isfile('brochures/' + pdf), 'missing brochure ' + pdf)
+    check(pdf not in precache, 'brochure PDF should not be precached: ' + pdf)
+check('andersen-100-product-guide' not in sw and not os.path.exists('brochures/andersen-100-product-guide.pdf'), 'do not ship the Andersen 100 product guide')
 
 glass = json.load(open('data/obscure-glass.json'))
 sections = {s['id']: s for s in glass['sections']}

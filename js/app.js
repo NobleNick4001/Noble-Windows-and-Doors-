@@ -6,6 +6,7 @@ import * as estimate from './pages/estimate.js';
 import * as contract from './pages/contract.js';
 import * as options from './pages/options.js';
 import * as gallery from './pages/gallery.js';
+import * as brochures from './pages/brochures.js';
 import * as obscure from './pages/obscure.js';
 import * as overlay from './pages/overlay.js';
 import * as settings from './pages/settings.js';
@@ -17,6 +18,7 @@ const ROUTES = [
   ['saved', 'Mine', '🗂', (r) => estimate.renderList(r)],
   ['options', 'Options', '🪟', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', '🖼', (r) => gallery.render(r)],
+  ['brochures', 'Brochures', '📘', (r) => brochures.render(r)],
   ['preview', 'Overlay', '📷', (r) => overlay.render(r)],
   ['settings', 'Settings', '⚙️', (r) => settings.render(r)],
 ];
@@ -33,6 +35,7 @@ function route() {
   const routes = navRoutes();
   const r = routes.find((x) => x[0] === name) || routes[0];
   gallery.stop();
+  brochures.stop();
   obscure.stop();
   document.body.dataset.route = r[0] + (sub ? '-' + sub : '');
   $('#nav').replaceChildren(...routes.map(([id, label, ico]) => h('a', { href: '#/' + id, class: id === r[0] ? 'on' : '' }, h('span', { class: 'ico' }, ico), h('span', { class: 'nl' }, label))));
