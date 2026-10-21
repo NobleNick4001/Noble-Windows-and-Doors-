@@ -1,23 +1,21 @@
 {
-  "_readme": "Frame and install copy for the Frame Types screen. Edit name, desc (one sentence), bestFor (bullets), and sees (what the homeowner sees). installType must be an id in data/install.json. Choosing a frame on an estimate line sets that install type and its per-window labor price: zbar retrofit / Z-bar uses standard (Jump Frame, $360), block uses block ($380), nailfin uses stucco-fin (Nail Fin RnR Stucco, $400). diagram is the picture key: zbar, block, or nailfin. The pictures are original SVGs in js/pages/frame-types.js. The license note at the top of that file lists the guides that were reviewed and not copied.",
+  "_readme": "Frame and install copy for the Frame Types screen. desc is the one sentence under the title. outside captions sit under the two yard pictures. sideLabels are the big words under the side picture (four at most). steps are the three 'what we do' lines. compare is the quick row: stucco, mess, and time. The price in that row is not stored here. It comes from installType in data/install.json: zbar -> standard (Jump Frame, $360), block -> block ($380), nailfin -> stucco-fin (Nail Fin RnR Stucco, $400). The pictures are original SVGs in js/pages/frame-types.js. The comment at the top of that file lists the guides that were reviewed and not copied.",
   "types": [
     {
       "id": "zbar",
       "name": "Retrofit / Z-bar",
       "diagram": "zbar",
       "installType": "standard",
-      "desc": "The new window sets into the old frame, and the stucco stays.",
-      "bestFor": [
-        "A sound stucco wall where the old frame is solid and close to square",
-        "A replacement that should be done without cutting the stucco"
+      "desc": "The new window sits inside the old frame. We do not touch the stucco.",
+      "outside": ["Old window", "New window inside it"],
+      "sideLabels": [
+        {"text": "Old frame stays", "swatch": "old"},
+        {"text": "New window", "swatch": "new"},
+        {"text": "Z-bar covers gap", "swatch": "orange"},
+        {"text": "Stucco untouched", "swatch": "stucco"}
       ],
-      "sees": [
-        "Glass that is a little smaller, because the old frame stays",
-        "The new frame sitting inside the old one",
-        "A Z-bar on the outside, covering the joint at the stucco",
-        "Sealant where the Z-bar meets the stucco",
-        "Interior trim over the drywall"
-      ],
+      "steps": ["Pop out the old glass", "Set the new window inside", "Cover the edge"],
+      "compare": {"stucco": "No", "mess": "Low", "time": "1 day"},
       "placeholder": false
     },
     {
@@ -25,18 +23,16 @@
       "name": "Block frame",
       "diagram": "block",
       "installType": "block",
-      "desc": "A plain box screws into the opening. Nothing sticks out past the wall.",
-      "bestFor": [
-        "An opening that is already clear, with the old frame gone",
-        "A pocket built for a box frame, when the trim is finished on its own"
+      "desc": "The window fits in the block opening. No fin, and no stucco cut.",
+      "outside": ["Old window", "Sealed to the block"],
+      "sideLabels": [
+        {"text": "New window", "swatch": "new"},
+        {"text": "Sealed to the block", "swatch": "orange"},
+        {"text": "No fin", "swatch": "none"},
+        {"text": "No stucco cut", "swatch": "block"}
       ],
-      "sees": [
-        "No fin on the outside of the wall",
-        "The new frame set flush in the opening",
-        "Screws through the frame into the studs",
-        "Sealant in the joint around the frame",
-        "Interior trim, plus a separate piece of exterior trim"
-      ],
+      "steps": ["Clear the opening", "Set the window in", "Seal it. No fin."],
+      "compare": {"stucco": "No", "mess": "Low", "time": "1 day"},
       "placeholder": false
     },
     {
@@ -44,18 +40,16 @@
       "name": "Nail fin",
       "diagram": "nailfin",
       "installType": "stucco-fin",
-      "desc": "The fin nails to the sheathing, then stucco or siding covers it.",
-      "bestFor": [
-        "New construction, before the stucco or siding goes on",
-        "A full tear-out when the old frame is rotted, rusted, or out of square"
+      "desc": "We cut the stucco back, nail the fin on, then patch and paint.",
+      "outside": ["Stucco cut back", "Patched and painted"],
+      "sideLabels": [
+        {"text": "New window", "swatch": "new"},
+        {"text": "Fin nailed on", "swatch": "orange"},
+        {"text": "Stucco cut back", "swatch": "wood"},
+        {"text": "Then patched", "swatch": "patch"}
       ],
-      "sees": [
-        "The old frame gone, so the glass size is kept",
-        "A nailing fin fastened to the sheathing",
-        "New stucco or siding covering that fin",
-        "Sealant at the fin",
-        "Interior trim on the inside"
-      ],
+      "steps": ["Cut the stucco back", "Nail the fin on", "Patch and paint"],
+      "compare": {"stucco": "Yes", "mess": "More", "time": "Longer"},
       "placeholder": false
     }
   ]
