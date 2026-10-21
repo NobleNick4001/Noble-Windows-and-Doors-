@@ -19,6 +19,9 @@ export function frameColors(c) {
 
 // Returns an SVG string. Drawn in a W x H box (px units, proportional to the real window).
 export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity = 0.28, size = 600, label = false } = {}) {
+  if (type === 'patio_door_2p') type = '2panel';
+  else if (type === 'twin_casement') type = 'dcasement';
+  else if (type === 'specialty_arch') type = 'arch';
   const W = aspect >= 1 ? size : size * aspect;
   const H = aspect >= 1 ? size / aspect : size;
   const fc = frameColors(colorKey);
@@ -28,7 +31,7 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
   const glass = `fill="#bfe3f5" fill-opacity="${glassOpacity}"`;
   const rect = (x, y, w, hh, fill, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${fill}" stroke="${e}" stroke-width="1.5" ${extra}/>`;
   let body = '';
-  const isArch = type === 'arch' || type === 'archtop';
+  const isArch = type === 'arch' || type === 'archtop' || type === 'arch_sh';
   const archR = W / 2;
   if (isArch) {
     // arch-top: rectangle body with semicircular head (head radius = W/2, capped)
@@ -43,6 +46,18 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
     // glass shine + muntin
     body += `<line x1="${t}" y1="${r}" x2="${W - t}" y2="${r}" stroke="${f}" stroke-width="${st * 0.7}"/>`;
     body += `<line x1="${W / 2}" y1="${t}" x2="${W / 2}" y2="${r}" stroke="${f}" stroke-width="${st * 0.5}"/>`;
+    if (type === 'arch_sh') {
+      const rail = r + (H - r) * 0.48;
+      body += `<line x1="${t}" y1="${rail}" x2="${W - t}" y2="${rail}" stroke="${f}" stroke-width="${st}"/>`;
+    }
+  } else if (type === 'twin_vslider') {
+    body += rect(0, 0, W, H, f);
+    const gx = t, gy = t, gw = W - 2 * t, gh = H - 2 * t;
+    const half = gw / 2;
+    body += `<rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" ${glass} stroke="${e}" stroke-width="1.5"/>`;
+    body += rect(gx + half - st * 0.45, gy, st * 1.15, gh, f);
+    body += rect(gx, gy + gh * 0.5 - st * 0.4, half, st, f);
+    body += rect(gx + half, gy + gh * 0.5 - st * 0.4, half, st, f);
   } else {
     body += rect(0, 0, W, H, f);
     const gx = t, gy = t, gw = W - 2 * t, gh = H - 2 * t;

@@ -28,7 +28,8 @@ export const A250_WINDOW_COLORS = [
   ['bronze-anodized', 'Bronze Anodized'],
 ];
 export const A250_WINDOW_STYLES = ['hslider', 'xox', 'vslider', 'picture', 'casement'];
-// Vinyl-only styles that use pendingWindows until a real OneLink rate is entered.
+// Vinyl-only styles read from pendingWindows. Arch top stays pending.
+// Double casement uses a base + perUI rate when that series and color has one.
 export const PENDING_WINDOW_STYLES = ['dcasement', 'archtop'];
 // What glass upgrades are priced for an A250 window style (from the Milgard A250 quote).
 export function a250GlassOptions(D, style) {
@@ -279,17 +280,44 @@ function pendingErrors(D, series, style, w, h) {
   return e;
 }
 
-function pendingWindow(D, series, style, w, h) {
+// App color id → rate-table key. Adobe uses the White rate, same as other OneLink windows.
+const RATE_COLOR = { white: 'ww', ww: 'ww', adobe: 'ww', black_ext: 'bw', bw: 'bw' };
+
+function pendingCharge(row, series, colorId) {
+  const key = RATE_COLOR[colorId] || null;
+  const spec = key ? row?.rates?.[series]?.[key] : null;
+  if (spec && spec.pricePending !== true) {
+    const base = Number(spec.base) || 0;
+    const perUI = Number(spec.perUI) || 0;
+    if (base || perUI) return { pricePending: false, base, perUI, adobeAsWhite: colorId === 'adobe' };
+  }
+  // A rate table means unlisted series and colors stay pending. A style with no
+  // table still uses the single perUI once its own pricePending flag is off.
+  if (row?.rates) return { pricePending: true, base: 0, perUI: 0, adobeAsWhite: false };
+  return {
+    pricePending: !!row?.pricePending,
+    base: Number(row?.base) || 0,
+    perUI: Number(row?.perUI) || 0,
+    adobeAsWhite: false,
+  };
+}
+
+function pendingWindow(D, series, style, w, h, colorId) {
   const row = pendingStyle(D, style);
   const errors = pendingErrors(D, series, style, w, h);
-  const perUI = row?.perUI || 0;
-  const material = (Number(w) + Number(h)) * perUI;
+  const charge = pendingCharge(row, series, colorId || 'white');
+  const pricePending = !row || charge.pricePending;
+  const perUI = pricePending ? 0 : charge.perUI;
+  const base = pricePending ? 0 : charge.base;
+  const material = pricePending ? 0 : base + perUI * (Number(w) + Number(h));
   const notes = [];
-  if (row?.pricePending) notes.push('Price pending — placeholder rate, not a OneLink price.');
+  if (pricePending) notes.push('Price pending — placeholder rate, not a OneLink price.');
+  else if (charge.adobeAsWhite) notes.push('Adobe priced as White (forces Adobe interior)');
   if (row?.note) notes.push(row.note);
   return {
-    items: [['base', material]], notes, errors, material, perUI,
-    limits: pendingLimits(D, series, style), pricePending: !!row?.pricePending,
+    items: [['base', material]], notes, errors, material, perUI, base,
+    limits: pendingLimits(D, series, style), pricePending,
+    formula: !pricePending,
   };
 }
 
@@ -328,7 +356,7 @@ export function milgardQuote(D, line) {
   }
   if (pendingStyle(D, line.type)) {
     if (!WINDOW_SERIES.includes(line.series) || line.series === 'A250') return null;
-    return { kind: 'window', ...pendingWindow(D, line.series, line.type, w, h) };
+    return { kind: 'window', ...pendingWindow(D, line.series, line.type, w, h, optionsFromLine(line).color) };
   }
   if (!WINDOW_SERIES.includes(line.series) || !D.grids?.[line.type]) return null;
   if (line.series === 'A250' && !D.a250Windows?.perUI?.[line.type]) return null;

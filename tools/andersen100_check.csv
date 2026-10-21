@@ -1,0 +1,123 @@
+type,fin,color,w,h,list,dealer,real_customer,formula_price,pct_over,old_app_price,old_vs_real_pct,notes
+vslider,nail,White,30.0,36.0,527.2,276.41,502.57,503,0.09,444.1,-11.6,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,nail,White,40.0,48.0,701.9,368.01,669.1,670,0.13,619.95,-7.3,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,nail,White,47.5,89.5,1091.2,572.12,1040.21,1041,0.08,1011.59,-2.8,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,nail,White,17.5,23.5,298.3,156.4,284.36,314,10.42,244.28,-14.1,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,nail,White,36.0,48.0,614.5,322.18,585.79,639,9.08,587.98,0.4,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,flush,White,30.0,36.0,550.8,288.78,525.06,556,5.89,550.9,4.9,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,flush,White,40.0,48.0,733.3,384.47,699.03,736,5.29,762.34,9.1,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,flush,White,47.5,89.5,1193.4,625.7,1137.64,1138,0.03,1233.27,8.4,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,flush,White,17.5,23.5,367.2,192.52,350.04,351,0.27,310.63,-11.3,dealer computed=list x0.5243 (verified on 2 lines)
+vslider,flush,White,36.0,48.0,641.9,336.55,611.91,703,14.89,723.9,18.3,dealer computed=list x0.5243 (verified on 2 lines)
+picture,flush,White,30.0,36.0,497.6,260.89,474.35,481,1.4,549.9,15.9,dealer computed=list x0.5243 
+picture,flush,White,40.0,48.0,662.1,347.14,631.16,646,2.35,741.34,17.5,dealer computed=list x0.5243 
+picture,flush,White,48.0,54.0,752.2,394.38,717.05,751,4.73,863.17,20.4,dealer computed=list x0.5243 
+picture,flush,White,56.0,60.0,836.0,438.31,796.94,855,7.29,985.01,23.6,dealer computed=list x0.5243 
+picture,flush,White,95.5,71.5,1270.8,666.28,1211.42,1237,2.11,1428.82,17.9,dealer computed=list x0.5243 near max
+picture,flush,White,30.0,95.5,971.2,509.2,925.82,926,0.02,1067.68,15.3,dealer computed=list x0.5243 near max height
+picture,flush,White,11.5,11.5,166.6,87.35,158.82,159,0.12,175.7,10.6,dealer computed=list x0.5243 near min
+picture,nail,White,30.0,36.0,475.0,249.04,452.8,455,0.48,443.1,-2.1,dealer computed=list x0.5243 
+picture,nail,White,40.0,48.0,632.0,331.36,602.47,614,1.91,598.95,-0.6,dealer computed=list x0.5243 
+picture,nail,White,48.0,54.0,718.0,376.45,684.45,715,4.46,698.13,2.0,dealer computed=list x0.5243 
+picture,nail,White,56.0,60.0,798.0,418.39,760.71,816,7.27,797.31,4.8,dealer computed=list x0.5243 
+picture,nail,White,95.5,71.5,1205.0,631.78,1148.69,1184,3.07,1158.59,0.9,dealer computed=list x0.5243 near max
+picture,nail,White,30.0,95.5,927.0,486.03,883.68,884,0.04,864.6,-2.2,dealer computed=list x0.5243 near max height
+picture,nail,White,11.5,11.5,151.0,79.17,143.94,144,0.04,138.48,-3.8,dealer computed=list x0.5243 near min
+hslider,nail,White,30.0,36.0,527.2,276.41,502.57,505,0.48,486.75,-3.1,dealer computed=list x0.5243 
+hslider,nail,White,40.0,48.0,701.9,368.01,669.1,689,2.97,674.4,0.8,dealer computed=list x0.5243 
+hslider,nail,White,48.0,54.0,845.3,443.19,805.8,806,0.02,793.81,-1.5,dealer computed=list x0.5243 
+hslider,nail,White,56.0,60.0,938.6,492.11,894.74,924,3.27,913.22,2.1,dealer computed=list x0.5243 
+hslider,nail,White,71.5,71.5,1118.9,586.64,1066.62,1150,7.82,1143.51,7.2,dealer computed=list x0.5243 near max
+hslider,nail,White,23.5,11.5,256.6,134.54,244.61,245,0.16,222.35,-9.1,dealer computed=list x0.5243 near min
+xox,nail,White,48.0,54.0,943.2,494.52,899.13,900,0.1,927.45,3.2,dealer computed=list x0.5243 style 1/3-1/3-1/3
+xox,nail,White,56.0,60.0,1048.2,549.57,999.22,1054,5.48,1063.05,6.4,dealer computed=list x0.5243 style 1/3-1/3-1/3
+xox,nail,White,72.0,71.5,1338.8,701.93,1276.24,1373,7.58,1329.42,4.2,dealer computed=list x0.5243 style 1/3-1/3-1/3
+xox,nail,White,143.5,71.5,2335.82,1224.67,2226.67,2227,0.01,2021.96,-9.2,dealer computed=list x0.5243 near max
+xox,nail,White,47.5,17.5,530.8,278.3,506.0,507,0.2,569.07,12.5,dealer computed=list x0.5243 near min
+hslider,flush,White,30.0,36.0,550.8,288.78,525.06,531,1.13,593.55,13.0,dealer computed=list x0.5243 
+hslider,flush,White,40.0,48.0,733.3,384.47,699.03,721,3.14,816.79,16.8,dealer computed=list x0.5243 
+hslider,flush,White,48.0,54.0,883.3,463.11,842.03,843,0.12,958.85,13.9,dealer computed=list x0.5243 
+hslider,flush,White,56.0,60.0,980.8,514.23,934.97,964,3.1,1100.92,17.7,dealer computed=list x0.5243 
+hslider,flush,White,71.5,71.5,1177.0,617.1,1122.0,1197,6.68,1374.9,22.5,dealer computed=list x0.5243 near max
+hslider,flush,White,23.5,11.5,274.9,144.13,262.05,263,0.36,278.98,6.5,dealer computed=list x0.5243 near min
+xox,flush,White,48.0,54.0,984.5,516.17,938.5,984,4.85,1092.5,16.4,dealer computed=list x0.5243 style 1/3-1/3-1/3
+xox,flush,White,56.0,60.0,1094.1,573.64,1042.98,1142,9.49,1250.75,19.9,dealer computed=list x0.5243 style 1/3-1/3-1/3
+xox,flush,White,72.0,71.5,1397.8,732.87,1332.48,1467,10.1,1561.61,17.2,dealer computed=list x0.5243 style 1/3-1/3-1/3
+xox,flush,White,143.5,71.5,2453.7,1286.47,2339.05,2340,0.04,2369.85,1.3,dealer computed=list x0.5243 near max
+xox,flush,White,47.5,17.5,611.2,320.45,582.64,583,0.06,674.25,15.7,dealer computed=list x0.5243 near min
+casement,nail,White,30.0,36.0,760.2,398.57,724.68,725,0.04,867.67,19.7,dealer computed=list x0.5243 standard glass strength; full screen; left hinge
+casement,nail,White,30.0,48.0,887.3,465.21,845.84,875,3.45,1037.73,22.7,dealer computed=list x0.5243 extra size (36x48 invalid)
+casement,nail,White,35.5,71.5,1128.7,591.78,1075.96,1237,14.97,1448.7,34.6,dealer computed=list x0.5243 near max
+casement,nail,White,17.5,23.5,432.5,226.76,412.29,413,0.17,513.39,24.5,dealer computed=list x0.5243 near min
+casement,flush,White,30.0,36.0,794.1,416.35,756.99,818,8.06,974.47,28.7,dealer computed=list x0.5243 standard glass strength; full screen; left hinge
+casement,flush,White,30.0,48.0,926.9,485.97,883.59,968,9.55,1163.94,31.7,dealer computed=list x0.5243 extra size (36x48 invalid)
+casement,flush,White,35.5,71.5,1190.2,624.02,1134.59,1330,17.22,1621.84,42.9,dealer computed=list x0.5243 near max
+casement,flush,White,17.5,23.5,529.8,277.77,505.04,506,0.19,579.73,14.8,dealer computed=list x0.5243 near min
+awning,nail,White,30.0,30.0,683.2,358.2,651.28,709,8.86,890.4,36.7,dealer computed=list x0.5243 extra size; vent limiter=No; full screen
+awning,nail,White,30.0,35.5,819.2,429.51,780.92,781,0.01,972.02,24.5,dealer computed=list x0.5243 extra size near max height
+awning,nail,White,40.0,35.5,955.3,500.86,910.66,913,0.26,1120.42,23.0,dealer computed=list x0.5243 extra size
+awning,nail,White,47.5,35.5,943.6,494.73,899.51,1012,12.51,1231.72,36.9,dealer computed=list x0.5243 near max (ANOMALY: lower than 40x35.5; not re-verified)
+awning,nail,White,17.5,17.5,398.4,208.88,379.78,380,0.06,519.4,36.8,dealer computed=list x0.5243 near min
+awning,flush,White,30.0,30.0,713.8,374.25,680.45,744,9.34,890.4,30.9,dealer computed=list x0.5243 extra size; vent limiter=No; full screen
+awning,flush,White,30.0,35.5,855.9,448.75,815.91,818,0.26,972.02,19.1,dealer computed=list x0.5243 extra size near max height
+awning,flush,White,40.0,35.5,998.1,523.3,951.46,952,0.06,1120.42,17.8,dealer computed=list x0.5243 extra size
+awning,flush,White,47.5,35.5,998.1,523.3,951.46,1053,10.67,1231.72,29.5,dealer computed=list x0.5243 near max
+awning,flush,White,17.5,17.5,427.5,224.14,407.52,408,0.12,519.4,27.5,dealer computed=list x0.5243 near min
+twin_vslider,nail,White,40.0,48.0,1054.4,552.82,1005.13,1006,0.09,920.18,-8.5,dealer computed=list x0.5243 half screen; std glass strength
+twin_vslider,nail,White,48.0,54.0,1229.0,644.36,1171.57,1172,0.04,1080.04,-7.8,dealer computed=list x0.5243 half screen; std glass strength
+twin_vslider,nail,White,56.0,60.0,1403.8,736.01,1338.2,1339,0.06,1239.89,-7.3,dealer computed=list x0.5243 half screen; std glass strength
+twin_vslider,nail,White,72.0,71.5,1580.6,828.71,1506.74,1666,10.57,1551.61,3.0,dealer computed=list x0.5243 half screen
+twin_vslider,nail,White,95.5,71.5,1742.0,913.33,1660.6,1945,17.13,1739.44,4.7,dealer computed=list x0.5243 near max
+twin_vslider,nail,White,35.5,23.5,596.6,312.8,568.72,661,16.23,492.57,-13.4,dealer computed=list x0.5243 near min
+twin_vslider,flush,White,40.0,48.0,1101.6,577.57,1050.13,1051,0.08,1140.24,8.6,dealer computed=list x0.5243 half screen; std glass strength
+twin_vslider,flush,White,48.0,54.0,1283.8,673.1,1223.81,1225,0.1,1332.46,8.9,dealer computed=list x0.5243 half screen; std glass strength
+twin_vslider,flush,White,56.0,60.0,1466.6,768.94,1398.07,1399,0.07,1524.68,9.1,dealer computed=list x0.5243 half screen; std glass strength
+twin_vslider,flush,White,72.0,71.5,1651.2,865.72,1574.04,1740,10.54,1899.5,20.7,dealer computed=list x0.5243 half screen
+twin_vslider,flush,White,95.5,71.5,1819.8,954.12,1734.77,2032,17.13,2125.36,22.5,dealer computed=list x0.5243 near max
+twin_vslider,flush,White,35.5,23.5,623.4,326.85,594.27,690,16.11,626.06,5.3,dealer computed=list x0.5243 near min
+twin_casement,nail,White,40.0,48.0,1520.4,797.15,1449.36,1450,0.04,1792.03,23.6,dealer computed=list x0.5243 full screen; std glass strength
+twin_casement,nail,White,48.0,54.0,1774.6,930.42,1691.68,1692,0.02,2075.46,22.7,dealer computed=list x0.5243 full screen; std glass strength
+twin_casement,nail,White,56.0,60.0,2026.6,1062.55,1931.9,1935,0.16,2358.89,22.1,dealer computed=list x0.5243 full screen; std glass strength
+twin_casement,nail,White,71.5,71.5,2257.6,1183.66,2152.11,2402,11.61,2904.49,35.0,dealer computed=list x0.5243 near max
+twin_casement,nail,White,35.5,23.5,864.8,453.41,824.39,948,14.99,1033.86,25.4,dealer computed=list x0.5243 near min
+twin_casement,flush,White,40.0,48.0,1588.2,832.69,1513.99,1515,0.07,2012.09,32.9,dealer computed=list x0.5243 full screen; std glass strength
+twin_casement,flush,White,48.0,54.0,1853.8,971.95,1767.18,1768,0.05,2327.88,31.7,dealer computed=list x0.5243 full screen; std glass strength
+twin_casement,flush,White,56.0,60.0,2117.0,1109.94,2018.08,2021,0.14,2643.67,31.0,dealer computed=list x0.5243 full screen; std glass strength
+twin_casement,flush,White,71.5,71.5,2358.4,1236.51,2248.2,2509,11.6,3251.57,44.6,dealer computed=list x0.5243 near max
+twin_casement,flush,White,35.5,23.5,903.4,473.65,861.19,990,14.96,1167.35,35.6,dealer computed=list x0.5243 near min
+vslider,nail,White ext/White int,36.0,48.0,614.5,322.18,585.79,639,9.08,587.98,0.4,COLOR TEST; dealer computed=list x0.5243; base
+vslider,nail,Sandtone ext (frame+sash)/White int,36.0,48.0,709.5,371.99,676.35,730,7.93,782.02,15.6,COLOR TEST; dealer computed=list x0.5243; +95.00
+vslider,nail,Terratone ext/White int,36.0,48.0,709.5,371.99,676.35,730,7.93,782.02,15.6,COLOR TEST; dealer computed=list x0.5243; +95.00
+vslider,nail,Dark Bronze ext/White int,36.0,48.0,709.5,371.99,676.35,730,7.93,782.02,15.6,COLOR TEST; dealer computed=list x0.5243; +95.00
+vslider,nail,Black ext/White int,36.0,48.0,709.5,371.99,676.35,730,7.93,782.02,15.6,COLOR TEST; dealer computed=list x0.5243; +95.00
+vslider,nail,Black ext/Black int,36.0,48.0,804.5,421.8,766.91,821,7.05,779.69,1.7,"COLOR TEST; dealer computed=list x0.5243; +190.00 (ext +95, black interior +95)"
+arch_sh,nail,White/White,23.5,36.0,799.8,419.34,762.43,795,4.27,,,min width; h=overall height; short side 29.5; incl fiberglass half screen applied (+37.50)
+arch_sh,nail,White/White,30.0,48.0,1115.2,584.7,1063.09,1064,0.09,,,short side 40
+arch_sh,nail,White/White,36.0,48.0,1120.5,587.48,1068.14,1151,7.76,,,short side 40; no flange option priced identical
+arch_sh,nail,White/White,36.0,60.0,1279.9,671.05,1220.09,1325,8.6,,,short side 52
+arch_sh,nail,White/White,41.5,72.0,1595.3,836.42,1520.76,1579,3.83,,,short side 62
+arch_sh,nail,White/White,41.5,89.5,1923.0,1008.23,1833.14,1834,0.05,,,MAX; short side 79.5; glass stayed Standard
+arch_sh,nail,White/White,36.0,48.0,1120.5,587.48,1068.14,1151,7.76,,,identical to setback - frame option does not change arch price
+arch_sh,nail,White/White,41.5,89.5,1923.0,1008.23,1833.14,1834,0.05,,,identical to setback
+arch_sh,nail,Black ext/White int (sash auto Black),41.5,89.5,2018.0,1058.04,1923.7,1924,0.02,,,+95.00 vs white
+specialty_arch,nail,White/White,24.0,48.0,952.0,499.13,907.52,908,0.05,1118.62,23.3,"min width 23.5; short side 45; fixed, no screen option; limits W 23.5-95.5 H 12.875-84.25; short side range depends on W/H"
+specialty_arch,nail,White/White,36.0,48.0,1111.0,582.5,1059.09,1060,0.09,1266.06,19.5,short side 40 (valid 39.625-46.25)
+specialty_arch,nail,White/White,48.0,48.0,1269.0,665.34,1209.7,1213,0.27,1413.5,16.8,short side 40
+specialty_arch,nail,White/White,60.0,48.0,1428.0,748.7,1361.27,1365,0.27,1560.94,14.7,short side 40
+specialty_arch,nail,White/White,95.5,48.0,1905.0,998.79,1815.98,1816,0.0,1997.12,10.0,max width; short side 35 (valid 12.875-35.125)
+specialty_arch,nail,White/White,95.5,84.25,2380.0,1247.83,2268.79,2277,0.36,2442.51,7.7,max W x max H; short side 70; glass stayed Standard
+specialty_arch,flush,White/White,24.0,48.0,997.4,522.94,950.79,951,0.02,1235.13,29.9,short side 45; interior flat trim set to No (default Yes adds $253.40 at 36x48)
+specialty_arch,flush,White/White,36.0,48.0,1163.9,610.23,1109.51,1111,0.13,1401.98,26.4,short side 40; flat trim No
+specialty_arch,flush,White/White,48.0,48.0,1329.4,697.0,1267.28,1271,0.29,1568.84,23.8,short side 40; flat trim No
+specialty_arch,flush,White/White,60.0,48.0,1496.0,784.35,1426.1,1431,0.34,1735.7,21.7,short side 40; flat trim No
+specialty_arch,flush,White/White,95.5,48.0,1995.7,1046.35,1902.45,1903,0.03,2229.32,17.2,short side 35; flat trim No
+specialty_arch,flush,White/White,95.5,84.25,2493.4,1307.29,2376.89,2386,0.38,2733.37,15.0,max; short side 70; flat trim No
+patio_door_2p,nail,White/White,59.25,71.5,2929.8,1536.09,2792.9,2793,0.0,,,"MIN size; tempered glass (only option, no Standard); Tulsa hdw; full fiberglass screen incl; price equals 60x80"
+patio_door_2p,nail,White/White,60.0,80.0,2929.8,1536.09,2792.9,2986,6.91,,,
+patio_door_2p,nail,White/White,72.0,80.0,3337.2,1749.69,3181.26,3315,4.2,,,
+patio_door_2p,nail,White/White,72.0,95.5,3827.5,2006.76,3648.65,3698,1.35,,,72x96 INVALID (max H 95.5)
+patio_door_2p,nail,White/White,95.25,80.0,4145.8,2173.64,3952.08,3953,0.02,,,
+patio_door_2p,nail,White/White,95.25,95.5,3689.3,1934.3,3516.91,4458,26.76,,,MAX; ANOMALY: lower than 95.25x80 and 72x95.5 - re-read twice same; verify before relying
+patio_door_2p,nail,White/White,72.0,80.0,3337.2,1749.69,3181.26,3315,4.2,,,identical to setback
+patio_door_2p,nail,Black ext (sash auto Black)/White int,72.0,80.0,3527.2,1849.31,3362.38,3497,4.0,,,+190.00
+patio_door_2p,nail,Black/Black,72.0,80.0,3717.2,1948.93,3543.51,3678,3.8,,,+380.00 vs white

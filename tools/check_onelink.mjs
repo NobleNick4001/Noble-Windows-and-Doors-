@@ -287,21 +287,31 @@ check(Eng.validate('V250', 'vslider', 30, 18).length === 0, 'V250 single hung mi
 check(Eng.limits('V300', 'vslider').hmin === 23.5 && Eng.limits('V300', 'vslider').hmax === 96 && Eng.limits('V300', 'vslider').wmax === 48, 'V300 single hung limits unchanged');
 check(Eng.limits('A250', 'hslider').hmin === 11.5, 'A250 slider minimum unchanged');
 
-// Double casement and equal-leg arch top: placeholder rates, one edit site.
+// Double casement is base + perUI. Arch top stays a placeholder.
 const pending = data.milgardOnelink.pendingWindows;
-check(pending && pending.pricePending === true, 'pendingWindows is the placeholder block');
-check(pending.styles.dcasement.perUI === 0 && pending.styles.archtop.perUI === 0, 'placeholder perUI stays 0 until a real rate is entered');
+check(pending && pending.pricePending === true, 'pendingWindows block still flags unpriced styles');
+check(pending.styles.archtop.perUI === 0 && pending.styles.archtop.pricePending == null, 'arch top stays a placeholder');
+check(pending.styles.dcasement.pricePending === false, 'double casement style is priced');
+check(pending.styles.dcasement.rates.V300.ww.base === 665.69 && pending.styles.dcasement.rates.V300.ww.perUI === 8.54, 'V300 white rate');
+check(pending.styles.dcasement.rates.V300.bw.base === 1159 && pending.styles.dcasement.rates.V300.bw.perUI === 9.56, 'V300 black/white rate');
+check(pending.styles.dcasement.rates.V400.ww.base === 751.66 && pending.styles.dcasement.rates.V400.ww.perUI === 9.74, 'V400 white rate');
+check(pending.styles.dcasement.rates.V400.bw.base === 1329 && pending.styles.dcasement.rates.V400.bw.perUI === 10.59, 'V400 black/white rate');
+check(!pending.styles.dcasement.rates.V250, 'V250 Style Line has no double casement rate');
 const dc = styleLimits(data.milgardOnelink, 'V400', 'dcasement');
-check(dc.sashWmin === 14 && dc.sashWmax === 36 && dc.sashes === 2 && dc.wmin === 28 && dc.wmax === 72 && dc.hmin === 17.5 && dc.hmax === 72, 'double casement uses casement limits per sash ' + JSON.stringify(dc));
+check(dc.sashWmin === 14.25 && dc.sashWmax === 36 && dc.sashes === 2 && dc.wmin === 28.5 && dc.wmax === 72 && dc.hmin === 17.5 && dc.hmax === 72, 'double casement limits ' + JSON.stringify(dc));
 check(dc.wmax !== 42, 'double casement does not use the V400 single-casement width exception');
 const arch400 = styleLimits(data.milgardOnelink, 'V400', 'archtop');
 const arch250 = styleLimits(data.milgardOnelink, 'V250', 'archtop');
 check(arch400.hmax === 78, 'V400 arch top overall height max ' + arch400.hmax);
 check(arch250.hmax === 96 && arch250.wmin === 14, 'other series arch top stays a placeholder ' + JSON.stringify(arch250));
 const quoteOf = (series, type, w, h, extra = {}) => milgardQuote(data.milgardOnelink, { brand: 'milgard', series, type, color: 'ww', w, h, ...extra });
-const dcOk = quoteOf('V250', 'dcasement', 30, 48);
-check(dcOk.pricePending === true && dcOk.errors.length === 0 && dcOk.material === 0, '30x48 double casement is allowed and pending');
-check(dcOk.notes.some((n) => /Price pending/.test(n)), 'pending note is on the quote');
+const dcPending = quoteOf('V250', 'dcasement', 30, 48);
+check(dcPending.pricePending === true && dcPending.errors.length === 0 && dcPending.material === 0, 'V250 30x48 double casement is allowed and pending');
+check(dcPending.notes.some((n) => /Price pending/.test(n)), 'pending note is on the quote');
+check(quoteOf('V300', 'dcasement', 28, 48).errors.some((e) => /sash/.test(e)), '28in overall is under 28.5');
+check(quoteOf('V300', 'dcasement', 28.5, 48).errors.length === 0, '28.5in overall is allowed');
+check(quoteOf('V300', 'dcasement', 72, 72).errors.length === 0, '72x72 double casement is allowed');
+check(quoteOf('V300', 'dcasement', 72.01, 48).errors.some((e) => /sash/.test(e)), 'over 72 wide is blocked');
 check(quoteOf('V250', 'dcasement', 20, 48).errors.some((e) => /sash/.test(e)), '20in overall is too narrow per sash');
 check(quoteOf('V250', 'dcasement', 80, 48).errors.some((e) => /sash/.test(e)), '80in overall is too wide per sash');
 check(quoteOf('V250', 'dcasement', 30, 17).errors.some((e) => /Height/.test(e)), 'double casement height 17 blocked');
@@ -319,6 +329,32 @@ const pendingLine = { brand: 'milgard', series: 'V250', type: 'dcasement', color
 const pendingPrice = priceWindow(pendingLine);
 check(pendingPrice.pricePending === true && pendingPrice.unit === 0 && pendingPrice.mode === 'onelink', 'screen stores $0 while the price is pending');
 check(!isMilgardDoorLine(pendingLine), 'double casement is a window');
+const sheet = csv('double_casement_1020.csv');
+check(sheet.length === 20, 'double casement sheet rows ' + sheet.length);
+const seriesOf = { 'V300 Trinsic': 'V300', 'V400 Tuscany': 'V400' };
+const colorOf = { 'White/White': 'ww', 'Black/White': 'bw' };
+for (const row of sheet) {
+  const price = materialUnitPrice({
+    brand: 'milgard', series: seriesOf[row.series], type: 'dcasement', color: colorOf[row.color],
+    w: num(row.w), h: num(row.h),
+  });
+  check(price + 0.001 >= num(row.customer_price_45), `${row.series} ${row.color} ${row.w}x${row.h}: ${price} is under OneLink ${row.customer_price_45}`);
+}
+const dcLine = (series, color, w, h, extra = {}) => ({ brand: 'milgard', series, type: 'dcasement', color, w, h, qty: 1, ...extra });
+const white30 = materialUnitPrice(dcLine('V300', 'ww', 40, 48));
+const adobe30 = materialUnitPrice(dcLine('V300', 'adobe', 40, 48));
+check(white30 > 0 && white30 === adobe30, 'Adobe uses the White double casement price ' + adobe30);
+check(quoteOf('V300', 'dcasement', 40, 48).notes.some((n) => /Adobe/.test(n)) === false, 'white quote does not mention Adobe');
+const adobeQuote = milgardQuote(data.milgardOnelink, dcLine('V400', 'adobe', 40, 48));
+check(adobeQuote.pricePending === false && adobeQuote.notes.some((n) => /Adobe priced as White/.test(n)), 'Adobe note on Tuscany');
+for (const color of ['bronze', 'bb']) {
+  const pendingColor = priceWindow(dcLine('V300', color, 40, 48));
+  check(pendingColor.pricePending === true && pendingColor.unit === 0, color + ' double casement stays pending');
+}
+const withGlass = materialUnitPrice(dcLine('V300', 'bw', 48, 54, { tempered: true, grids: 'flat', obscure: 'p516', frame: 'zbar' }));
+const bare = materialUnitPrice(dcLine('V300', 'bw', 48, 54));
+check(withGlass === bare && bare > 0, 'glass grids and frame do not change the double casement price ' + withGlass);
+check(quoteOf('V400', 'archtop', 36, 60).pricePending === true && quoteOf('V400', 'archtop', 36, 60).material === 0, 'arch top price stays pending');
 for (const type of ['dcasement', 'archtop']) {
   const line = { brand: 'milgard', series: 'V300', type, w: 36, h: 48 };
   check(installUnit({ type: 'standard', surcharges: [] }, line) === 360, type + ' retrofit labor');
@@ -329,13 +365,12 @@ for (const type of ['dcasement', 'archtop']) {
 }
 const live = data.milgardOnelink;
 const ready = JSON.parse(JSON.stringify(live));
-ready.pendingWindows.pricePending = false;
-ready.pendingWindows.styles.dcasement.perUI = 12.5;
+ready.pendingWindows.styles.dcasement.rates.V300.ww = { base: 10, perUI: 12.5 };
 data.milgardOnelink = ready;
 const real = milgardQuote(ready, { brand: 'milgard', series: 'V300', type: 'dcasement', color: 'ww', w: 30, h: 48, tempered: true, grids: 'flat' });
-check(real.pricePending === false && Math.abs(real.material - 78 * 12.5) < 0.001, 'real perUI is (W+H) x rate and ignores option upcharges ' + real.material);
+check(real.pricePending === false && Math.abs(real.material - (10 + 78 * 12.5)) < 0.001, 'base + perUI ignores option upcharges ' + real.material);
 const readyShown = priceWindow({ brand: 'milgard', series: 'V300', type: 'dcasement', color: 'ww', w: 30, h: 48, qty: 2 });
-check(readyShown.pricePending === false && Math.abs(readyShown.unit - 975) < 0.001, 'priceWindow uses the real perUI once pending is off ' + readyShown.unit);
+check(readyShown.pricePending === false && Math.abs(readyShown.unit - (10 + 78 * 12.5)) < 0.001, 'priceWindow uses base + perUI ' + readyShown.unit);
 data.milgardOnelink = live;
 
 if (errs.length) {

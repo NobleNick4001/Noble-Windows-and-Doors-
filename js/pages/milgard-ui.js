@@ -150,6 +150,40 @@ function focusRoom() {
   });
 }
 
+// Keep the last room filled. Focus selects it so the next keystrokes replace it.
+// Blur with an empty field, or with no typing, puts the previous room back.
+export function roomLabelProps(get, set) {
+  return {
+    onfocus(e) {
+      const el = e.target;
+      el.dataset.roomPrev = el.value;
+      el.dataset.roomEdited = '';
+      setTimeout(() => {
+        if (document.activeElement !== el || el.dataset.roomEdited === '1') return;
+        try { el.setSelectionRange(0, el.value.length); } catch { /* ignore */ }
+      }, 10);
+    },
+    onmouseup(e) {
+      if (e.target.dataset.roomEdited === '1') return;
+      e.preventDefault();
+    },
+    oninput(e) {
+      e.target.dataset.roomEdited = '1';
+      set(e.target.value);
+    },
+    onblur(e) {
+      const el = e.target;
+      const prev = el.dataset.roomPrev ?? '';
+      const edited = el.dataset.roomEdited === '1';
+      const now = String(el.value || '').trim();
+      const next = !edited || !now ? prev : now;
+      el.value = next;
+      el.dataset.roomEdited = '';
+      set(next);
+    },
+  };
+}
+
 export function renderMilgard(root, { calc, persist, rerender }) {
   const view = captureView();
   ensure(calc);
@@ -188,14 +222,24 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   const a250Win = calc.product === 'window' && calc.series === 'A250';
   const glass = a250Win ? a250GlassOptions(data.milgardOnelink, calc.type) : { tempered: true, obscure: true };
   if (a250Win) left.append(h('p', { class: 'fine', id: 'a250-note' }, A250_NOTE));
-  const roomField = h('label', { class: 'field room-label' }, h('span', { class: 'lbl' }, 'Room / label (optional)'), h('input', {
-    type: 'text', id: 'in-label', value: calc.label || '', placeholder: 'e.g. Kitchen slider',
+  const roomMsg = h('p', { class: 'warn', id: 'room-required', hidden: String(calc.label || '').trim() ? true : null }, 'Enter a location (e.g. Kitchen)');
+  const setRoom = (v) => { calc.label = v; persist(); update(); };
+  const roomField = h('label', { class: 'field room-label' }, h('span', { class: 'lbl' }, 'Room / location'), h('input', {
+    type: 'text', id: 'in-label', value: calc.label || '', placeholder: 'e.g. Kitchen',
     autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false',
-    oninput: (e) => { calc.label = e.target.value; persist(); },
-  }));
+    ...roomLabelProps(() => calc.label || '', setRoom),
+  }), roomMsg);
 
-  const wInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-w', value: calc.w ?? '', placeholder: '0', oninput: (e) => { calc.w = decimal(e.target.value); persist(); update(); } });
-  const hInput = h('input', { type: 'text', inputmode: 'decimal', id: 'in-h', value: calc.h ?? '', placeholder: '0', oninput: (e) => { calc.h = decimal(e.target.value); persist(); update(); } });
+  const sizeAttrs = { type: 'text', inputmode: 'decimal', pattern: '[0-9]*[.]?[0-9]*', placeholder: '0' };
+  const onSize = (assign) => (e) => {
+    const cleaned = decimal(e.target.value);
+    if (e.target.value !== cleaned) e.target.value = cleaned;
+    assign(cleaned);
+    persist();
+    update();
+  };
+  const wInput = h('input', { ...sizeAttrs, id: 'in-w', value: calc.w ?? '', oninput: onSize((v) => { calc.w = v; }) });
+  const hInput = h('input', { ...sizeAttrs, id: 'in-h', value: calc.h ?? '', oninput: onSize((v) => { calc.h = v; }) });
   const sizeLabel = calc.product === 'door' ? 'net frame' : '';
   left.append(h('div', { class: 'room-size' },
     roomField,
@@ -269,7 +313,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     const sized = line.w > 0 && line.h > 0;
     const errors = sized && q ? q.errors : [];
     errEl.textContent = errors.join(' ');
-    addBtn.disabled = !sized || errors.length > 0;
+    const locationOk = String(calc.label || '').trim().length > 0;
+    roomMsg.hidden = locationOk;
+    addBtn.disabled = !sized || errors.length > 0 || !locationOk;
+    addBtn.title = locationOk ? '' : 'Enter a location (e.g. Kitchen)';
     const qty = line.qty;
     priceEl.classList.remove('pending');
     if (!sized || !q || errors.length) {
@@ -319,16 +366,16 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   }
 
   function addLine() {
+    const location = String(calc.label || '').trim();
     const line = draftLine(calc);
     const q = milgardQuote(data.milgardOnelink, line);
-    if (!q || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
+    if (!location || !q || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
     const p = priceWindow(line);
     if (!p) return;
     const e = estimates.current();
-    const n = e.lines.length + 1;
     const inst = installFromCalc(calc);
     e.lines.push({
-      id: uid(), label: calc.label || (calc.product === 'door' ? `Door ${n}` : `Window ${n}`),
+      id: uid(), label: location,
       brand: 'milgard', series: calc.series, type: calc.type, color: line.color,
       w: line.w, h: line.h, qty: line.qty, unitsPerLine: 1,
       options: optionIds(calc), addons: addonIds(calc),
@@ -339,7 +386,6 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       install: inst, installUnit: installUnit(inst, line),
     });
     estimates.persist();
-    calc.label = '';
     calc.w = '';
     calc.h = '';
     persist();

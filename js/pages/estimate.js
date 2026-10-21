@@ -1,4 +1,4 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType } from '../core.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
@@ -32,10 +32,31 @@ export function compactWindowList(lines, { always = false, id = 'compact-windows
   }
   return root;
 }
+function paintSize(l) {
+  const err = document.getElementById('size-err-edit-' + l.id);
+  if (err) {
+    err.textContent = l.sizeError || '';
+    err.hidden = !l.sizeError;
+  }
+  const rowErr = document.getElementById('size-err-' + l.id);
+  if (rowErr) {
+    rowErr.textContent = l.sizeError || '';
+    rowErr.hidden = !l.sizeError;
+  }
+  const price = document.getElementById('li-price-' + l.id);
+  if (price) price.textContent = linePriceText(l);
+}
 function reprice(l) {
+  if (isIntegralType(l)) l.unitsPerLine = 1;
   const p = priceWindow(l);
-  if (p) { l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; l.pricePending = !!p.pricePending; }
-  else { l.unitBase = 0; l.optionsEach = 0; l.unit = 0; l.pricePending = false; }
+  if (p && !p.blocked && p.unit != null) {
+    l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; l.pricePending = !!p.pricePending;
+    l.unpriced = false; l.sizeError = '';
+  } else {
+    l.unitBase = 0; l.optionsEach = 0; l.unit = 0; l.pricePending = false;
+    l.unpriced = !!(p && p.blocked);
+    l.sizeError = p?.blocked ? p.errors.join(' ') : '';
+  }
   l.installUnit = installUnit(l.install, l);
 }
 const MILGARD_OPTION_TYPES = ['hslider', 'xox', 'vslider', 'picture', 'casement', 'awning', ...PENDING_WINDOW_STYLES];
@@ -216,6 +237,7 @@ export function render(root) {
   // lines
   const lines = h('div', { class: 'card' }, h('h3', {}, 'Windows'));
   if (e.lines.some((l) => l.pricePending)) lines.append(h('p', { class: 'warn', id: 'price-pending-banner' }, 'One or more windows say Price pending. That is a placeholder, not a OneLink price, and it is left out of the total until a real rate is entered.'));
+  if (e.lines.some((l) => l.unpriced)) lines.append(h('p', { class: 'warn', id: 'size-block-banner' }, 'One or more Andersen sizes are outside the iQ limits and are not priced. Change the size before presenting this estimate.'));
   if (!e.lines.length) lines.append(h('p', { class: 'muted' }, 'No windows yet. ', h('a', { href: '#/calculator' }, 'Add one from the calculator →')));
   e.lines.forEach((l, idx) => {
     const isOpen = open.has(l.id);
@@ -224,8 +246,9 @@ export function render(root) {
         h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
           h('div', { class: 'fine' }, `Install: ${installLabel(l.install, l)}`),
           needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
+          l.sizeError ? h('div', { class: 'warn size-err', id: 'size-err-' + l.id }, l.sizeError) : null,
           addonNames(l.install, l).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install, l).join(', ')}`) : null),
-        h('div', { class: 'li-price' }, h('b', { class: l.pricePending ? 'pending-price' : '' }, linePriceText(l)))),
+        h('div', { class: 'li-price' }, h('b', { id: 'li-price-' + l.id, class: (l.pricePending || l.unpriced) ? 'pending-price' : '' }, linePriceText(l)))),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
         h('button', { class: 'btn sm danger', onclick: () => { e.lines.splice(idx, 1); save(); rerender(); } }, 'Remove')));
@@ -234,7 +257,13 @@ export function render(root) {
       const seriesDef = brandById(l.brand)?.series?.find((s) => s.id === l.series);
       row.append(h('div', { class: 'edit' },
         seriesDef && h('b', {}, 'Window type'),
-        seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => { l.type = t; upd(true); } }, typeName(t)))),
+        seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => {
+          l.type = t;
+          const nextColors = seriesColorIds(l.brand, l.series, t);
+          if (nextColors.length && !nextColors.includes(l.color)) l.color = nextColors[0];
+          if (isIntegralType(l)) l.unitsPerLine = 1;
+          upd(true);
+        } }, typeName(t)))),
         h('div', { class: 'room-size' },
           h('label', { class: 'field room-label' }, h('span', { class: 'lbl' }, 'Room / label'), h('input', {
             type: 'text', id: 'room-' + l.id, value: l.label || '', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false',
@@ -245,11 +274,15 @@ export function render(root) {
               save();
             },
           })),
-          h('div', { class: 'grid3' }, stepper(isMilgardDoorLine(l) ? 'Net frame width' : 'Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper(isMilgardDoorLine(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); }, { unit: 'in' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
-        stepper('Units in this line', l.unitsPerLine || 1, (v) => { l.unitsPerLine = parseInt(v, 10) || 1; reprice(l); save(); refreshTotals(); }, { min: 1 }),
+          h('div', { class: 'grid3' }, stepper(isMilgardDoorLine(l) ? 'Net frame width' : 'Width', l.w, (v) => { l.w = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: '[0-9]*[.]?[0-9]*' }), stepper(isMilgardDoorLine(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = parseFloat(v) || 0; reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: '[0-9]*[.]?[0-9]*' }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
+        sizeLimitText(l) ? h('p', { class: 'fine' }, sizeLimitText(l)) : null,
+        h('p', { class: 'warn size-err', id: 'size-err-edit-' + l.id, hidden: l.sizeError ? null : true }, l.sizeError || ''),
+        isIntegralType(l)
+          ? h('p', { class: 'fine' }, 'This twin is priced as one combined unit at the overall size. Use quantity for a second twin.')
+          : stepper('Units in this line', l.unitsPerLine || 1, (v) => { l.unitsPerLine = parseInt(v, 10) || 1; reprice(l); save(); refreshTotals(); }, { min: 1 }),
         customPriceFields(l, () => { reprice(l); save(); refreshTotals(); }, 'li-' + l.id),
         seriesDef && !isMilgardDoorLine(l) && h('b', {}, 'Frame color'),
-        seriesDef && !isMilgardDoorLine(l) && h('div', { class: 'swatches' }, seriesDef.colors.map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
+        seriesDef && !isMilgardDoorLine(l) && h('div', { class: 'swatches' }, seriesColorIds(l.brand, l.series, l.type).map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
         usesMilgardEditor(l)
           ? milgardLineEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-')
           : upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
@@ -418,7 +451,7 @@ function estimateSheet(e) {
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));
   const tw = h('table', { class: 'sh-table sh-wide' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
-  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.pricePending ? PRICE_PENDING_LABEL : fmt(l.unit)), h('td', { class: 'r' }, linePriceText(l)))));
+  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit))), h('td', { class: 'r' }, linePriceText(l)))));
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
   if (t.percentDiscountAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-percent-discount-row' }, h('td', { colspan: 5, class: 'r' }, t.percentDiscountLabel), h('td', { class: 'r' }, fmt(-t.percentDiscountAmount))));

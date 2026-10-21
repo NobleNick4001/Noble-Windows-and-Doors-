@@ -69,6 +69,7 @@ export function restoreView(snap) {
 export const PRICE_PENDING_LABEL = 'Price pending';
 export function linePriceText(line) {
   if (line?.pricePending) return PRICE_PENDING_LABEL;
+  if (line?.unpriced) return 'Not priced';
   return fmt((Number(line?.unit) || 0) * (Number(line?.qty) || 0));
 }
 
@@ -155,6 +156,35 @@ const ADDON_NAMES = {
 const finite = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const lineUnits = (line) => { const n = Number(line?.unitsPerLine ?? line?.units ?? 1); return n > 0 ? n : 1; };
 
+function andersenConfig() { return data.variableRates?.andersen || null; }
+function andersenTypeId(type) {
+  const A = andersenConfig();
+  return A?.aliases?.[type] || type;
+}
+export function isIntegralType(lineOrType) {
+  const type = typeof lineOrType === 'string' ? lineOrType : lineOrType?.type;
+  const A = andersenConfig();
+  return !!A?.types?.[andersenTypeId(type)]?.integral;
+}
+function andersenColorTable(A, typeId) {
+  if (!A) return null;
+  return A.colorAdders?.[typeId] || A.colorAdders?.window || null;
+}
+function andersenColorAdder(A, typeId, color) {
+  const n = andersenColorTable(A, typeId)?.[color];
+  return typeof n === 'number' ? n : null;
+}
+// Colors the iQ sheet actually prices for this type. Patio doors are White, Black/White, and Black/Black.
+export function seriesColorIds(brand, seriesId, type) {
+  const series = brandById(brand)?.series?.find((s) => s.id === seriesId);
+  const all = series?.colors || [];
+  const A = andersenConfig();
+  if (brand !== 'andersen' || !A || seriesId !== A.series) return all;
+  const table = andersenColorTable(A, andersenTypeId(type));
+  if (!table) return all;
+  return all.filter((id) => typeof table[id] === 'number');
+}
+
 function classifyLine(line) {
   if (!line || line.type === 'custom_supplier' || line.customSupplier) return { mode: 'custom' };
   const vr = data.variableRates;
@@ -167,11 +197,17 @@ function classifyLine(line) {
   if (brand === 'andersen') {
     const A = vr.andersen;
     if (!A || series !== A.series) return { mode: 'fallback' };
-    if ((A.keepExisting || []).includes(type)) return { mode: 'fallback' };
-    const typeDef = A.types?.[type];
-    const colorDef = A.colors?.[line.color];
-    if (!typeDef || !colorDef) return { mode: 'fallback' };
-    return { mode: 'variable', family: 'andersen', typeDef, colorDef, addons: A.addons || {} };
+    const typeId = andersenTypeId(type);
+    const typeDef = A.types?.[typeId];
+    if (!typeDef) return { mode: 'fallback' };
+    const adder = andersenColorAdder(A, typeId, line.color);
+    return {
+      mode: 'variable', family: 'andersen', typeDef, typeId,
+      colorDef: adder == null ? null : { adder, ratio: 1, adjustPerUnit: adder },
+      addons: A.addons || {},
+      integral: !!typeDef.integral,
+      includes: typeDef.includes || null,
+    };
   }
   if (brand === 'milgard') {
     if (milgardQuote(data.milgardOnelink, line)) return { mode: 'onelink' };
@@ -205,7 +241,15 @@ export function isCustomLine(line) {
 }
 export function lineAddonDefs(line) {
   const model = classifyLine(line);
-  return model.mode === 'variable' ? (model.addons || {}) : null;
+  if (model.mode !== 'variable' || !model.addons) return null;
+  const addons = { ...model.addons };
+  if (model.family === 'andersen') {
+    if (!model.typeDef?.flushFin) delete addons.flush_fin_trim;
+    if (model.typeDef?.glassIncluded) {
+      for (const id of [...GLASS_IDS, 'grilles_gbg', 'truscene', 'flush_fin_trim']) delete addons[id];
+    }
+  }
+  return addons;
 }
 export function addonName(id, def) { return def?.name || ADDON_NAMES[id] || id; }
 export function lineOptionNames(line) {
@@ -256,13 +300,13 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
   const title = `${line.label || 'Window'} — ${product}`.trim();
   const times = ascii ? 'x' : '×';
   const bits = [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, isMilgardDoorLine(line) ? (doorColorLabel(line.series, line.color) || colorName(line.color)) : shortColorName(colorName(line.color)), ...lineOptionNames(line)];
-  if (Number(line.unitsPerLine) > 1) bits.push(`${line.unitsPerLine} units`);
+  if (Number(line.unitsPerLine) > 1 && !isIntegralType(line)) bits.push(`${line.unitsPerLine} units`);
   bits.push(`Qty ${Number(line.qty) || 1}`);
   return {
     title,
     detail: bits.filter(Boolean).join(' · '),
     price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
-    priceText: line.pricePending ? PRICE_PENDING_LABEL : '',
+    priceText: line.pricePending ? PRICE_PENDING_LABEL : (line.unpriced ? 'Not priced' : ''),
     brandName: brandName || 'Windows',
   };
 }
@@ -313,7 +357,7 @@ export function quoteLine(line, { ascii = false } = {}) {
   if (ids.has('screen')) details.push('Screen');
   if (line.pureview || ids.has('pureview')) details.push('PureView screen');
   if (line.pricePending) details.push('Price pending — not a OneLink price');
-  if (Number(line.unitsPerLine) > 1) details.push(`${line.unitsPerLine} units`);
+  if (Number(line.unitsPerLine) > 1 && !isIntegralType(line)) details.push(`${line.unitsPerLine} units`);
   const times = ascii ? 'x' : '×';
   return {
     location: line.label || 'Window',
@@ -322,7 +366,7 @@ export function quoteLine(line, { ascii = false } = {}) {
     size: `${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`,
     qty: Number(line.qty) || 1,
     price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
-    priceText: line.pricePending ? PRICE_PENDING_LABEL : '',
+    priceText: line.pricePending ? PRICE_PENDING_LABEL : (line.unpriced ? 'Not priced' : ''),
   };
 }
 export function windowSections(lines) {
@@ -346,6 +390,7 @@ export function addonPriceHint(def) {
   if (def.type === 'perSqFt') return `+$${def.amount}/sq ft`;
   if (def.type === 'perWindowPlusPerSqFt') return `+${fmt(def.amount)} + $${def.perSqFt}/sq ft` + (def.max ? ` (max ${fmt(def.max)})` : '');
   if (def.type === 'perWindowPlusPerUI') return `+${fmt(def.amount)} + $${def.perUI}/UI`;
+  if (def.type === 'flushFin') return 'flush-fin price';
   return '';
 }
 export function fittedIncludes(line) {
@@ -358,16 +403,75 @@ export function variableRateInfo(brand, series, color, type) {
   const model = classifyLine(probe);
   if (model.mode === 'onelink') {
     const q = milgardQuote(data.milgardOnelink, probe);
-    if (q?.pricePending) return { onelink: true, pricePending: true, perUI: q.perUI || 0 };
+    if (q?.pricePending) return { onelink: true, pricePending: true, perUI: q.perUI || 0, base: q.base || 0 };
+    if (q?.formula) return { onelink: true, base: q.base || 0, perUI: q.perUI || 0 };
     return { onelink: true };
   }
   if (model.mode !== 'variable') return null;
+  if (model.family === 'andersen' && !model.colorDef) return { blocked: true };
   const t = model.typeDef;
   const c = model.colorDef || {};
   return {
     base: t.base || 0, perUI: t.perUI || 0, perSqFt: t.perSqFt || 0,
-    ratio: c.ratio ?? 1, adjustPerUnit: c.adjustPerUnit || 0, provisional: !!t.provisional,
+    ratio: c.ratio ?? 1, adjustPerUnit: c.adjustPerUnit || c.adder || 0,
+    provisional: !!t.provisional, roundUp: model.family === 'andersen',
   };
+}
+function limitRange(pair) {
+  if (!pair) return '';
+  const [min, max] = pair;
+  if (min != null && max != null) return `${formatInches(min)}–${formatInches(max)}`;
+  if (min != null) return `at least ${formatInches(min)}`;
+  if (max != null) return `${formatInches(max)} or less`;
+  return '';
+}
+export function sizeLimitText(line) {
+  const A = andersenConfig();
+  if (!A || line?.brand !== 'andersen' || line?.series !== A.series) return '';
+  const typeDef = A.types?.[andersenTypeId(line.type)];
+  if (!typeDef?.limits) return '';
+  const bits = [];
+  const w = limitRange(typeDef.limits.w);
+  const h = limitRange(typeDef.limits.h);
+  if (w) bits.push(`width ${w}`);
+  if (h) bits.push(`height ${h}`);
+  let text = `${typeDef.name}: ${bits.join(', ')}.`;
+  if (typeDef.limits.rule) text += ` ${typeDef.limits.rule}.`;
+  if (typeDef.integral) text += ' Priced as one combined unit at this overall size.';
+  return text;
+}
+function andersenSizeErrors(typeDef, w, h) {
+  const name = typeDef?.name || 'This unit';
+  const L = typeDef?.limits || {};
+  const errs = [];
+  const [wmin, wmax] = L.w || [];
+  const [hmin, hmax] = L.h || [];
+  if (wmin != null && w < wmin - 1e-6) errs.push(`${name} width must be at least ${formatInches(wmin)} (Andersen 100 limit).`);
+  if (wmax != null && w > wmax + 1e-6) errs.push(`${name} width must be ${formatInches(wmax)} or less (Andersen 100 limit).`);
+  if (hmin != null && h < hmin - 1e-6) errs.push(`${name} height must be at least ${formatInches(hmin)} (Andersen 100 limit).`);
+  if (hmax != null && h > hmax + 1e-6) errs.push(`${name} height must be ${formatInches(hmax)} or less (Andersen 100 limit).`);
+  const rule = String(L.rule || '');
+  const maxH = /H max ([0-9.]+) when W>=([0-9.]+)/i.exec(rule);
+  if (maxH) {
+    const cap = Number(maxH[1]);
+    const at = Number(maxH[2]);
+    if (w >= at - 1e-9 && h > cap + 1e-6) errs.push(`${name} height must be ${formatInches(cap)} or less when the width is ${formatInches(at)} or more.`);
+  }
+  const short = /short side >= ([0-9.]+)/i.exec(rule);
+  if (short) {
+    const minSide = Number(short[1]);
+    if (h < minSide - 1e-6) errs.push(`${name} short side must be at least ${formatInches(minSide)}, so the overall height has to be at least ${formatInches(minSide)}.`);
+  }
+  return errs;
+}
+function andersenColorError(typeDef, typeId, color) {
+  const table = andersenColorTable(andersenConfig(), typeId) || {};
+  const names = Object.entries(table).filter(([, v]) => typeof v === 'number').map(([id]) => colorName(id));
+  return `${typeDef?.name || 'This unit'} is not priced in ${colorName(color)}. Priced colors: ${names.join(', ')}.`;
+}
+// Next whole dollar. A hair under an integer is float dust (750.0000001), not a real fraction (750.004).
+function roundUpDollar(n) {
+  return Math.ceil(Number(n) - 1e-6);
 }
 export function setLineAddon(line, id, on) {
   line.addons ||= [];
@@ -450,6 +554,46 @@ function strayOptionExtra(line, model, base, w, h) {
   }
   return extra * lineUnits(line);
 }
+function andersenRaw(model, line) {
+  const w = finite(line.w), h = finite(line.h);
+  const t = model.typeDef;
+  const errors = [];
+  if (!model.colorDef) errors.push(andersenColorError(t, model.typeId, line.color));
+  errors.push(...andersenSizeErrors(t, w, h));
+  if (errors.length) return { blocked: true, errors };
+  const ui = w + h, sqft = w * h / 144;
+  const core = (t.base || 0) + (t.perUI || 0) * ui + (t.perSqFt || 0) * sqft;
+  const flushOn = !!(t.flushFin && (line.addons || []).includes('flush_fin_trim'));
+  const afterFlush = flushOn ? core * t.flushFin.factor + (Number(t.flushFin.adder) || 0) : core;
+  const colorAdder = model.colorDef.adder || 0;
+  const colored = afterFlush + colorAdder;
+  let extra = 0;
+  for (const id of chosenAddonIds(line, model.addons)) {
+    if (id === 'flush_fin_trim') continue;
+    if (t.glassIncluded && GLASS_IDS.includes(id)) continue;
+    const A = model.addons[id];
+    if (!A || A.type === 'flushFin') continue;
+    if (A.type === 'perUI') extra += (A.amount || 0) * ui;
+    else if (A.type === 'perWindow') extra += A.amount || 0;
+    else if (A.type === 'perSqFt') extra += capAddon(A, (A.amount || 0) * sqft);
+    else if (A.type === 'perWindowPlusPerSqFt') extra += capAddon(A, (A.amount || 0) + (A.perSqFt || 0) * sqft);
+    else if (A.type === 'perWindowPlusPerUI') extra += capAddon(A, (A.amount || 0) + (A.perUI || 0) * ui);
+    else if (A.type === 'percentOfWindow') extra += (A.amount || 0) / 100 * colored;
+  }
+  const stray = strayOptionExtra({ ...line, unitsPerLine: 1, units: 1 }, model, colored, w, h);
+  const units = model.integral ? 1 : lineUnits(line);
+  const preRound = (colored + extra + stray) * units;
+  if (!(preRound > 0) || !Number.isFinite(preRound)) {
+    return { blocked: true, errors: [`${t.name} is outside the priced Andersen 100 range, so it is not priced.`] };
+  }
+  return {
+    blocked: false, unit: roundUpDollar(preRound), preRound, core, ui, sqft, afterFlush, colorAdder, colored,
+    extra: extra + stray, units, flush: flushOn,
+    flushFactor: flushOn ? t.flushFin.factor : null,
+    flushAdder: flushOn ? (Number(t.flushFin.adder) || 0) : 0,
+    ratio: 1, adjust: colorAdder, scaledPerUI: 0, typeDef: t, roundedUp: true,
+  };
+}
 // One material unit (factory-mull units included, quantity not included).
 // Rounded once, to the cent, or to the dollar when that setting is on.
 function buildMaterial(line) {
@@ -476,6 +620,17 @@ function buildMaterial(line) {
     };
   }
   if (model.mode === 'variable') {
+    if (model.family === 'andersen') {
+      const d = andersenRaw(model, line);
+      if (d.blocked) {
+        return { mode: 'variable', blocked: true, errors: d.errors, unit: null, unitBase: null, optionsEach: 0, rate: null, estimated: false, wh: w + h, fromQuotes: true, detail: null };
+      }
+      const coreRounded = roundUpDollar(d.colored * d.units);
+      return {
+        mode: 'variable', unit: d.unit, unitBase: coreRounded, optionsEach: d.unit - coreRounded,
+        rate: null, estimated: false, wh: d.ui, fromQuotes: true, provisional: false, detail: d,
+      };
+    }
     const d = variableRaw(model, line);
     const unit = roundMoney(d.raw + strayOptionExtra(line, model, d.colored, w, h));
     const coreRounded = roundMoney(d.colored);
@@ -495,7 +650,8 @@ function buildMaterial(line) {
 }
 export function materialUnitPrice(line) {
   const built = buildMaterial(line);
-  return built ? built.unit : null;
+  if (!built || built.blocked || built.unit == null) return null;
+  return built.unit;
 }
 export function linePrice(line) { return priceWindow(line); }
 // ---------- installation / labor (separate from window price and from add-ons) ----------
@@ -581,6 +737,7 @@ export function stuccoState(e) {
 export function priceWindow(line) {
   const built = buildMaterial(line || {});
   if (!built) return null;
+  if (built.blocked) return { ...built, total: null };
   const qty = parseInt(line?.qty, 10) || 1;
   return { ...built, total: roundMoney(built.unit * qty) };
 }
