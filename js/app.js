@@ -23,22 +23,35 @@ const ROUTES = [
   ['settings', 'Settings', '⚙️', (r) => settings.render(r)],
 ];
 
-function navRoutes() {
+const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.49-.42h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.41 1.05.72 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.22 1.13-.53 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>';
+
+function allRoutes() {
   const list = [...ROUTES];
   if (isAdmin()) list.splice(3, 0, ['admin', 'Admin', '👤', (r) => admin.render(r)]);
   return list;
 }
 
+function mountGear(on) {
+  let gear = document.getElementById('settings-gear');
+  if (!gear) {
+    gear = h('a', { id: 'settings-gear', href: '#/settings', 'aria-label': 'Settings', html: GEAR });
+    document.querySelector('.top')?.append(gear);
+  }
+  gear.classList.toggle('on', on);
+}
+
 function route() {
   if (!unlocked) return;
   const [, name = 'calculator', sub] = location.hash.split('/');
-  const routes = navRoutes();
+  const routes = allRoutes();
   const r = routes.find((x) => x[0] === name) || routes[0];
+  const nav = routes.filter((x) => x[0] !== 'settings');
   gallery.stop();
   brochures.stop();
   obscure.stop();
   document.body.dataset.route = r[0] + (sub ? '-' + sub : '');
-  $('#nav').replaceChildren(...routes.map(([id, label, ico]) => h('a', { href: '#/' + id, class: id === r[0] ? 'on' : '' }, h('span', { class: 'ico' }, ico), h('span', { class: 'nl' }, label))));
+  $('#nav').replaceChildren(...nav.map(([id, label, ico]) => h('a', { href: '#/' + id, class: id === r[0] ? 'on' : '' }, h('span', { class: 'ico' }, ico), h('span', { class: 'nl' }, label))));
+  mountGear(r[0] === 'settings');
   const app = $('#app');
   try { r[3](app, sub); } catch (err) { console.error(err); app.replaceChildren(h('div', { class: 'card' }, 'Something went wrong: ' + err.message)); }
   window.scrollTo(0, 0);
