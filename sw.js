@@ -1,14 +1,14 @@
 // Offline shell for iPad (Safari / Add to Home Screen).
 // Network-first, then this versioned cache. A new CACHE name drops the old one on
 // activate, so price files update the next time the iPad is online.
-const CACHE = 'nwd-sales-v46-brochure-viewer';
+const CACHE = 'nwd-sales-v47-milgard-brochures';
 const PRECACHE = ['./', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'js/app.js', 'js/core.js', 'js/milgard.js', 'js/cloud.js', 'js/frames.js', 'js/pdf.js', 'js/sign.js', 'js/vendor/jspdf.umd.min.js', 'js/vendor/pdf.min.mjs', 'js/vendor/pdf.worker.min.mjs',
   'js/pages/calculator.js', 'js/pages/milgard-ui.js', 'js/pages/estimate.js', 'js/pages/contract.js', 'js/pages/options.js', 'js/pages/gallery.js', 'js/pages/brochures.js', 'js/pages/overlay.js', 'js/pages/settings.js', 'js/pages/obscure.js', 'js/pages/frame-types.js', 'js/pages/auth.js', 'js/pages/admin.js',
   'data/rates.json', 'data/variable-rates.json', 'data/milgard-onelink.json', 'data/options.json', 'data/install.json', 'data/settings.default.json', 'data/obscure-glass.json', 'data/frame-types.json', 'data/promos.json', 'data/purchase-agreement.json', 'data/overlay/manifest.json', 'assets/gallery/gallery.json',
   'assets/noble-logo-trim.png', 'assets/noble-logo.jpg', 'assets/icon-192.png', 'assets/icon-512.png',
   'assets/obscure/cascade.png', 'assets/obscure/fern.png', 'assets/obscure/obscure.png', 'assets/obscure/reed.png', 'assets/obscure/satin-etch.png'];
 // Gallery JPEGs are not precached (48 photos). The fetch handler below stores each one on first view.
-// Brochure PDFs are not precached (about 20 MB). The first open stores that one file for offline.
+// Brochure PDFs are not precached. The first open stores that one file for offline.
 // PDF.js is precached so the in-app viewer can draw a saved brochure with no network.
 // Overlay WebPs are read from the manifest so a replaced photo is cached without editing this list.
 self.addEventListener('install', (e) => {

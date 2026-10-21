@@ -97,7 +97,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v46-brochure-viewer'" in sw, 'service worker cache should be nwd-sales-v46-brochure-viewer')
+check("const CACHE = 'nwd-sales-v47-milgard-brochures'" in sw, 'service worker cache should be nwd-sales-v47-milgard-brochures')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
 check('data/purchase-agreement.json' in sw, 'purchase agreement should be precached')
@@ -120,9 +120,11 @@ for banned in ('milgard-v300-01.jpg', 'site-finished-01.jpg'):
 check('js/pages/brochures.js' in sw, 'brochures page should be precached')
 precache = sw.split('const PRECACHE', 1)[1].split('];', 1)[0]
 check('js/vendor/pdf.min.mjs' in precache and 'js/vendor/pdf.worker.min.mjs' in precache, 'pdf.js viewer should be precached')
-for pdf in ('milgard-trinsic-v300.pdf', 'milgard-tuscany-v400.pdf', 'milgard-vinyl-line.pdf', 'milgard-window-selection-guide.pdf', 'milgard-series-comparison-chart.pdf', 'andersen-100-series.pdf'):
+for pdf in ('milgard-v250-style-line.pdf', 'milgard-v300-trinsic.pdf', 'milgard-v400-tuscany.pdf', 'milgard-c700-fiberglass.pdf', 'milgard-a250-aluminum.pdf', 'milgard-patio-doors.pdf', 'milgard-window-selection-guide.pdf', 'andersen-100-series.pdf'):
     check(os.path.isfile('brochures/' + pdf), 'missing brochure ' + pdf)
     check(pdf not in precache, 'brochure PDF should not be precached: ' + pdf)
+for old in ('milgard-trinsic-v300.pdf', 'milgard-tuscany-v400.pdf', 'milgard-vinyl-line.pdf', 'milgard-series-comparison-chart.pdf'):
+    check(not os.path.exists('brochures/' + old), 'old Milgard brochure should be removed: ' + old)
 check('andersen-100-product-guide' not in sw and not os.path.exists('brochures/andersen-100-product-guide.pdf'), 'do not ship the Andersen 100 product guide')
 
 glass = json.load(open('data/obscure-glass.json'))
