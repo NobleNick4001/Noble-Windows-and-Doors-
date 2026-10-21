@@ -226,7 +226,7 @@ function savePattern(p, statusEl, btn) {
     if (!line.options.includes('obscure')) line.options.push('obscure');
     line.options.push(p.id);
     const priced = priceWindow(line);
-    if (priced) {
+    if (priced && !priced.blocked && priced.unit != null) {
       line.unitBase = priced.unitBase; line.optionsEach = priced.optionsEach; line.unit = priced.unit;
       line.rate = priced.rate; line.rateSet = settings.rateSet; line.estimated = priced.estimated;
     }

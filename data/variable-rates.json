@@ -4,97 +4,271 @@
  "grossMarginBasis": 0.45,
  "formula": "unit = (base + perUI*UI + perSqFt*sqft + sum(perUI addons scaledByColor)*UI) * color.ratio + color.adjustPerUnit + flat/perSqFt/perWindow addons; percent addons = % of (base+perUI*UI+perSqFt*sqft)*ratio. UI = W+H, sqft = W*H/144, net frame/unit size in inches. Line = unit * qty * unitsPerLine(mull).",
  "andersen": {
+  "_readme": "Andersen 100 Series customer prices from Andersen iQ (Oct 20, 2026). Already at 45% margin (dealer = list x 0.5243, customer = dealer / 0.55). Do NOT apply marginFactor. Labor stays in data/install.json. unit = base + perUI*(W+H) + perSqFt*(W*H/144); flush fin = unit*factor + adder; then the color adder; round UP to the next dollar. Never price outside limits (some bases are negative). Twin types are one integral unit at the overall size. Patio door price includes tempered glass and the full fiberglass screen. There is no 3-panel or 4-panel door.",
   "series": "100",
+  "version": "2026-10-20",
+  "round": "up",
+  "margin": 0.45,
+  "aliases": {
+   "arch": "specialty_arch"
+  },
   "types": {
-   "casement": {
-    "base": 124.07,
-    "perUI": 14.1714,
-    "perSqFt": 0
+   "vslider": {
+    "name": "Single hung",
+    "base": 2.79,
+    "perUI": 7.5725,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0835,
+     "adder": 10.66
+    },
+    "limits": {
+     "w": [
+      17.5,
+      47.5
+     ],
+     "h": [
+      23.5,
+      89.5
+     ]
+    }
    },
    "picture": {
-    "base": 167.26,
-    "perUI": 7.0841,
-    "perSqFt": 0
+    "name": "Picture",
+    "base": -22.04,
+    "perUI": 7.217,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0369,
+     "adder": 9.56
+    },
+    "limits": {
+     "w": [
+      11.5,
+      95.5
+     ],
+     "h": [
+      11.5,
+      95.5
+     ],
+     "rule": "H max 71.5 when W>=72"
+    }
    },
    "hslider": {
-    "base": 115.53,
-    "perUI": 8.5293,
-    "perSqFt": 0
-   },
-   "vslider": {
-    "base": 108.29,
-    "perUI": 7.9928,
-    "perSqFt": 0,
-    "provisional": true
+    "name": "Gliding XO",
+    "base": -48.55,
+    "perUI": 8.376,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0335,
+     "adder": 9.26
+    },
+    "limits": {
+     "w": [
+      23.5,
+      71.5
+     ],
+     "h": [
+      11.5,
+      71.5
+     ]
+    }
    },
    "xox": {
-    "base": 131.2,
-    "perUI": 9.6859,
-    "perSqFt": 0,
-    "provisional": true
+    "name": "Gliding XOX",
+    "base": -59.32,
+    "perUI": 7.9889,
+    "perSqFt": 7.9774,
+    "flushFin": {
+     "factor": 1.0208,
+     "adder": 66.13
+    },
+    "limits": {
+     "w": [
+      47.5,
+      143.5
+     ],
+     "h": [
+      17.5,
+      71.5
+     ]
+    }
    },
-   "arch": {
-    "base": 425.69,
-    "perUI": 12.2867,
-    "perSqFt": 0,
-    "note": "equal-leg arch and half circle"
+   "casement": {
+    "name": "Casement",
+    "base": -100.02,
+    "perUI": 12.4955,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0,
+     "adder": 92.75
+    },
+    "limits": {
+     "w": [
+      17.5,
+      35.5
+     ],
+     "h": [
+      23.5,
+      71.5
+     ]
+    }
+   },
+   "awning": {
+    "name": "Awning",
+    "base": -80.53,
+    "perUI": 13.1521,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0212,
+     "adder": 19.69
+    },
+    "limits": {
+     "w": [
+      17.5,
+      47.5
+     ],
+     "h": [
+      17.5,
+      35.5
+     ]
+    }
+   },
+   "twin_vslider": {
+    "name": "Twin single hung",
+    "base": -41.67,
+    "perUI": 11.8955,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0447,
+     "adder": 0.12
+    },
+    "integral": true,
+    "limits": {
+     "w": [
+      35.5,
+      95.5
+     ],
+     "h": [
+      23.5,
+      71.5
+     ]
+    }
+   },
+   "twin_casement": {
+    "name": "Twin casement",
+    "base": -73.81,
+    "perUI": 17.3088,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0447,
+     "adder": 0.0
+    },
+    "integral": true,
+    "limits": {
+     "w": [
+      35.5,
+      71.5
+     ],
+     "h": [
+      23.5,
+      71.5
+     ]
+    }
+   },
+   "arch_sh": {
+    "name": "Arch single hung",
+    "base": -70.19,
+    "perUI": 14.5294,
+    "perSqFt": 0.0,
+    "flushFin": null,
+    "limits": {
+     "w": [
+      23.5,
+      41.5
+     ],
+     "h": [
+      null,
+      89.5
+     ],
+     "rule": "short side >= 29.5"
+    }
+   },
+   "specialty_arch": {
+    "name": "Specialty arch",
+    "base": -7.3,
+    "perUI": 12.7059,
+    "perSqFt": 0.0,
+    "flushFin": {
+     "factor": 1.0476,
+     "adder": 0.14
+    },
+    "limits": {
+     "w": [
+      23.5,
+      95.5
+     ],
+     "h": [
+      12.875,
+      84.25
+     ],
+     "rule": "short-side range depends on W/H (iQ validates)"
+    }
+   },
+   "patio_door_2p": {
+    "name": "Patio door (2-panel)",
+    "base": 1341.58,
+    "perUI": 0.0,
+    "perSqFt": 49.3323,
+    "flushFin": null,
+    "glassIncluded": true,
+    "includes": [
+     "Tempered glass",
+     "Full fiberglass screen"
+    ],
+    "limits": {
+     "w": [
+      59.25,
+      95.25
+     ],
+     "h": [
+      71.5,
+      95.5
+     ]
+    }
    }
   },
-  "keepExisting": [
-   "awning"
-  ],
-  "colors": {
-   "bb": {
-    "ratio": 1.0,
-    "adjustPerUnit": 0,
-    "tier": "same_color_both_sides"
+  "colorAdders": {
+   "window": {
+    "ww": 0,
+    "sandtone": 90.57,
+    "terratone": 90.57,
+    "dkbronze": 90.57,
+    "dkbronze_dkbronze": 181.13,
+    "bw": 90.57,
+    "bb": 181.13,
+    "_rule": "any non-white exterior +90.57; black interior another +90.57 (Black/Black 181.13). Dark Bronze / Dark Bronze was not in the Oct 20 color test; it uses the dark-interior adder so it is not priced as a white-interior two-tone."
    },
-   "sandtone": {
-    "ratio": 1.0,
-    "adjustPerUnit": 0,
-    "tier": "same_color_both_sides"
-   },
-   "dkbronze_dkbronze": {
-    "ratio": 1.0,
-    "adjustPerUnit": 0,
-    "tier": "same_color_both_sides",
-    "new": true,
-    "name": "Dark Bronze / Dark Bronze"
-   },
-   "terratone": {
-    "ratio": 1.003,
-    "adjustPerUnit": 0,
-    "tier": "dark_ext_white_int"
-   },
-   "dkbronze": {
-    "ratio": 1.003,
-    "adjustPerUnit": 0,
-    "tier": "dark_ext_white_int",
-    "name": "Dark Bronze / White"
-   },
-   "bw": {
-    "ratio": 1.003,
-    "adjustPerUnit": 0,
-    "tier": "dark_ext_white_int",
-    "inferred": true
-   },
-   "ww": {
-    "ratio": 1.0,
-    "adjustPerUnit": -191.71,
-    "tier": "white_white"
+   "patio_door_2p": {
+    "ww": 0,
+    "bw": 181.13,
+    "bb": 362.25
    }
+  },
+  "patioDoor": {
+   "fullScreenIncluded": 276.64,
+   "note": "Full screen is included. A credit for leaving the screen off is not verified, so the app does not subtract it."
   },
   "addons": {
    "flush_fin_trim": {
-    "type": "perUI",
-    "amount": 1.6181,
-    "scaledByColor": true,
-    "name": "Flush fin + interior trim"
+    "type": "flushFin",
+    "name": "Flush fin + interior trim",
+    "note": "Nail fin is the base price. Flush fin is unit x factor + adder, before the color adder."
    },
    "grilles_gbg": {
     "type": "perUI",
     "amount": 2.1798,
-    "scaledByColor": true,
+    "scaledByColor": false,
     "name": "Grilles between the glass (any pattern/color)"
    },
    "truscene": {
@@ -116,8 +290,7 @@
     "type": "percentOfWindow",
     "amount": 12
    }
-  },
-  "mull": "A factory-mulled unit = N units, each priced on its own unit size; no mull charge."
+  }
  },
  "milgard": {
   "V300": {

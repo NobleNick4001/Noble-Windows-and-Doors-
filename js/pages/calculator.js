@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType } from '../core.js';
 import { renderMilgard, roomLabelProps } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
 
@@ -22,10 +22,12 @@ function normalize() {
   else calc.options = calc.options.filter((id) => known.has(id));
   if (!Array.isArray(calc.addons)) calc.addons = [];
   if (!(Number(calc.unitsPerLine) > 0)) calc.unitsPerLine = 1;
+  if (isIntegralType(calc)) calc.unitsPerLine = 1;
   if (!b.series.length) return b;
   let s = b.series.find((x) => x.id === calc.series); if (!s) { s = b.series[0]; calc.series = s.id; }
   if (calc.type !== 'custom_supplier' && !s.types.includes(calc.type)) calc.type = s.types[0];
-  if (!s.colors.includes(calc.color)) calc.color = s.colors[0];
+  const colors = seriesColorIds(calc.brand, calc.series, calc.type);
+  if (!colors.includes(calc.color)) calc.color = colors[0] || s.colors[0];
   const defs = lineAddonDefs(calc);
   if (defs) calc.addons = calc.addons.filter((id) => defs[id]);
   return b;
@@ -112,11 +114,14 @@ function mathText(p, w, h) {
   if (t.perUI) bits.push(`$${t.perUI} × ${d.ui}"`);
   if (t.perSqFt) bits.push(`$${t.perSqFt} × ${(d.sqft).toFixed(2)} sq ft`);
   let s = bits.join(' + ') || '$0';
+  if (d.flush) s = `(${s}) × ${d.flushFactor} + ${fmt(d.flushAdder)}`;
   if (d.scaledPerUI) s = `(${s} + $${d.scaledPerUI}/UI × ${d.ui}")`;
   if (d.ratio !== 1) s = `(${s}) × ${d.ratio}`;
-  if (d.adjust) s += ` ${d.adjust < 0 ? '−' : '+'} ${fmt(Math.abs(d.adjust))}`;
+  if (d.colorAdder) s += ` + color ${fmt(d.colorAdder)}`;
+  else if (d.adjust) s += ` ${d.adjust < 0 ? '−' : '+'} ${fmt(Math.abs(d.adjust))}`;
   if (d.extra) s += ` + add-ons ${fmt(d.extra)}`;
   if (d.units !== 1) s += ` × ${d.units} units`;
+  if (d.roundedUp) s += ', rounded up';
   return `${s} = ${fmt(p.unit)}`;
 }
 
@@ -196,7 +201,9 @@ export function render(root) {
     return;
   }
   const series = brand.series.find((s) => s.id === calc.series);
-  const args = () => ({ brand: calc.brand, series: calc.series, color: calc.color, type: calc.type, w: parseFloat(calc.w), h: parseFloat(calc.h), qty: parseInt(calc.qty) || 1, unitsPerLine: Number(calc.unitsPerLine) || 1, options: calc.options, addons: calc.addons, supplierPrice: calc.supplierPrice, customDescription: calc.customDescription, install: calc.install });
+  const colors = seriesColorIds(calc.brand, calc.series, calc.type);
+  const integral = isIntegralType(calc);
+  const args = () => ({ brand: calc.brand, series: calc.series, color: calc.color, type: calc.type, w: parseFloat(calc.w), h: parseFloat(calc.h), qty: parseInt(calc.qty) || 1, unitsPerLine: integral ? 1 : (Number(calc.unitsPerLine) || 1), options: calc.options, addons: calc.addons, supplierPrice: calc.supplierPrice, customDescription: calc.customDescription, install: calc.install });
 
   const roomMsg = h('p', { class: 'warn', id: 'room-required', hidden: String(calc.label || '').trim() ? true : null }, 'Enter a location (e.g. Kitchen)');
   const setRoom = (v) => { calc.label = v; persist(); update(); };
@@ -212,10 +219,16 @@ export function render(root) {
           ...roomLabelProps(() => calc.label || '', setRoom),
         }), roomMsg),
         h('div', { class: 'grid3' }, stepper('Width', calc.w, (v) => { calc.w = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-w', pattern: '[0-9]*[.]?[0-9]*' }), stepper('Height', calc.h, (v) => { calc.h = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-h', pattern: '[0-9]*[.]?[0-9]*' }), stepper('Qty', calc.qty, (v) => { calc.qty = v; persist(); update(); }, { step: 1, min: 1, id: 'in-q' }))),
-      stepper('Units in this line', calc.unitsPerLine, (v) => { calc.unitsPerLine = v; persist(); update(); }, { step: 1, min: 1, id: 'in-units' }),
-      h('p', { class: 'fine' }, 'A factory mull is this many units, each priced at this size. There is no separate mull charge.'),
+      h('p', { class: 'fine', id: 'size-limit' }, sizeLimitText(args())),
+      h('p', { class: 'warn size-err', id: 'size-err', hidden: true }, ''),
+      integral
+        ? h('p', { class: 'fine', id: 'twin-note' }, 'This is one factory twin. Enter the overall width and height. The price is for that combined unit, not two single windows. Quantity is how many twins.')
+        : stepper('Units in this line', calc.unitsPerLine, (v) => { calc.unitsPerLine = v; persist(); update(); }, { step: 1, min: 1, id: 'in-units' }),
+      integral ? null : h('p', { class: 'fine' }, calc.brand === 'andersen' && (calc.type === 'vslider' || calc.type === 'casement')
+        ? 'A factory mull is this many separate units, each priced at this size. A factory twin is its own type and is priced once at the overall width.'
+        : 'A factory mull is this many units, each priced at this size. There is no separate mull charge.'),
       customPriceFields(calc, () => { persist(); update(); })),
-    h('div', { class: 'card' }, h('h3', {}, 'Frame color'), h('div', { class: 'swatches' }, series.colors.map((c) => { const cd = colorById(c); return h('button', { class: 'swatch' + (c === calc.color ? ' on' : ''), onclick: () => { calc.color = c; persist(); rerender(); } }, h('i', { style: `background:${cd.swatch}` }), h('span', {}, cd.name)); }))),
+    h('div', { class: 'card' }, h('h3', {}, 'Frame color'), h('div', { class: 'swatches' }, colors.map((c) => { const cd = colorById(c); return h('button', { class: 'swatch' + (c === calc.color ? ' on' : ''), onclick: () => { calc.color = c; persist(); rerender(); } }, h('i', { style: `background:${cd.swatch}` }), h('span', {}, cd.name)); }))),
     h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Glass & upgrades')),
       upgradeEditor(calc, () => { persist(); update(); }, 'opt-'),
       calc.series === 'V400' ? h('p', { class: 'fine' }, 'Composite units: choose Custom unit and enter the supplier price.') : null),
@@ -233,15 +246,29 @@ export function render(root) {
     const locationOk = String(calc.label || '').trim().length > 0;
     roomMsg.hidden = locationOk;
     const p = priceWindow(args());
+    const blocked = !!(p && p.blocked);
+    const errEl = document.getElementById('size-err');
+    if (errEl) {
+      errEl.textContent = blocked ? p.errors.join(' ') : '';
+      errEl.hidden = !blocked;
+    }
     priceBox.replaceChildren();
     const summary = `${brand.name} ${calc.series} · ${typeName(calc.type)} · ${colorById(calc.color).name}`;
     priceBox.append(h('div', { class: 'eyebrow' }, summary));
     const frameWarn = needsFrameWarning({ brand: calc.brand, series: calc.series, install: calc.install })
       ? h('p', { class: 'warn frame-warn', id: 'frame-warn' }, FRAME_TYPE_WARNING) : null;
-    if (!p) {
+    if (!p || blocked) {
       const needsPrice = calc.type === 'custom_supplier' || isCustomLine(calc);
       const sized = parseFloat(calc.w) > 0 && parseFloat(calc.h) > 0;
-      priceBox.append(h('div', { class: 'big muted' }, '—'), h('p', { class: 'muted' }, needsPrice ? 'Enter the supplier’s customer price.' : sized ? 'No fitted rate for this combination. Choose Custom unit and enter the supplier price.' : 'Enter width and height to see the price.'), frameWarn);
+      const msg = blocked
+        ? p.errors.join(' ')
+        : (needsPrice ? 'Enter the supplier’s customer price.' : sized ? 'No fitted rate for this combination. Choose Custom unit and enter the supplier price.' : 'Enter width and height to see the price.');
+      priceBox.append(
+        h('div', { class: 'big muted', id: 'price-window' }, '—'),
+        h('p', { class: blocked ? 'warn' : 'muted', id: 'price-block' }, msg),
+        blocked ? h('p', { class: 'muted' }, 'Andersen 100 is not priced outside these limits. Some formulas start from a negative base, so a size past the limit is left blank.') : null,
+        frameWarn,
+        h('button', { class: 'btn primary xl', id: 'btn-add', disabled: true, title: blocked ? 'Size is outside the Andersen 100 limit' : '' }, '+ Add to estimate'));
       return;
     }
     const qty = parseInt(calc.qty) || 1, inst = installUnit(calc.install), add = addonUnit(calc.install);
@@ -249,15 +276,18 @@ export function render(root) {
     const width = parseFloat(calc.w), height = parseFloat(calc.h);
     const warn = (width < 12 || height < 12 || width > 144 || height > 144);
     const doorWidth = calc.series === '8900' && width > 0 && (width < 59 || width > 192);
+    const door = calc.type === 'patio_door_2p';
+    const noun = door ? 'Door' : 'Window';
     priceBox.append(...[
-      h('div', { class: 'big', id: 'price-window' }, fmt(p.unit)), h('div', { class: 'sub' }, p.optionsEach ? 'window price (materials, incl. glass) · each' : 'window price (materials) · each'),
+      h('div', { class: 'big', id: 'price-window' }, fmt(p.unit)), h('div', { class: 'sub' }, p.optionsEach ? `${noun.toLowerCase()} price (materials, incl. glass) · each` : `${noun.toLowerCase()} price (materials) · each`),
       h('div', { class: 'line' }, h('span', {}, 'Installation / labor (each)'), h('b', { id: 'price-install' }, fmt(inst))),
       add ? h('div', { class: 'line' }, h('span', { id: 'price-addon-lbl' }, 'Add-ons (each) · ' + addonNames(calc.install).join(', ')), h('b', { id: 'price-addons' }, fmt(add))) : null,
-      h('div', { class: 'line strong' }, h('span', {}, add ? 'Window + install + add-ons, each' : 'Window + install, each'), h('b', { id: 'price-each' }, fmt(each))),
-      qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} windows`), h('b', { id: 'price-total' }, fmt(each * qty))),
+      h('div', { class: 'line strong' }, h('span', {}, add ? `${noun} + install + add-ons, each` : `${noun} + install, each`), h('b', { id: 'price-each' }, fmt(each))),
+      qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} ${door ? 'doors' : 'windows'}`), h('b', { id: 'price-total' }, fmt(each * qty))),
       h('div', { class: 'fine' }, 'Material price. The estimate adds Installation / Labor, $150 shipping, and 9.1% sales tax on materials.'),
+      door ? h('p', { class: 'fine', id: 'door-includes' }, 'Includes tempered glass and the full fiberglass screen. Labor stays on its own line.') : null,
       frameWarn,
-      warn && calc.series !== '8900' && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
+      warn && calc.brand !== 'andersen' && calc.series !== '8900' && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
       doorWidth && h('p', { class: 'warn' }, '8900 doors are quoted for widths of about 59"–192".'),
       h('button', { class: 'link', onclick: () => { calc.details = !calc.details; persist(); update(); } }, calc.details ? 'Hide math' : 'Show math'),
       calc.details && h('div', { class: 'math' }, mathText(p, calc.w, calc.h), ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`, add ? ` · add-ons ${fmt(add)}` : ''),
@@ -269,7 +299,7 @@ export function render(root) {
   function addToEstimate() {
     const location = String(calc.label || '').trim();
     const a = args(); const p = priceWindow(a);
-    if (!location || !p) return;
+    if (!location || !p || p.blocked || p.unit == null) return;
     const e = estimates.current();
     e.lines.push({ id: uid(), label: location, brand: calc.brand, series: calc.series, type: calc.type, color: calc.color, w: a.w || 0, h: a.h || 0, qty: a.qty, unitsPerLine: a.unitsPerLine, options: [...(calc.options || [])], addons: [...(calc.addons || [])], supplierPrice: calc.type === 'custom_supplier' || isCustomLine(calc) ? calc.supplierPrice : null, customDescription: calc.customDescription || '', unitBase: p.unitBase, optionsEach: p.optionsEach, unit: p.unit, rate: p.rate, rateSet: settings.rateSet, estimated: p.estimated, pricingMode: p.mode,
       install: JSON.parse(JSON.stringify(calc.install)), installUnit: installUnit(calc.install) });

@@ -1,5 +1,5 @@
 {
- "_readme": "RATE TABLE (material only, fallback). Stored p75/max are quoted customer $/inch and already include a 40% margin (customer = cost / 0.60). Selling rate on this path = stored x 0.60 / (1 - grossMargin). grossMargin (0.45) applies ONLY to combinations that are not in data/variable-rates.json. Andersen 100 (except awning) and IWC 8200/8900 Bronze Anodized live in data/variable-rates.json and are selling prices. Milgard V250/V300/V400 windows and V300/V400/A250 patio doors use the OneLink grid in data/milgard-onelink.json (customer = OneLink cost / 0.55). Do not run fitted prices through marginFactor. Labor, tax, shipping, and flat add-ons are not scaled. 'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). Sandtone selling price matches Black (variable model). Dark Bronze / White is the two-tone exterior. Dark Bronze / Dark Bronze is the same-color tier. IWC is active for 8200 windows and 8900 doors in Bronze Anodized. Other IWC colors use the custom supplier-price line. See README.md.",
+ "_readme": "RATE TABLE (material only, fallback). Stored p75/max are quoted customer $/inch and already include a 40% margin (customer = cost / 0.60). Selling rate on this path = stored x 0.60 / (1 - grossMargin). grossMargin (0.45) applies ONLY to combinations that are not in data/variable-rates.json. Andersen 100 and IWC 8200/8900 Bronze Anodized live in data/variable-rates.json and are selling prices. Milgard V250/V300/V400 windows and V300/V400/A250 patio doors use the OneLink grid in data/milgard-onelink.json (customer = OneLink cost / 0.55). Do not run fitted prices through marginFactor. Labor, tax, shipping, and flat add-ons are not scaled. 'estimated': true = not from a solid quote (hidden from customers): a derived color, or a thin sample (n < 3). Andersen 100 selling prices are the iQ formula (round up to the next dollar), not these stored $/inch cells. Sandtone is a flat color adder, not the Black price. Dark Bronze / White is the two-tone exterior. Dark Bronze / Dark Bronze is the same-color tier. IWC is active for 8200 windows and 8900 doors in Bronze Anodized. Other IWC colors use the custom supplier-price line. See README.md.",
  "version": 2,
  "generated": "2026-10-11",
  "formula": "(width + height) * storedRate * 0.60 / (1 - grossMargin)",
@@ -36,6 +36,26 @@
   {
    "id": "awning",
    "name": "Awning"
+  },
+  {
+   "id": "twin_vslider",
+   "name": "Twin single hung"
+  },
+  {
+   "id": "twin_casement",
+   "name": "Twin casement"
+  },
+  {
+   "id": "arch_sh",
+   "name": "Arch single hung"
+  },
+  {
+   "id": "specialty_arch",
+   "name": "Specialty arch"
+  },
+  {
+   "id": "patio_door_2p",
+   "name": "Patio door (2-panel)"
   },
   {
    "id": "xox",
@@ -662,10 +682,14 @@
       "hslider",
       "xox",
       "vslider",
+      "twin_vslider",
       "picture",
       "casement",
-      "arch",
-      "awning"
+      "twin_casement",
+      "awning",
+      "arch_sh",
+      "specialty_arch",
+      "patio_door_2p"
      ]
     }
    ],
