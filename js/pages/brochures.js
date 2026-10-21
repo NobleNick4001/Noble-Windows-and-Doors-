@@ -6,11 +6,13 @@ const GROUPS = [
     id: 'milgard',
     name: 'Milgard',
     items: [
-      { file: 'brochures/milgard-trinsic-v300.pdf', label: 'Milgard Trinsic V300 brochure' },
-      { file: 'brochures/milgard-tuscany-v400.pdf', label: 'Milgard Tuscany V400 brochure' },
-      { file: 'brochures/milgard-vinyl-line.pdf', label: 'Milgard Vinyl Line overview (Tuscany, Trinsic, Style Line)' },
+      { file: 'brochures/milgard-v250-style-line.pdf', label: 'Milgard V250 Style Line' },
+      { file: 'brochures/milgard-v300-trinsic.pdf', label: 'Milgard V300 Trinsic' },
+      { file: 'brochures/milgard-v400-tuscany.pdf', label: 'Milgard V400 Tuscany' },
+      { file: 'brochures/milgard-c700-fiberglass.pdf', label: 'Milgard C700 Fiberglass' },
+      { file: 'brochures/milgard-a250-aluminum.pdf', label: 'Milgard A250 Aluminum' },
+      { file: 'brochures/milgard-patio-doors.pdf', label: 'Milgard Patio Doors' },
       { file: 'brochures/milgard-window-selection-guide.pdf', label: 'Milgard Window Selection Guide' },
-      { file: 'brochures/milgard-series-comparison-chart.pdf', label: 'Milgard Series Comparison Chart' },
     ],
   },
   {
