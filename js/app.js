@@ -8,6 +8,7 @@ import * as options from './pages/options.js';
 import * as gallery from './pages/gallery.js';
 import * as brochures from './pages/brochures.js';
 import * as obscure from './pages/obscure.js';
+import { stop as stopFrameTypes } from './pages/frame-types.js';
 import * as overlay from './pages/overlay.js';
 import * as settings from './pages/settings.js';
 import * as admin from './pages/admin.js';
@@ -49,6 +50,7 @@ function route() {
   gallery.stop();
   brochures.stop();
   obscure.stop();
+  stopFrameTypes();
   document.body.dataset.route = r[0] + (sub ? '-' + sub : '');
   $('#nav').replaceChildren(...nav.map(([id, label, ico]) => h('a', { href: '#/' + id, class: id === r[0] ? 'on' : '' }, h('span', { class: 'ico' }, ico), h('span', { class: 'nl' }, label))));
   mountGear(r[0] === 'settings');

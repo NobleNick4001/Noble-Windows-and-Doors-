@@ -1,40 +1,61 @@
 {
-  "_readme": "Frame and install copy for the customer Frame Types screen. Edit name, bestFor, desc, pros, cons, and installNote. placeholder:true shows the placeholder badge (Settings can hide badges). Retrofit and nailing fin / full frame follow the website. Block frame is not described on the site, so that card's wording stays a placeholder; its labor price is real. installType must be an id in data/install.json. Choosing this frame on an estimate line sets that install type and its per-window price: zbar (retrofit / jump frame) $360, nailfin (R&R stucco / nailing fin) $400, block $380. diagram is the picture key: zbar, block, or nailfin.",
+  "_readme": "Frame and install copy for the Frame Types screen. Edit name, desc (one sentence), bestFor (bullets), and sees (what the homeowner sees). installType must be an id in data/install.json. Choosing a frame on an estimate line sets that install type and its per-window labor price: zbar retrofit / Z-bar uses standard (Jump Frame, $360), block uses block ($380), nailfin uses stucco-fin (Nail Fin RnR Stucco, $400). diagram is the picture key: zbar, block, or nailfin. The pictures are original SVGs in js/pages/frame-types.js. The license note at the top of that file lists the guides that were reviewed and not copied.",
   "types": [
     {
       "id": "zbar",
-      "name": "Retrofit",
+      "name": "Retrofit / Z-bar",
       "diagram": "zbar",
       "installType": "standard",
-      "bestFor": "Sound stucco homes, especially those built after the mid-1980s, when the old frame can stay.",
-      "desc": "The new window sets into the frame that is already in the wall. The old frame stays. No stucco cut. The glass area is a little smaller. Most retrofit installations finish in a day. On the gallery, Nick's photos of this install are labeled retrofit / jump frame.",
-      "pros": ["No stucco cut", "The old frame stays in the wall", "Usually the faster replacement"],
-      "cons": ["Glass area is slightly smaller", "The old frame has to be solid and close to square"],
-      "installNote": "The old sash comes out. The new unit sets inside the existing frame. A Z-shaped fin covers the outside joint.",
+      "desc": "The new window sets into the old frame, and the stucco stays.",
+      "bestFor": [
+        "A sound stucco wall where the old frame is solid and close to square",
+        "A replacement that should be done without cutting the stucco"
+      ],
+      "sees": [
+        "Glass that is a little smaller, because the old frame stays",
+        "The new frame sitting inside the old one",
+        "A Z-bar on the outside, covering the joint at the stucco",
+        "Sealant where the Z-bar meets the stucco",
+        "Interior trim over the drywall"
+      ],
       "placeholder": false
     },
     {
       "id": "block",
-      "name": "Block Frame",
+      "name": "Block frame",
       "diagram": "block",
       "installType": "block",
-      "bestFor": "An opening that is already clear — the old frame is gone, or the pocket was built for a plain box frame. The website does not describe this frame, so this card is still a placeholder.",
-      "desc": "A simple box with no fin. It slides into the rough opening and is screwed through the frame into the wall.",
-      "pros": ["No fin to hide or trim around", "Easy to shim until it is square", "A clean look in a prepared opening"],
-      "cons": ["The opening has to be ready — the frame will not cover a missing wall", "Outside trim or stucco is a separate step"],
-      "installNote": "Set the box in the opening, shim it square, and screw through the jamb. Close the outside edge with trim or a stucco return.",
-      "placeholder": true
+      "desc": "A plain box screws into the opening. Nothing sticks out past the wall.",
+      "bestFor": [
+        "An opening that is already clear, with the old frame gone",
+        "A pocket built for a box frame, when the trim is finished on its own"
+      ],
+      "sees": [
+        "No fin on the outside of the wall",
+        "The new frame set flush in the opening",
+        "Screws through the frame into the studs",
+        "Sealant in the joint around the frame",
+        "Interior trim, plus a separate piece of exterior trim"
+      ],
+      "placeholder": false
     },
     {
       "id": "nailfin",
-      "name": "Full frame / nailing fin",
+      "name": "Nail fin",
       "diagram": "nailfin",
       "installType": "stucco-fin",
-      "bestFor": "A full-frame replacement, or new construction before stucco or siding goes on.",
-      "desc": "Full frame takes everything out back to the rough opening, flashing included. It is for a rotted, rusted, or out-of-square frame, a flashing repair, or a change in opening size. Stucco is cut and patched, and that work is part of the quote. Glass area is kept. It takes longer than a retrofit. New construction sets the unit into the framed opening before the outside skin, and the fin is sealed into the weather barrier. If stucco is coming off an elevation anyway, that elevation should get nail-fin units, flashed, before the new lath goes on.",
-      "pros": ["Glass area is kept on a full-frame replacement", "The fin gives flashing a place to tie in", "The right frame when the wall face is open"],
-      "cons": ["Stucco is cut and patched on a replacement", "Takes longer than a retrofit", "Does not mount over a frame you are keeping"],
-      "installNote": "The old frame comes out first on a replacement. Nail the fin to the sheathing, flash it, then let stucco or siding cover the fin.",
+      "desc": "The fin nails to the sheathing, then stucco or siding covers it.",
+      "bestFor": [
+        "New construction, before the stucco or siding goes on",
+        "A full tear-out when the old frame is rotted, rusted, or out of square"
+      ],
+      "sees": [
+        "The old frame gone, so the glass size is kept",
+        "A nailing fin fastened to the sheathing",
+        "New stucco or siding covering that fin",
+        "Sealant at the fin",
+        "Interior trim on the inside"
+      ],
       "placeholder": false
     }
   ]
