@@ -1,8 +1,33 @@
-import { h, fmt, data, settings, estimates, toast, installUnit, installType, defaultInstall } from '../core.js';
+import { h, fmt, data, estimates, toast, installUnit, installType, defaultInstall } from '../core.js';
 import { applyFrameType, currentFrameType } from './calculator.js';
 
-function types() { return data.frameTypes?.types || []; }
+/*
+ * Frame-type pictures are original drawings made for this screen.
+ * No manufacturer figure is embedded.
+ *
+ * Two pictures per install, plus a simple side slice:
+ * - Outside, from the yard: tan stucco (or block), gray old frame, white new
+ *   window, orange on the part that is different.
+ * - Side slice: a chunky cartoon cut with at most four plain labels.
+ *
+ * Looked for a diagram we are allowed to reuse, and did not find one of these
+ * three installs:
+ * - Milgard and Andersen installation guides. Copyrighted by the manufacturers.
+ *   No reuse grant that covers copying a figure into this app. Not used.
+ * - AAMA 2410-13 (flush-fin / mounting-flange figures). The published practice
+ *   says it may not be reproduced or distributed without written consent. Not used.
+ * - Anlin, 1st Windows, and OSI/Henkel install drawings. Commercial copyright,
+ *   no reuse license found. Not used.
+ * - Wikimedia Commons, File:Aluminium_window_detail.png, ProfDEH, 2016-02-25.
+ *   CC BY-SA 3.0 and GFDL 1.2 or later. A brick-cavity aluminum window. Not used.
+ * - Wikimedia Commons, File:Box_window_section_drawing.jpg, Christophe Krief.
+ *   CC BY-SA 4.0. A box/bay window. Not used.
+ * - Wikimedia Commons double-glazed unit diagram (NcLean) and Passivhaus
+ *   Fenster Beispiele (GFDL, Passivhaus Institut). Glass build-up, not an
+ *   install. Not used.
+ */
 
+function types() { return data.frameTypes?.types || []; }
 function liveEstimate() {
   if (!estimates.currentId()) return null;
   return estimates.current();
@@ -15,95 +40,252 @@ function latestLine() {
 function selectedId() {
   return latestLine()?.install?.frameType || currentFrameType();
 }
+function priceLabel(n) {
+  const text = fmt(n);
+  return text.endsWith('.00') ? text.slice(0, -3) : text;
+}
 
 const NS = 'http://www.w3.org/2000/svg';
+const STUCCO = '#e7d2aa';
+const SPECK = '#dcc296';
+const PATCH = '#f6e7c8';
+const BLOCK = '#d7cec2';
+const MORTAR = '#c3b7a6';
+const OLD = '#8e99a4';
+const WHITE = '#f7fafc';
+const GLASS = '#7ec8ea';
+const GLASS_OLD = '#a9c6d6';
+const ORANGE = '#f28c28';
+const WOOD = '#e0b07a';
+const NAVY = '#0e3a63';
+
+let seq = 0;
 function el(name, attrs, parent) {
   const n = document.createElementNS(NS, name);
-  for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+  for (const [k, v] of Object.entries(attrs || {})) if (v != null) n.setAttribute(k, v);
   if (parent) parent.append(n);
   return n;
 }
-function txt(x, y, text, parent, extra = {}) {
-  const t = el('text', { x, y, fill: '#0e3a63', 'font-family': 'Helvetica, Arial, sans-serif', 'font-size': '15', 'font-weight': '700', ...extra }, parent);
-  t.textContent = text;
-  return t;
+function svgEl(label, w, h) {
+  return el('svg', { viewBox: `0 0 ${w} ${h}`, role: 'img', 'aria-label': label });
+}
+function rect(parent, x, y, w, h, fill, rx = 0) {
+  return el('rect', { x, y, width: w, height: h, rx, fill }, parent);
+}
+function clipGroup(svg, w, h, rx) {
+  const id = 'ftc' + (++seq);
+  const defs = el('defs', {}, svg);
+  const cp = el('clipPath', { id }, defs);
+  el('rect', { width: w, height: h, rx }, cp);
+  return el('g', { 'clip-path': `url(#${id})` }, svg);
+}
+const SPECKS = [[18, 22], [78, 14], [150, 24], [186, 48], [24, 78], [176, 96], [14, 140], [168, 150], [40, 196], [150, 188], [100, 210]];
+function stuccoWall(svg, w = 200, h = 230) {
+  const g = clipGroup(svg, w, h, 18);
+  rect(g, 0, 0, w, h, STUCCO);
+  SPECKS.forEach(([x, y]) => el('circle', { cx: x, cy: y, r: 8, fill: SPECK }, g));
+  return g;
+}
+function blockWall(svg, w = 200, h = 230) {
+  const g = clipGroup(svg, w, h, 18);
+  rect(g, 0, 0, w, h, BLOCK);
+  for (let y = 28; y < h; y += 34) rect(g, 0, y, w, 4, MORTAR);
+  for (let row = 0, y = 0; y < h; y += 34, row++) {
+    const start = row % 2 ? 18 : 62;
+    for (let x = start; x < w; x += 76) rect(g, x, y, 4, 34, MORTAR);
+  }
+  return g;
+}
+function panes(parent, x, y, w, h, old) {
+  rect(parent, x, y, w, h, old ? GLASS_OLD : GLASS, 4);
+  rect(parent, x + w * 0.5, y + 3, w * 0.5 - 3, h - 6, old ? '#c5d7e2' : '#d7f0fb');
+  rect(parent, x + w * 0.46, y, Math.max(7, w * 0.08), h, old ? '#d5dde2' : WHITE);
+}
+function shadow(parent, x, y, w, h) {
+  rect(parent, x + 5, y + 6, w, h, 'rgba(90,60,20,.18)', 8);
 }
 
-function baseSvg(label) {
-  const svg = el('svg', { viewBox: '0 0 680 320', role: 'img', 'aria-label': label });
-  el('rect', { width: '680', height: '320', fill: '#e7f2fb' }, svg);
-  txt(20, 32, 'INSIDE', svg);
-  txt(560, 32, 'OUTSIDE', svg);
+function outsideRetro(after) {
+  const svg = svgEl(after
+    ? 'Stucco wall unchanged. The old frame is still there, the new window sits inside it, and an orange Z-bar covers the edge.'
+    : 'Stucco wall with the old window.', 200, 230);
+  const g = stuccoWall(svg);
+  if (!after) {
+    shadow(g, 36, 34, 128, 162);
+    rect(g, 36, 34, 128, 162, OLD, 6);
+    panes(g, 52, 50, 96, 130, true);
+    return svg;
+  }
+  shadow(g, 28, 26, 144, 178);
+  rect(g, 28, 26, 144, 178, ORANGE, 8);
+  rect(g, 48, 46, 104, 138, OLD, 6);
+  rect(g, 66, 64, 68, 102, WHITE, 4);
+  panes(g, 76, 78, 48, 74, false);
   return svg;
 }
-function wall(svg, { studW = 120, studX = 70 } = {}) {
-  el('rect', { x: 24, y: 108, width: 40, height: 168, fill: '#fbfaf7', stroke: '#0e3a63', 'stroke-width': '2' }, svg);
-  txt(44, 100, 'drywall', svg, { 'text-anchor': 'middle', 'font-size': '12', 'font-weight': '600' });
-  el('rect', { x: studX, y: 108, width: studW, height: 168, fill: '#e4c48a', stroke: '#0e3a63', 'stroke-width': '2' }, svg);
-  txt(studX + studW / 2, 198, 'stud', svg, { 'text-anchor': 'middle', 'font-size': '14' });
-}
-
-function diagram(kind) {
-  if (kind === 'block') return diagramBlock();
-  if (kind === 'nailfin') return diagramFin();
-  return diagramZ();
-}
-
-function diagramZ() {
-  const svg = baseSvg('Cross-section of a Z-bar retrofit window set into the existing frame');
-  wall(svg, { studW: 100, studX: 64 });
-  el('path', { d: 'M164 96 h78 v150 h-78 v-22 h54 v-106 h-54 z', fill: '#c5ced6', stroke: '#0e3a63', 'stroke-width': '2' }, svg);
-  txt(188, 78, 'old frame', svg, { 'font-size': '13' });
-  el('rect', { x: 176, y: 78, width: 150, height: 176, fill: '#f7fafc', stroke: '#0e3a63', 'stroke-width': '3' }, svg);
-  el('rect', { x: 196, y: 100, width: 110, height: 132, fill: '#c5e6f8', stroke: '#1d75bc', 'stroke-width': '2' }, svg);
-  txt(251, 172, 'new window', svg, { 'text-anchor': 'middle', 'font-size': '13' });
-  el('path', { d: 'M326 96 H400 V156 H348', fill: 'none', stroke: '#f28c28', 'stroke-width': '12', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
-  txt(408, 128, 'Z-bar', svg, { fill: '#c4530a', 'font-size': '14' });
-  el('rect', { x: 430, y: 108, width: 90, height: 168, fill: '#ead9bc', stroke: '#0e3a63', 'stroke-width': '2' }, svg);
-  txt(475, 198, 'stucco', svg, { 'text-anchor': 'middle', 'font-size': '13' });
-  txt(340, 292, 'The orange Z hooks over the old frame. Stucco stays.', svg, { 'text-anchor': 'middle', 'font-size': '14', 'font-weight': '600' });
+function outsideBlock(after) {
+  const svg = svgEl(after
+    ? 'Block wall, not cut. The new window is sealed into the opening. No fin sticks out.'
+    : 'Block wall with the old window.', 200, 230);
+  const g = blockWall(svg);
+  shadow(g, 40, 36, 120, 158);
+  if (!after) {
+    rect(g, 40, 36, 120, 158, OLD, 6);
+    panes(g, 54, 52, 92, 126, true);
+    return svg;
+  }
+  rect(g, 40, 36, 120, 158, ORANGE, 8);
+  rect(g, 52, 48, 96, 134, WHITE, 6);
+  panes(g, 64, 64, 72, 102, false);
   return svg;
 }
-
-function diagramBlock() {
-  const svg = baseSvg('Cross-section of a block frame set in an open rough opening');
-  wall(svg, { studW: 110, studX: 64 });
-  el('rect', { x: 200, y: 64, width: 176, height: 196, fill: '#f7fafc', stroke: '#f28c28', 'stroke-width': '10' }, svg);
-  el('rect', { x: 228, y: 96, width: 120, height: 140, fill: '#c5e6f8', stroke: '#1d75bc', 'stroke-width': '2' }, svg);
-  txt(288, 172, 'block frame', svg, { 'text-anchor': 'middle', 'font-size': '14' });
-  el('line', { x1: 174, y1: 120, x2: 210, y2: 120, stroke: '#c4530a', 'stroke-width': '4' }, svg);
-  el('circle', { cx: 168, cy: 120, r: 5, fill: '#c4530a' }, svg);
-  el('line', { x1: 174, y1: 200, x2: 210, y2: 200, stroke: '#c4530a', 'stroke-width': '4' }, svg);
-  el('circle', { cx: 168, cy: 200, r: 5, fill: '#c4530a' }, svg);
-  txt(150, 88, 'screws', svg, { 'font-size': '13', fill: '#c4530a' });
-  el('rect', { x: 420, y: 108, width: 28, height: 168, fill: '#f3eee6', stroke: '#0e3a63', 'stroke-width': '2' }, svg);
-  el('rect', { x: 448, y: 108, width: 80, height: 168, fill: '#ead9bc', stroke: '#0e3a63', 'stroke-width': '2' }, svg);
-  txt(488, 198, 'stucco', svg, { 'text-anchor': 'middle', 'font-size': '13' });
-  txt(340, 292, 'A plain box in the opening. No fin sticks out past the wall.', svg, { 'text-anchor': 'middle', 'font-size': '14', 'font-weight': '600' });
+function outsideNail(patched) {
+  const svg = svgEl(patched
+    ? 'The stucco is patched and painted. The fin is hidden and the new window is in place.'
+    : 'A band of stucco is cut back. The orange fin is nailed to the wood around the new window.', 200, 230);
+  const g = stuccoWall(svg);
+  if (!patched) {
+    rect(g, 22, 18, 156, 194, WOOD, 8);
+    rect(g, 40, 36, 120, 158, ORANGE, 6);
+    rect(g, 58, 54, 84, 122, WHITE, 4);
+    panes(g, 68, 68, 64, 94, false);
+    [[49, 48], [151, 48], [49, 116], [151, 116], [49, 180], [151, 180]].forEach(([x, y]) => {
+      el('circle', { cx: x, cy: y, r: 4.5, fill: NAVY }, g);
+    });
+    return svg;
+  }
+  rect(g, 24, 20, 152, 190, PATCH, 10);
+  shadow(g, 46, 42, 108, 146);
+  rect(g, 46, 42, 108, 146, WHITE, 6);
+  panes(g, 58, 58, 84, 114, false);
   return svg;
 }
-
-function diagramFin() {
-  const svg = baseSvg('Cross-section of a nailing-fin window with the fin under new stucco');
-  wall(svg, { studW: 100, studX: 64 });
-  el('rect', { x: 164, y: 108, width: 18, height: 168, fill: '#e7d3b0', stroke: '#0e3a63', 'stroke-width': '2' }, svg);
-  el('rect', { x: 190, y: 70, width: 150, height: 186, fill: '#f7fafc', stroke: '#0e3a63', 'stroke-width': '3' }, svg);
-  el('rect', { x: 214, y: 98, width: 104, height: 136, fill: '#c5e6f8', stroke: '#1d75bc', 'stroke-width': '2' }, svg);
-  txt(265, 172, 'window', svg, { 'text-anchor': 'middle', 'font-size': '14' });
-  el('rect', { x: 340, y: 118, width: 150, height: 16, fill: '#f28c28', stroke: '#c4530a', 'stroke-width': '2' }, svg);
-  [370, 410, 450].forEach((x) => {
-    el('line', { x1: x, y1: 104, x2: x, y2: 146, stroke: '#0e3a63', 'stroke-width': '3' }, svg);
-    el('circle', { cx: x, cy: 104, r: 4, fill: '#0e3a63' }, svg);
-  });
-  txt(400, 96, 'nailing fin', svg, { 'text-anchor': 'middle', 'font-size': '14', fill: '#c4530a' });
-  el('rect', { x: 400, y: 78, width: 150, height: 198, fill: '#ead9bc', stroke: '#0e3a63', 'stroke-width': '2', opacity: '0.92' }, svg);
-  txt(475, 180, 'stucco', svg, { 'text-anchor': 'middle', 'font-size': '14' });
-  txt(340, 300, 'The fin is nailed to the wall, then stucco or siding covers it.', svg, { 'text-anchor': 'middle', 'font-size': '14', 'font-weight': '600' });
-  return svg;
+function outside(kind) {
+  if (kind === 'block') return [outsideBlock(false), outsideBlock(true)];
+  if (kind === 'nailfin') return [outsideNail(false), outsideNail(true)];
+  return [outsideRetro(false), outsideRetro(true)];
 }
 
-function badge(on) {
-  return on ? h('span', { class: 'pill ph' }, 'placeholder') : null;
+function sideRetro() {
+  const svg = svgEl('Side slice. The old frame stays, the new window sits inside it, the orange Z-bar covers the gap, and the stucco is untouched.', 360, 168);
+  rect(svg, 0, 0, 360, 168, '#e7f2fb', 16);
+  rect(svg, 16, 36, 210, 108, '#e8c98a', 16);
+  rect(svg, 176, 18, 168, 136, STUCCO, 18);
+  rect(svg, 70, 50, 112, 80, OLD, 10);
+  rect(svg, 92, 66, 64, 48, WHITE, 8);
+  panes(svg, 102, 74, 44, 32, false);
+  rect(svg, 156, 36, 118, 36, ORANGE, 10);
+  rect(svg, 156, 58, 40, 78, ORANGE, 10);
+  return svg;
+}
+function sideBlock() {
+  const svg = svgEl('Side slice. The new window is sealed into the block. Nothing sticks out past the wall, and the stucco is not cut.', 360, 168);
+  rect(svg, 0, 0, 360, 168, '#e7f2fb', 16);
+  rect(svg, 16, 22, 328, 128, BLOCK, 18);
+  for (let y = 48; y < 140; y += 28) rect(svg, 16, y, 328, 4, MORTAR);
+  rect(svg, 112, 36, 136, 100, ORANGE, 14);
+  rect(svg, 128, 52, 104, 68, WHITE, 10);
+  panes(svg, 142, 64, 76, 44, false);
+  return svg;
+}
+function sideNail() {
+  const svg = svgEl('Side slice. The stucco is cut back, the orange fin is nailed on, then a patch covers it.', 360, 168);
+  rect(svg, 0, 0, 360, 168, '#e7f2fb', 16);
+  rect(svg, 16, 50, 250, 80, WOOD, 14);
+  rect(svg, 28, 62, 72, 56, WHITE, 8);
+  panes(svg, 38, 72, 52, 36, false);
+  rect(svg, 96, 58, 90, 24, ORANGE, 8);
+  [114, 138, 162].forEach((x) => el('circle', { cx: x, cy: 70, r: 5, fill: NAVY }, svg));
+  rect(svg, 248, 20, 96, 132, STUCCO, 16);
+  rect(svg, 176, 28, 110, 116, PATCH, 16);
+  return svg;
+}
+function side(kind) {
+  if (kind === 'block') return sideBlock();
+  if (kind === 'nailfin') return sideNail();
+  return sideRetro();
+}
+
+function iconBox(draw) {
+  const svg = el('svg', { viewBox: '0 0 64 64', 'aria-hidden': 'true' });
+  rect(svg, 0, 0, 64, 64, '#fff3e4', 16);
+  draw(svg);
+  return svg;
+}
+function icon(kind, index) {
+  if (kind === 'block') {
+    if (index === 0) return iconBox((s) => { rect(s, 10, 14, 44, 36, BLOCK, 4); rect(s, 22, 22, 20, 20, OLD, 2); });
+    if (index === 1) return iconBox((s) => { rect(s, 10, 14, 44, 36, BLOCK, 4); rect(s, 22, 22, 20, 20, WHITE, 2); panes(s, 26, 26, 12, 12, false); });
+    return iconBox((s) => { rect(s, 10, 14, 44, 36, BLOCK, 4); rect(s, 20, 20, 24, 24, ORANGE, 3); rect(s, 26, 26, 12, 12, WHITE, 2); });
+  }
+  if (kind === 'nailfin') {
+    if (index === 0) return iconBox((s) => { rect(s, 8, 12, 48, 40, STUCCO, 4); rect(s, 16, 18, 32, 28, WOOD, 3); });
+    if (index === 1) return iconBox((s) => { rect(s, 8, 28, 48, 14, WOOD, 3); rect(s, 14, 22, 22, 18, WHITE, 2); rect(s, 32, 24, 20, 8, ORANGE, 2); });
+    return iconBox((s) => { rect(s, 8, 12, 48, 40, STUCCO, 4); rect(s, 18, 20, 28, 24, PATCH, 3); rect(s, 24, 26, 16, 12, WHITE, 2); });
+  }
+  if (index === 0) return iconBox((s) => { rect(s, 14, 12, 36, 40, OLD, 4); panes(s, 22, 20, 20, 24, true); });
+  if (index === 1) return iconBox((s) => { rect(s, 12, 12, 40, 40, OLD, 4); rect(s, 22, 22, 20, 20, WHITE, 3); panes(s, 26, 26, 12, 12, false); });
+  return iconBox((s) => { rect(s, 10, 10, 44, 44, ORANGE, 6); rect(s, 20, 20, 24, 24, OLD, 3); rect(s, 26, 26, 12, 12, WHITE, 2); });
+}
+
+const SWATCH = { old: OLD, new: '#ffffff', orange: ORANGE, stucco: STUCCO, block: BLOCK, wood: WOOD, patch: PATCH, none: 'transparent' };
+
+function tag(item) {
+  const dot = h('i', { class: 'ft-swatch' + (item.swatch === 'none' ? ' none' : '') });
+  if (item.swatch !== 'none') dot.style.background = SWATCH[item.swatch] || STUCCO;
+  return h('span', { class: 'ft-tag' }, dot, item.text);
+}
+function pictures(ft) {
+  const caps = ft.outside || ['Before', 'After'];
+  const pair = h('div', { class: 'ft-pair' }, outside(ft.diagram).map((pic, i) => h('figure', {}, pic, h('figcaption', {}, caps[i] || ''))));
+  const labels = h('div', { class: 'ft-tags' }, (ft.sideLabels || []).slice(0, 4).map(tag));
+  return h('div', { class: 'ft-visual' },
+    h('div', { class: 'ft-kicker' }, 'From the outside'),
+    pair,
+    h('div', { class: 'ft-kicker' }, 'From the side'),
+    h('div', { class: 'ft-side' }, side(ft.diagram), labels));
+}
+function steps(ft) {
+  const lines = ft.steps || [];
+  return h('div', { class: 'ft-steps' }, lines.slice(0, 3).map((text, i) => h('div', { class: 'ft-step' },
+    h('span', { class: 'ft-num' }, String(i + 1)),
+    icon(ft.diagram, i),
+    h('p', {}, text))));
+}
+function facts(ft, labor) {
+  const c = ft.compare || {};
+  const cells = [
+    ['Stucco', c.stucco || ''],
+    ['Mess', c.mess || ''],
+    ['Time', c.time || ''],
+    ['Price', priceLabel(labor.price)],
+  ];
+  return h('div', { class: 'ft-facts', id: 'ft-facts-' + ft.id }, cells.map(([k, v], i) => {
+    const hot = i === 3 || v === 'Yes' || v === 'More' || v === 'Longer';
+    return h('div', { class: 'ft-fact' + (i === 3 ? ' price' : '') }, h('span', {}, k), h('b', { class: hot && i !== 3 ? 'hot' : '' }, v));
+  }));
+}
+
+let openEl = null;
+let onKey = null;
+export function stop() {
+  if (onKey) document.removeEventListener('keydown', onKey);
+  onKey = null;
+  if (openEl) openEl.remove();
+  openEl = null;
+  document.body.classList.remove('ft-open');
+}
+function openZoom(ft) {
+  stop();
+  const close = h('button', { type: 'button', class: 'btn primary', id: 'ft-zoom-close', onclick: () => stop() }, 'Close');
+  openEl = h('div', { class: 'ft-zoom', id: 'ft-zoom', role: 'dialog', 'aria-modal': 'true', 'aria-label': ft.name },
+    h('div', { class: 'ft-zoom-bar' }, h('h2', {}, ft.name), close),
+    h('div', { class: 'ft-zoom-stage' }, pictures(ft), steps(ft), facts(ft, installType(ft.installType))));
+  document.body.append(openEl);
+  document.body.classList.add('ft-open');
+  onKey = (e) => { if (e.key === 'Escape') stop(); };
+  document.addEventListener('keydown', onKey);
+  close.focus();
 }
 
 function applyToWindow(ft, status, btn) {
@@ -124,7 +306,7 @@ function applyToWindow(ft, status, btn) {
     toast(`${ft.name} will be used on the next window you add`);
   }
   btn.textContent = 'Selected for this window';
-  document.querySelectorAll('.ft-card').forEach((el) => el.classList.toggle('on', el.getAttribute('data-frame') === ft.id));
+  document.querySelectorAll('.ft-card').forEach((card) => card.classList.toggle('on', card.getAttribute('data-frame') === ft.id));
 }
 
 export function view() {
@@ -138,28 +320,25 @@ export function view() {
       onclick: () => applyToWindow(ft, status, btn),
     }, chosen === ft.id ? 'Selected for this window' : 'Use for this window');
     const line = latestLine();
-    if (!status.textContent) {
-      status.textContent = line
-        ? `Applies to ${line.label}, the latest window on this estimate.`
-        : 'No window on the estimate yet. This choice is kept for the next one you add.';
-    }
-    list.append(h('article', { class: 'card ft-card' + (chosen === ft.id ? ' on' : ''), 'data-frame': ft.id },
-      h('div', { class: 'ft-diagram' }, diagram(ft.diagram)),
-      h('div', { class: 'ft-copy' },
-        h('div', { class: 'row between wrap' }, h('h2', {}, ft.name), settings.showPlaceholders && ft.placeholder ? badge(true) : null),
-        h('p', {}, ft.desc || ''),
-        h('div', { class: 'ft-best' }, h('div', { class: 'ft-k' }, 'Best for'), h('p', {}, ft.bestFor || '')),
-        h('div', { class: 'ft-split' },
-          h('div', {}, h('div', { class: 'ft-k' }, 'Pros'), h('ul', {}, (ft.pros || []).map((p) => h('li', {}, p)))),
-          h('div', {}, h('div', { class: 'ft-k' }, 'Cons'), h('ul', {}, (ft.cons || []).map((p) => h('li', {}, p))))),
-        h('div', { class: 'ft-k' }, 'Installation'),
-        h('p', {}, ft.installNote || ''),
-        h('p', { class: 'fine' }, 'Linked install: ', labor.name, ' · ', fmt(labor.price), ' per window', labor.placeholder ? ' (placeholder price — edit data/install.json)' : ''),
-        status,
-        btn)));
+    status.textContent = line
+      ? `Applies to ${line.label}, the latest window on this estimate.`
+      : 'No window on the estimate yet. This choice is kept for the next one you add.';
+    list.append(h('article', { class: 'card ft-card' + (chosen === ft.id ? ' on' : ''), id: 'ft-card-' + ft.id, 'data-frame': ft.id },
+      h('h2', {}, ft.name),
+      h('p', { class: 'ft-one' }, ft.desc || ''),
+      h('button', {
+        type: 'button', class: 'ft-pics', id: 'ft-diagram-' + ft.id,
+        'aria-label': 'Enlarge the ' + ft.name + ' pictures',
+        onclick: () => openZoom(ft),
+      }, pictures(ft), h('span', { class: 'ft-tap' }, 'Tap to enlarge')),
+      h('div', { class: 'ft-kicker' }, 'What we do'),
+      steps(ft),
+      facts(ft, labor),
+      h('p', { class: 'fine' }, 'Install labor: ', labor.name),
+      status,
+      btn));
   });
   return h('div', { class: 'ft' },
-    h('p', { class: 'og-lead' }, 'Three ways the new window meets the wall. Orange marks the part that is different. Pick one for the window you are pricing.'),
-    settings.showPlaceholders && h('p', { class: 'fine' }, 'This wording is placeholder. Edit it in ', h('code', {}, 'data/frame-types.json'), '.'),
+    h('p', { class: 'og-lead' }, 'Orange is the part that is different. The stucco color stays the same when we do not cut it.'),
     list);
 }
