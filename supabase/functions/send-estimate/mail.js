@@ -15,6 +15,13 @@ export function providerFor(env = {}) {
   return null;
 }
 
+// Google says this when the shared refresh token can no longer mint an access token.
+// A salesperson signing in again does not replace that token.
+export function gmailTokenDead(message) {
+  const msg = String(message || '').toLowerCase();
+  return msg.includes('invalid_grant') || msg.includes('expired or revoked') || msg.includes('token has been expired');
+}
+
 export function splitPay(total, depositPct = 60) {
   const cents = Math.round((Number(total) || 0) * 100);
   const deposit = Math.round(cents * (Number(depositPct) || 0) / 100);
