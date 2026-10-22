@@ -312,6 +312,13 @@ export function elevationModel(line, box = ELEVATION_BOX) {
     const each = (ih - sash) / 2;
     add(ix, iy, iw, each, '');
     add(ix, iy + each + sash, iw, each, 'slide-up');
+  } else if (type === 'dshung' || type === 'twin_vslider') {
+    const eachW = (iw - sash) / 2;
+    const eachH = (ih - sash) / 2;
+    add(ix, iy, eachW, eachH, '');
+    add(ix, iy + eachH + sash, eachW, eachH, 'slide-up');
+    add(ix + eachW + sash, iy, eachW, eachH, '');
+    add(ix + eachW + sash, iy + eachH + sash, eachW, eachH, 'slide-up');
   } else if (type === 'hvb') {
     const vent = (ih - sash) / 3;
     const picture = vent * 2;

@@ -138,6 +138,10 @@ check(tempered > materialUnitPrice(sh), 'tempered still adds 12%');
 
 const offered = data.rates.brands.find((b) => b.id === 'andersen').series[0].types;
 check(!offered.includes('3panel') && !offered.includes('4panel'), 'no 3- or 4-panel Andersen door in the picker');
+check(offered.includes('twin_vslider'), 'Andersen twin single hung stays selectable');
+check(data.rates.types.find((t) => t.id === 'twin_vslider')?.name === 'Double Single Hung', 'Andersen twin single hung is labeled Double Single Hung');
+check(data.variableRates.andersen.types.twin_vslider.name === 'Double Single Hung', 'Andersen size-limit name is Double Single Hung');
+check(data.variableRates.andersen.types.twin_vslider.base === -41.67 && data.variableRates.andersen.types.twin_vslider.perUI === 11.8955, 'Andersen twin formula is unchanged');
 
 if (errs.length) {
   console.log('FAILED');
@@ -147,7 +151,7 @@ if (errs.length) {
 
 const names = {
   vslider: 'Single hung', picture: 'Picture', hslider: 'Gliding XO', xox: 'Gliding XOX',
-  casement: 'Casement', awning: 'Awning', twin_vslider: 'Twin single hung', twin_casement: 'Twin casement',
+  casement: 'Casement', awning: 'Awning', twin_vslider: 'Double Single Hung', twin_casement: 'Twin casement',
   arch_sh: 'Arch single hung', specialty_arch: 'Specialty arch', patio_door_2p: 'Patio door 2-panel',
 };
 const common = [

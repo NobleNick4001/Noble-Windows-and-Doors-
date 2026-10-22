@@ -21,6 +21,7 @@ export function frameColors(c) {
 export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity = 0.28, size = 600, label = false } = {}) {
   if (type === 'patio_door_2p') type = '2panel';
   else if (type === 'twin_casement') type = 'dcasement';
+  else if (type === 'dshung') type = 'twin_vslider';
   else if (type === 'specialty_arch') type = 'arch';
   const W = aspect >= 1 ? size : size * aspect;
   const H = aspect >= 1 ? size / aspect : size;

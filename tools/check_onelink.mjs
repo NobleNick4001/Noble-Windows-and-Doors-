@@ -324,7 +324,8 @@ check(quoteOf('V300', 'archtop', 36, 78).errors.length === 0, 'non-V400 arch 78 
 check(quoteOf('V300', 'archtop', 36, 97).errors.some((e) => /Height/.test(e)), 'non-V400 arch over placeholder max blocked');
 check(quoteOf('V250', 'archtop', 60, 30).errors.some((e) => /equal-leg/.test(e)), 'short arch is not an equal-leg arch over a unit');
 check(quoteOf('A250', 'dcasement', 30, 48) == null, 'A250 does not price the new styles');
-check(!A250_WINDOW_STYLES.includes('dcasement') && !A250_WINDOW_STYLES.includes('archtop'), 'A250 style list hides the new types');
+check(quoteOf('A250', 'dshung', 60, 48) == null, 'A250 does not price Double Single Hung');
+check(!A250_WINDOW_STYLES.includes('dcasement') && !A250_WINDOW_STYLES.includes('archtop') && !A250_WINDOW_STYLES.includes('dshung'), 'A250 style list hides the new types');
 const pendingLine = { brand: 'milgard', series: 'V250', type: 'dcasement', color: 'ww', w: 30, h: 48, qty: 1 };
 const pendingPrice = priceWindow(pendingLine);
 check(pendingPrice.pricePending === true && pendingPrice.unit === 0 && pendingPrice.mode === 'onelink', 'screen stores $0 while the price is pending');
@@ -355,7 +356,7 @@ const withGlass = materialUnitPrice(dcLine('V300', 'bw', 48, 54, { tempered: tru
 const bare = materialUnitPrice(dcLine('V300', 'bw', 48, 54));
 check(withGlass === bare && bare > 0, 'glass grids and frame do not change the double casement price ' + withGlass);
 check(quoteOf('V400', 'archtop', 36, 60).pricePending === true && quoteOf('V400', 'archtop', 36, 60).material === 0, 'arch top price stays pending');
-for (const type of ['dcasement', 'archtop']) {
+for (const type of ['dcasement', 'dshung', 'archtop']) {
   const line = { brand: 'milgard', series: 'V300', type, w: 36, h: 48 };
   check(installUnit({ type: 'standard', surcharges: [] }, line) === 360, type + ' retrofit labor');
   check(installUnit({ type: 'block', surcharges: [] }, line) === 380, type + ' block labor');
@@ -363,6 +364,59 @@ for (const type of ['dcasement', 'archtop']) {
   check(addonUnit({ type: 'standard', surcharges: ['oversize'] }, line) === 85, type + ' large');
   check(addonUnit({ type: 'standard', surcharges: ['second-story'] }, line) === 75, type + ' two-story');
 }
+// Double Single Hung: two single hungs mulled as one unit. Customer price is base + perUI × (W+H).
+const dsh = pending.styles.dshung;
+check(dsh.pricePending === false && dsh.name === 'Double Single Hung', 'double single hung style is priced');
+check(dsh.rates.V250.ww.base === -57 && dsh.rates.V250.ww.perUI === 8.81 && dsh.rates.V250.ww.min === 566, 'V250 white rate and minimum');
+check(dsh.rates.V250.bw.base === 505 && dsh.rates.V250.bw.perUI === 8.01 && dsh.rates.V250.bw.min == null, 'V250 black/white rate');
+check(dsh.rates.V300.ww.base === -30 && dsh.rates.V300.ww.perUI === 9.75, 'V300 white rate');
+check(dsh.rates.V300.bw.base === 305 && dsh.rates.V300.bw.perUI === 11.69, 'V300 black/white rate');
+check(dsh.rates.V400.ww.base === 83 && dsh.rates.V400.ww.perUI === 10.15, 'V400 white rate');
+check(dsh.rates.V400.bw.base === 390 && dsh.rates.V400.bw.perUI === 12.96, 'V400 black/white rate');
+check(!dsh.rates.V250.bb && !dsh.rates.V300.bb && !dsh.rates.V400.bb, 'no Black/Black double single hung rate');
+const lim = (series) => styleLimits(data.milgardOnelink, series, 'dshung');
+check(lim('V250').wmin === 20 && lim('V250').wmax === 90 && lim('V250').hmin === 17.5 && lim('V250').hmax === 84 && !lim('V250').sashes, 'V250 overall limits');
+check(lim('V300').wmin === 19 && lim('V300').wmax === 90 && lim('V300').hmin === 23.5 && lim('V300').hmax === 78, 'V300 height is 23.5–78');
+check(lim('V400').wmin === 24 && lim('V400').wmax === 96 && lim('V400').hmin === 23.5 && lim('V400').hmax === 86, 'V400 overall limits');
+const dshLine = (series, color, w, h, extra = {}) => ({ brand: 'milgard', series, type: 'dshung', color, w, h, qty: 1, ...extra });
+const dshMaterial = (series, color, w, h) => milgardQuote(data.milgardOnelink, dshLine(series, color, w, h));
+const spot = dshMaterial('V300', 'ww', 60, 48);
+check(spot.errors.length === 0 && spot.pricePending === false && Math.abs(spot.material - (-30 + 9.75 * 108)) < 0.001, 'V300 white 60x48 ' + spot.material);
+check(Math.abs(materialUnitPrice(dshLine('V300', 'ww', 60, 48)) - 1023) < 0.001, 'V300 white 60x48 customer unit');
+check(Math.abs(dshMaterial('V300', 'bw', 60, 48).material - (305 + 11.69 * 108)) < 0.001, 'V300 black/white 60x48');
+check(Math.abs(dshMaterial('V400', 'ww', 60, 48).material - (83 + 10.15 * 108)) < 0.001, 'V400 white 60x48');
+check(Math.abs(dshMaterial('V400', 'bw', 60, 48).material - (390 + 12.96 * 108)) < 0.001, 'V400 black/white 60x48');
+check(Math.abs(dshMaterial('V250', 'bw', 60, 48).material - (505 + 8.01 * 108)) < 0.001, 'V250 black/white 60x48');
+check(Math.abs(dshMaterial('V250', 'ww', 60, 48).material - (-57 + 8.81 * 108)) < 0.001, 'V250 white 60x48 is above the floor');
+const floored = dshMaterial('V250', 'ww', 30, 40);
+check(floored.errors.length === 0 && floored.material === 566 && (-57 + 8.81 * 70) < 566, 'V250 white 30x40 uses the $566 minimum');
+check(Math.abs(dshMaterial('V250', 'ww', 30, 41).material - (-57 + 8.81 * 71)) < 0.001, 'V250 white just over the floor is not clamped');
+check(dshMaterial('V300', 'adobe', 60, 48).material === spot.material && dshMaterial('V300', 'adobe', 60, 48).notes.some((n) => /Adobe priced as White/.test(n)), 'Adobe uses the White price');
+check(materialUnitPrice(dshLine('V250', 'adobe', 30, 40)) === 566, 'Adobe uses the V250 White minimum');
+for (const color of ['bronze', 'bb']) {
+  const pendingColor = priceWindow(dshLine('V300', color, 60, 48));
+  check(pendingColor.pricePending === true && pendingColor.unit === 0, color + ' double single hung stays pending');
+}
+const dshGlass = materialUnitPrice(dshLine('V300', 'ww', 60, 48, { tempered: true, grids: 'flat', obscure: 'p516', frame: 'zbar' }));
+check(dshGlass === materialUnitPrice(dshLine('V300', 'ww', 60, 48)), 'glass grids and frame do not change the double single hung price');
+check(installUnit({ type: 'standard', surcharges: [] }, dshLine('V300', 'ww', 60, 48)) === 360, 'labor stays off the material price');
+check(dshMaterial('V250', 'ww', 19.99, 48).errors.some((e) => /Width/.test(e)), 'V250 under 20 wide blocked');
+check(dshMaterial('V250', 'ww', 20, 48).errors.length === 0 && dshMaterial('V250', 'ww', 90, 84).errors.length === 0, 'V250 20 and 90x84 allowed');
+check(dshMaterial('V250', 'ww', 90.01, 48).errors.some((e) => /Width/.test(e)), 'V250 over 90 wide blocked');
+check(dshMaterial('V250', 'ww', 40, 17.49).errors.some((e) => /Height/.test(e)) && dshMaterial('V250', 'ww', 40, 84.01).errors.some((e) => /Height/.test(e)), 'V250 height outside 17.5–84 blocked');
+check(dshMaterial('V300', 'ww', 18.99, 48).errors.some((e) => /Width/.test(e)), 'V300 under 19 wide blocked');
+check(dshMaterial('V300', 'ww', 19, 23.5).errors.length === 0 && dshMaterial('V300', 'ww', 90, 78).errors.length === 0, 'V300 19x23.5 and 90x78 allowed');
+check(dshMaterial('V300', 'ww', 40, 23.49).errors.some((e) => /Height/.test(e)) && dshMaterial('V300', 'ww', 40, 78.01).errors.some((e) => /Height/.test(e)), 'V300 height outside 23.5–78 blocked');
+check(dshMaterial('V300', 'ww', 90.01, 48).errors.some((e) => /Width/.test(e)), 'V300 width stops at 90');
+check(dshMaterial('V400', 'ww', 23.99, 48).errors.some((e) => /Width/.test(e)) && dshMaterial('V400', 'ww', 24, 23.5).errors.length === 0, 'V400 width starts at 24 and height at 23.5');
+check(dshMaterial('V400', 'ww', 96, 86).errors.length === 0, 'V400 96x86 allowed');
+check(dshMaterial('V400', 'ww', 96.01, 48).errors.some((e) => /Width/.test(e)) && dshMaterial('V400', 'ww', 40, 86.01).errors.some((e) => /Height/.test(e)), 'V400 over max blocked');
+check(dshMaterial('V400', 'ww', 40, 23.49).errors.some((e) => /Height/.test(e)), 'V400 under 23.5 tall blocked');
+const milgardBrand = data.rates.brands.find((b) => b.id === 'milgard');
+for (const id of ['V250', 'V300', 'V400']) check(milgardBrand.series.find((s) => s.id === id).types.includes('dshung'), id + ' offers Double Single Hung');
+check(!milgardBrand.series.find((s) => s.id === 'A250').types.includes('dshung'), 'A250 series list hides Double Single Hung');
+check(data.rates.types.find((t) => t.id === 'dshung')?.name === 'Double Single Hung', 'Milgard type label');
+check(data.milgardOnelink.names.dshung === 'Double Single Hung', 'quote name');
 const live = data.milgardOnelink;
 const ready = JSON.parse(JSON.stringify(live));
 ready.pendingWindows.styles.dcasement.rates.V300.ww = { base: 10, perUI: 12.5 };

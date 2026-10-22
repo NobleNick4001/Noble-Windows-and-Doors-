@@ -51,7 +51,7 @@ export function render(root) {
         const bits = [];
         if (info.base) bits.push('$' + info.base.toFixed(2));
         if (info.perUI) bits.push(trimNum(info.perUI) + '/UI');
-        return h('td', { class: 'from-quotes' }, bits.join(' + '), h('div', { class: 'fine' }, 'base + united inches'));
+        return h('td', { class: 'from-quotes' }, bits.join(' + '), h('div', { class: 'fine' }, info.min ? `base + united inches · min ${fmt(info.min)}` : 'base + united inches'));
       }
       if (info?.onelink) return h('td', { class: 'from-quotes' }, 'OneLink', h('div', { class: 'fine' }, 'grid'));
       if (info?.blocked) return h('td', { class: 'est' }, 'Not priced', h('div', { class: 'fine' }, 'no iQ color'));
@@ -71,7 +71,7 @@ export function render(root) {
       return h('td', { class: r?.estimated ? 'est' : '' }, r ? r.rate.toFixed(2) + (r.estimated ? ' E' : '') : '—');
     })));
     const note = b.id === 'milgard'
-      ? 'OneLink = grid price for V250, V300, and V400 windows and for V300, V400, and A250 patio doors. Customer price is never under OneLink. A250 windows are $ per inch of width + height from Milgard A250 quotes (Clear and Bronze Anodized same price). Double casement White and Black/White are base + $ per inch of width + height (V300 Trinsic, V400 Tuscany). Adobe uses that White price. V250, Bronze, Black/Black, and the arch top stay Price pending. Price pending is a placeholder in pendingWindows, not a real OneLink number. E marks a stored rate the grid does not cover.'
+      ? 'OneLink = grid price for V250, V300, and V400 windows and for V300, V400, and A250 patio doors. Customer price is never under OneLink. A250 windows are $ per inch of width + height from Milgard A250 quotes (Clear and Bronze Anodized same price). Double casement White and Black/White are base + $ per inch of width + height (V300 Trinsic, V400 Tuscany). Adobe uses that White price. V250 double casement, Bronze, Black/Black, and the arch top stay Price pending. Double Single Hung is two single hungs mulled as one unit: base + $ per inch of width + height on V250, V300, and V400. White and Black exterior / White interior are priced. Adobe uses that White price. V250 White has a $566 minimum. Bronze and Black/Black stay Price pending. Price pending is a placeholder in pendingWindows, not a real OneLink number. E marks a stored rate the grid does not cover.'
       : b.id === 'iwc'
         ? '8200 windows and 8900 doors in Bronze Anodized are from quotes. Clear Anodized, Mojave Beige, and White use the custom supplier-price line.'
         : 'Andersen 100 is the iQ formula: base + $ per inch of width and height + $ per sq ft, then flush fin (factor + adder) and a flat color adder, rounded up to the next dollar. White is the base. Any non-white exterior adds $90.57, and a black interior adds that again. The 2-panel patio door has its own color adders. Nail fin is the base price. E marks the old $/inch table, which is not the selling price.';

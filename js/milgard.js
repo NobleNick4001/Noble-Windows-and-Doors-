@@ -29,8 +29,8 @@ export const A250_WINDOW_COLORS = [
 ];
 export const A250_WINDOW_STYLES = ['hslider', 'xox', 'vslider', 'picture', 'casement'];
 // Vinyl-only styles read from pendingWindows. Arch top stays pending.
-// Double casement uses a base + perUI rate when that series and color has one.
-export const PENDING_WINDOW_STYLES = ['dcasement', 'archtop'];
+// Double casement and Double Single Hung use a base + perUI rate when that series and color has one.
+export const PENDING_WINDOW_STYLES = ['dcasement', 'dshung', 'archtop'];
 // What glass upgrades are priced for an A250 window style (from the Milgard A250 quote).
 export function a250GlassOptions(D, style) {
   const A = D?.a250Windows || {};
@@ -289,7 +289,10 @@ function pendingCharge(row, series, colorId) {
   if (spec && spec.pricePending !== true) {
     const base = Number(spec.base) || 0;
     const perUI = Number(spec.perUI) || 0;
-    if (base || perUI) return { pricePending: false, base, perUI, adobeAsWhite: colorId === 'adobe' };
+    const min = spec.min == null || spec.min === '' ? null : Number(spec.min);
+    if (base || perUI || (min != null && min > 0)) {
+      return { pricePending: false, base, perUI, min: Number.isFinite(min) ? min : null, adobeAsWhite: colorId === 'adobe' };
+    }
   }
   // A rate table means unlisted series and colors stay pending. A style with no
   // table still uses the single perUI once its own pricePending flag is off.
@@ -298,6 +301,7 @@ function pendingCharge(row, series, colorId) {
     pricePending: !!row?.pricePending,
     base: Number(row?.base) || 0,
     perUI: Number(row?.perUI) || 0,
+    min: null,
     adobeAsWhite: false,
   };
 }
@@ -309,13 +313,15 @@ function pendingWindow(D, series, style, w, h, colorId) {
   const pricePending = !row || charge.pricePending;
   const perUI = pricePending ? 0 : charge.perUI;
   const base = pricePending ? 0 : charge.base;
-  const material = pricePending ? 0 : base + perUI * (Number(w) + Number(h));
+  let material = pricePending ? 0 : base + perUI * (Number(w) + Number(h));
+  const min = !pricePending && charge.min != null ? charge.min : null;
+  if (min != null && material < min) material = min;
   const notes = [];
   if (pricePending) notes.push('Price pending — placeholder rate, not a OneLink price.');
   else if (charge.adobeAsWhite) notes.push('Adobe priced as White (forces Adobe interior)');
   if (row?.note) notes.push(row.note);
   return {
-    items: [['base', material]], notes, errors, material, perUI, base,
+    items: [['base', material]], notes, errors, material, perUI, base, min,
     limits: pendingLimits(D, series, style), pricePending,
     formula: !pricePending,
   };

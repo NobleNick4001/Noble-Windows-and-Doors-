@@ -404,7 +404,7 @@ export function variableRateInfo(brand, series, color, type) {
   if (model.mode === 'onelink') {
     const q = milgardQuote(data.milgardOnelink, probe);
     if (q?.pricePending) return { onelink: true, pricePending: true, perUI: q.perUI || 0, base: q.base || 0 };
-    if (q?.formula) return { onelink: true, base: q.base || 0, perUI: q.perUI || 0 };
+    if (q?.formula) return { onelink: true, base: q.base || 0, perUI: q.perUI || 0, min: q.min || null };
     return { onelink: true };
   }
   if (model.mode !== 'variable') return null;
