@@ -14,6 +14,10 @@
    "name": "Vertical Slider (Single Hung)"
   },
   {
+   "id": "dshung",
+   "name": "Double Single Hung"
+  },
+  {
    "id": "picture",
    "name": "Picture"
   },
@@ -39,7 +43,7 @@
   },
   {
    "id": "twin_vslider",
-   "name": "Twin single hung"
+   "name": "Double Single Hung"
   },
   {
    "id": "twin_casement",
@@ -188,6 +192,7 @@
       "hslider",
       "xox",
       "vslider",
+      "dshung",
       "picture",
       "casement",
       "dcasement",
@@ -209,6 +214,7 @@
       "hslider",
       "xox",
       "vslider",
+      "dshung",
       "picture",
       "casement",
       "dcasement",
@@ -233,6 +239,7 @@
       "hslider",
       "xox",
       "vslider",
+      "dshung",
       "picture",
       "casement",
       "dcasement",
