@@ -483,7 +483,8 @@ function estimateSheet(e) {
     h('div', { class: 'line' }, h('span', {}, `Deposit (${pct}%)`), h('b', { id: 'sh-deposit' }, fmt(pay.deposit))),
     h('div', { class: 'line' }, h('span', {}, `Final (${100 - pct}%)`), h('b', { id: 'sh-final' }, fmt(pay.balance)))));
   if (e.notes) sheet.append(h('h3', {}, 'Notes'), h('p', { class: 'pre' }, e.notes));
-  sheet.append(overlaySheet(e));
+  const shots = overlaySheet(e);
+  if (shots) sheet.append(shots);
   sheet.append(h('h3', {}, 'Terms'), h('p', { class: 'pre fine' }, settings.terms),
     h('div', { class: 'sig' }, h('div', {}, 'Accepted by (signature) ______________________________'), h('div', {}, 'Date ______________')));
   return sheet;
