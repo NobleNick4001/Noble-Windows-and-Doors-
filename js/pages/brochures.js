@@ -61,6 +61,9 @@ function showViewer(item) {
     if (state.closed) return;
     state.closed = true;
     state.observer?.disconnect();
+    if (state.onScroll) stage.removeEventListener('scroll', state.onScroll);
+    if (state.onResize) window.removeEventListener('resize', state.onResize);
+    state.release?.();
     for (const job of state.jobs) job.cancel?.();
     state.pdf?.destroy?.();
     document.removeEventListener('keydown', onKey);
@@ -139,44 +142,162 @@ async function drawPdf(item, stage, status, state, title) {
     page.cleanup?.();
   }
 
-  const renderSlot = async (slot) => {
-    const n = Number(slot.dataset.page);
-    if (state.closed || slot.dataset.busy === '1' || slot.querySelector('canvas')) return;
-    slot.dataset.busy = '1';
-    for (const other of slots) {
-      const m = Number(other.dataset.page);
-      if (Math.abs(m - n) > 1) {
-        const canvas = other.querySelector('canvas');
-        if (canvas) { canvas.remove(); other.dataset.busy = ''; }
+  // A page just below the screen starts drawing while the page on screen is
+  // still up. Dropping every picture more than one page away erased the one
+  // on screen. Scrolling back did not put it back in that slot.
+  const picture = (slot) => slot.querySelector('canvas, img');
+  const nearView = (slot) => {
+    const root = stage.getBoundingClientRect();
+    const box = slot.getBoundingClientRect();
+    const pad = Math.max(root.height, 360);
+    return box.bottom > root.top - pad && box.top < root.bottom + pad;
+  };
+  const releaseFar = () => {
+    for (const slot of slots) {
+      if (nearView(slot)) continue;
+      if (slot.dataset.busy !== '1' && !picture(slot)) continue;
+      slot._gen = null;
+      slot._job?.cancel?.();
+      slot._job = null;
+      const node = picture(slot);
+      if (node) {
+        if (node.tagName === 'CANVAS') { node.width = 0; node.height = 0; }
+        node.remove();
       }
+      if (slot._url) { URL.revokeObjectURL(slot._url); slot._url = ''; }
+      slot.dataset.busy = '';
     }
-    const page = await pdf.getPage(n);
-    if (state.closed || slot.querySelector('canvas')) { page.cleanup?.(); return; }
-    const cssWidth = Math.max(280, stage.clientWidth - 28);
+  };
+  state.release = () => {
+    for (const slot of slots) {
+      slot._gen = null;
+      slot._job?.cancel?.();
+      if (slot._url) URL.revokeObjectURL(slot._url);
+    }
+  };
+  const alive = (slot, gen) => !state.closed && slot._gen === gen;
+
+  const renderSlot = async (slot) => {
+    if (state.closed || slot.dataset.busy === '1' || picture(slot)) return;
+    if (!nearView(slot)) return;
+    const gen = {};
+    slot._gen = gen;
+    slot.dataset.busy = '1';
+    const n = Number(slot.dataset.page);
+    let page;
+    try {
+      page = await pdf.getPage(n);
+    } catch (err) {
+      if (slot._gen === gen) slot.dataset.busy = '';
+      console.error(err);
+      return;
+    }
+    if (!alive(slot, gen) || !nearView(slot)) {
+      page.cleanup?.();
+      if (slot._gen === gen) slot.dataset.busy = '';
+      return;
+    }
+    const cssWidth = Math.max(280, slot.clientWidth || stage.clientWidth - 28);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const viewport = page.getViewport({ scale: (cssWidth / Number(slot.dataset.w)) * dpr });
     const canvas = document.createElement('canvas');
     canvas.width = Math.floor(viewport.width);
     canvas.height = Math.floor(viewport.height);
     const job = page.render({ canvasContext: canvas.getContext('2d', { alpha: false }), viewport });
+    slot._job = job;
     state.jobs.add(job);
     try {
       await job.promise;
     } catch (err) {
-      slot.dataset.busy = '';
-      if (err?.name === 'RenderingCancelledException') return;
-      console.error(err);
+      if (slot._gen === gen) slot.dataset.busy = '';
+      page.cleanup?.();
+      if (err?.name !== 'RenderingCancelledException') console.error(err);
       return;
     }
-    if (state.closed) return;
-    slot.replaceChildren(canvas);
+    page.cleanup?.();
+    if (!alive(slot, gen) || !nearView(slot)) {
+      if (slot._gen === gen) slot.dataset.busy = '';
+      canvas.width = 0;
+      canvas.height = 0;
+      return;
+    }
+    // Safari drops the pixels of a canvas inside this scroller. An image
+    // keeps the same picture and sits in the slot when you scroll back.
+    let shown = canvas;
+    try {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (blob && alive(slot, gen)) {
+        const img = new Image();
+        const url = URL.createObjectURL(blob);
+        img.alt = '';
+        img.src = url;
+        try {
+          await img.decode();
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          throw err;
+        }
+        if (!alive(slot, gen)) {
+          URL.revokeObjectURL(url);
+        } else {
+          if (slot._url) URL.revokeObjectURL(slot._url);
+          slot._url = url;
+          shown = img;
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+      }
+    } catch { /* the canvas still holds the page */ }
+    if (!alive(slot, gen) || !nearView(slot)) {
+      if (slot._gen === gen) slot.dataset.busy = '';
+      if (shown !== canvas && slot._url) { URL.revokeObjectURL(slot._url); slot._url = ''; }
+      canvas.width = 0;
+      canvas.height = 0;
+      return;
+    }
+    slot.replaceChildren(shown);
+    releaseFar();
   };
 
+  const paintVisible = () => {
+    if (state.closed) return;
+    for (const slot of slots) if (nearView(slot)) renderSlot(slot);
+    releaseFar();
+  };
+  let scrollTick = 0;
+  state.onScroll = () => {
+    if (scrollTick) return;
+    scrollTick = requestAnimationFrame(() => {
+      scrollTick = 0;
+      paintVisible();
+    });
+  };
+  stage.addEventListener('scroll', state.onScroll, { passive: true });
+  let laidOut = stage.clientWidth;
+  state.onResize = () => {
+    if (state.closed || Math.abs(stage.clientWidth - laidOut) < 4) return;
+    laidOut = stage.clientWidth;
+    for (const slot of slots) {
+      slot._gen = null;
+      slot._job?.cancel?.();
+      const node = picture(slot);
+      if (node) {
+        if (node.tagName === 'CANVAS') { node.width = 0; node.height = 0; }
+        node.remove();
+      }
+      if (slot._url) { URL.revokeObjectURL(slot._url); slot._url = ''; }
+      slot.dataset.busy = '';
+    }
+    paintVisible();
+  };
+  window.addEventListener('resize', state.onResize);
   state.observer = new IntersectionObserver((entries) => {
+    if (state.closed) return;
     for (const entry of entries) if (entry.isIntersecting) renderSlot(entry.target);
-  }, { root: stage, rootMargin: '700px 0px' });
+    releaseFar();
+  }, { root: stage, rootMargin: '400px 0px' });
   for (const slot of slots) state.observer.observe(slot);
-  renderSlot(slots[0]);
+  paintVisible();
 }
 
 function card(item, groupId) {
