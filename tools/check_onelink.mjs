@@ -448,7 +448,7 @@ const xox400 = quoteOf('V400', 'arch_xox', 60, 60);
 check(xox400.errors.length === 0 && xox400.provisional === true && xox400.material === ceilDollar(765 + 10.49 * 120), 'V400 XOX provisional ' + xox400.material);
 check(quoteOf('V300', 'arch_xox', 60, 60).unavailable === true && quoteOf('V250', 'arch_xox', 60, 60).unavailable === true, 'V300 and V250 arch XOX are not available');
 check(quoteOf('V250', 'arch_sh', 36, 60).unavailable === true && quoteOf('V400', 'arch_sh', 36, 60).unavailable === true, 'arch single hung is not available on V250 or V400');
-check(quoteOf('V300', 'arch_xo', 36, 48, { color: 'bw' }).unavailable === true && quoteOf('V250', 'arch_xo', 36, 70, { color: 'bb' }).unavailable === true, 'V300 and V250 black arch colors are not available');
+check(quoteOf('V300', 'arch_xox', 60, 60, { color: 'bw' }).unavailable === true && quoteOf('V250', 'arch_sh', 36, 60, { color: 'bb' }).unavailable === true, 'V300 XOX and V250 arch single hung stay not available in black');
 check(quoteOf('V400', 'arch_hr', 36, 60, { color: 'bw' }).unavailable === true && quoteOf('V400', 'arch_hr', 36, 60, { color: 'bb' }).unavailable === true, 'black is not offered on V400 half-round');
 const hr = quoteOf('V400', 'arch_hr', 36, 72);
 check(hr.errors.length === 0 && hr.provisional === false && hr.material === ceilDollar(955 + 5.86 * 108), 'V400 half-round 36x72 ' + hr.material);
@@ -472,6 +472,53 @@ for (const type of ['arch_xo', 'arch_xox', 'arch_sh', 'arch_hr']) {
   check(addonUnit({ type: 'standard', surcharges: ['second-story'] }, line) === 75, type + ' two-story');
 }
 check(quoteOf('V400', 'archtop', 36, 60).pricePending === true, 'old equal-leg arch top stays pending');
+
+// Black on V300/V250 arch is a formula adder on the White price, then round up.
+// Each formula must clear the OneLink adder at every source size.
+const adderOf = (base, per, u, floor = null) => {
+  const raw = base + per * u;
+  return floor != null && raw < floor ? floor : raw;
+};
+const archBlack = (series, type, color, w, h) => quoteOf(series, type, w, h, { color });
+const sourcePoints = [
+  ['V300', 'arch_xo', 60, 72, 174, 2.07, null, 446.27, 168, 2.54, null, 503.08],
+  ['V300', 'arch_xo', 72, 84, 174, 2.07, null, 495.83, 168, 2.54, null, 564],
+  ['V250', 'arch_xo', 60, 72, 165, 1.91, null, 415.55, 177, 2.25, null, 471.71],
+  ['V250', 'arch_xo', 72, 84, 165, 1.91, null, 461.18, 177, 2.25, null, 525.47],
+  ['V300', 'arch_sh', 36, 72, -195, 4.15, 253, 252.77, -190, 4.43, 289, 288.19],
+  ['V300', 'arch_sh', 36, 84, -195, 4.15, 253, 302.51, -190, 4.43, 289, 341.27],
+];
+for (const [series, type, w, h, bwA, bwB, bwFloor, bwObs, bbA, bbB, bbFloor, bbObs] of sourcePoints) {
+  const u = w + h;
+  const bwAdd = adderOf(bwA, bwB, u, bwFloor);
+  const bbAdd = adderOf(bbA, bbB, u, bbFloor);
+  check(bwAdd + 1e-9 >= bwObs, `${series} ${type} ${w}x${h} black/white adder ${bwAdd} under ${bwObs}`);
+  check(bbAdd + 1e-9 >= bbObs, `${series} ${type} ${w}x${h} black/black adder ${bbAdd} under ${bbObs}`);
+  const white = quoteOf(series, type, w, h);
+  const bw = archBlack(series, type, 'bw', w, h);
+  const bb = archBlack(series, type, 'bb', w, h);
+  const whiteRaw = white.base + white.perUI * u;
+  if (!white.errors.length) {
+    check(bw.provisional === true && bw.pricePending === false && bw.material === ceilDollar(whiteRaw + bwAdd), `${series} ${type} ${w}x${h} black/white price ${bw.material}`);
+    check(bb.provisional === true && bb.material === ceilDollar(whiteRaw + bbAdd), `${series} ${type} ${w}x${h} black/black price ${bb.material}`);
+    check(bw.material + 1e-9 >= ceilDollar(whiteRaw + bwObs), `${series} ${type} ${w}x${h} black/white under the source adder`);
+  } else {
+    check(Math.abs(bw.adder - bwAdd) < 0.001 && bw.provisional === true, `${series} ${type} ${w}x${h} adder still applies when the size is blocked ${bw.adder}`);
+  }
+}
+const v300bw = quoteOf('V300', 'arch_xo', 60, 72, { color: 'bw' });
+const v300whiteRaw = 379 + 8.98 * 132;
+const v300bwAdd = 174 + 2.07 * 132;
+check(v300bw.errors.length === 0 && v300bw.provisional === true && v300bw.material === ceilDollar(v300whiteRaw + v300bwAdd), 'V300 arch XO 60x72 black/white ' + v300bw.material);
+check(v300bwAdd + 1e-9 >= 446.27 && Math.abs(v300bwAdd - 447.24) < 0.001, 'V300 60x72 black/white adder ' + v300bwAdd);
+const v300adobe = quoteOf('V300', 'arch_xo', 60, 72, { color: 'adobe' });
+check(v300adobe.material === quoteOf('V300', 'arch_xo', 60, 72).material && v300adobe.notes.some((n) => /Adobe priced as White/.test(n)), 'V300 arch Adobe stays on the white price');
+check(quoteOf('V300', 'arch_xo', 60, 72, { color: 'bronze' }).pricePending === true, 'V300 arch bronze stays pending');
+const shFloor = quoteOf('V300', 'arch_sh', 9.5, 41.5, { color: 'bw' });
+const smallU = 9.5 + 41.5;
+const underFloor = -195 + 4.15 * smallU;
+check(underFloor < 253 && shFloor.errors.length === 0 && shFloor.material === ceilDollar(507 + 6.58 * smallU + 253), 'V300 arch single hung black/white uses the $253 floor ' + shFloor.material);
+check(quoteOf('V400', 'arch_xo', 60, 72, { color: 'bw' }).material === ceilDollar(xoRaw + 562.78), 'V400 flat black adder still works');
 
 if (errs.length) {
   console.log('FAILED', errs.length);
