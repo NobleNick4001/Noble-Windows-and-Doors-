@@ -37,6 +37,8 @@ details.card summary{cursor:pointer;margin-bottom:.6rem;min-height:30px}
 .room-label{scroll-margin-top:96px}
 .big.pending{font-size:2rem}
 .pending-price{color:var(--orange-d)}
+.provisional-flag{display:inline-block;background:#fff3cd;color:#7a4e00;border:1.5px solid #e0b44a;border-radius:999px;font-size:.75rem;font-weight:800;letter-spacing:.01em;padding:.12rem .55rem;margin:.2rem 0}
+.flush-fin-note{margin-top:.35rem}
 input[type=text],input[type=tel],input[type=email],input[type=password],input[type=number],input[type=date],select,textarea{width:100%;min-height:48px;padding:.55rem .75rem;border:1.5px solid #b7cfe2;border-radius:12px;font:inherit;background:#fff;color:var(--ink)}
 input:focus,select:focus,textarea:focus{outline:3px solid rgba(242,140,40,.45);border-color:var(--orange)}
 .stepper input{text-align:center;font-size:1.25rem;font-weight:700}

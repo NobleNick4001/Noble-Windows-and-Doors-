@@ -427,6 +427,52 @@ const readyShown = priceWindow({ brand: 'milgard', series: 'V300', type: 'dcasem
 check(readyShown.pricePending === false && Math.abs(readyShown.unit - (10 + 78 * 12.5)) < 0.001, 'priceWindow uses base + perUI ' + readyShown.unit);
 data.milgardOnelink = live;
 
+// Arch and eyebrow use one price per configuration. The old archtop placeholder stays pending.
+const ceilDollar = (n) => Math.ceil(Number(n) - 1e-6);
+const xoRaw = 433 + 10.49 * 132;
+const xo400 = quoteOf('V400', 'arch_xo', 60, 72);
+check(Math.abs(xoRaw - 1817.68) < 0.001, 'V400 XO 60x72 raw ' + xoRaw);
+check(xo400.errors.length === 0 && xo400.pricePending === false && xo400.provisional === false && xo400.unavailable !== true && xo400.material === ceilDollar(xoRaw) && xo400.material === 1818, 'V400 arch/eyebrow XO 60x72 ' + xo400.material);
+check(materialUnitPrice({ brand: 'milgard', series: 'V400', type: 'arch_xo', color: 'ww', w: 60, h: 72 }) === 1818, 'V400 XO 60x72 unit price');
+const xoBw = quoteOf('V400', 'arch_xo', 60, 72, { color: 'bw' });
+const xoBb = quoteOf('V400', 'arch_xo', 60, 72, { color: 'bb' });
+check(xoBw.provisional === true && xoBw.material === ceilDollar(xoRaw + 562.78), 'V400 black/white arch adder ' + xoBw.material);
+check(xoBb.provisional === true && xoBb.material === ceilDollar(xoRaw + 622.13), 'V400 black/black arch adder ' + xoBb.material);
+const xoAdobe = quoteOf('V400', 'arch_xo', 60, 72, { color: 'adobe' });
+check(xoAdobe.material === 1818 && xoAdobe.notes.some((n) => /Adobe priced as White/.test(n)), 'Adobe uses the white arch price');
+check(quoteOf('V400', 'arch_xo', 60, 72, { color: 'bronze' }).pricePending === true, 'bronze arch stays pending');
+check(quoteOf('V400', 'arch_xo', 25, 72).errors.some((e) => /Width/.test(e)), 'V400 XO under 26 wide blocked');
+check(quoteOf('V400', 'arch_xo', 60, 40).errors.some((e) => /Height/.test(e)), 'V400 XO under 41 tall blocked');
+check(quoteOf('V400', 'arch_xo', 95.5, 102).errors.length === 0 && quoteOf('V400', 'arch_xo', 96, 50).errors.some((e) => /Width/.test(e)), 'V400 XO width stops at 95.5');
+const xox400 = quoteOf('V400', 'arch_xox', 60, 60);
+check(xox400.errors.length === 0 && xox400.provisional === true && xox400.material === ceilDollar(765 + 10.49 * 120), 'V400 XOX provisional ' + xox400.material);
+check(quoteOf('V300', 'arch_xox', 60, 60).unavailable === true && quoteOf('V250', 'arch_xox', 60, 60).unavailable === true, 'V300 and V250 arch XOX are not available');
+check(quoteOf('V250', 'arch_sh', 36, 60).unavailable === true && quoteOf('V400', 'arch_sh', 36, 60).unavailable === true, 'arch single hung is not available on V250 or V400');
+check(quoteOf('V300', 'arch_xo', 36, 48, { color: 'bw' }).unavailable === true && quoteOf('V250', 'arch_xo', 36, 70, { color: 'bb' }).unavailable === true, 'V300 and V250 black arch colors are not available');
+check(quoteOf('V400', 'arch_hr', 36, 60, { color: 'bw' }).unavailable === true && quoteOf('V400', 'arch_hr', 36, 60, { color: 'bb' }).unavailable === true, 'black is not offered on V400 half-round');
+const hr = quoteOf('V400', 'arch_hr', 36, 72);
+check(hr.errors.length === 0 && hr.provisional === false && hr.material === ceilDollar(955 + 5.86 * 108), 'V400 half-round 36x72 ' + hr.material);
+check(quoteOf('V400', 'arch_hr', 36, 107.75).errors.length === 0 && quoteOf('V400', 'arch_hr', 36, 107.76).errors.some((e) => /Height/.test(e)), 'half-round height stops at 107.75');
+check(quoteOf('V400', 'arch_hr', 29.4, 60).errors.some((e) => /Width/.test(e)) && quoteOf('V400', 'arch_hr', 47.6, 60).errors.some((e) => /Width/.test(e)), 'half-round width is 29.5–47.5');
+const sh300 = quoteOf('V300', 'arch_sh', 36, 60);
+check(sh300.provisional === true && sh300.errors.length === 0 && sh300.material === ceilDollar(507 + 6.58 * 96), 'V300 arch single hung provisional ' + sh300.material);
+const v300xo = quoteOf('V300', 'arch_xo', 36, 48);
+check(v300xo.provisional === true && v300xo.material === ceilDollar(379 + 8.98 * 84), 'V300 arch XO provisional ' + v300xo.material);
+const v250ok = quoteOf('V250', 'arch_xo', 36, 70);
+check(v250ok.errors.length === 0 && v250ok.provisional === true && v250ok.material === ceilDollar(303 + 8.17 * 106), 'V250 arch XO 36x70 ' + v250ok.material);
+check(quoteOf('V250', 'arch_xo', 36, 60).errors.some((e) => /Leg/.test(e)), 'V250 arch XO short leg is blocked');
+const naPrice = priceWindow({ brand: 'milgard', series: 'V300', type: 'arch_xox', color: 'ww', w: 60, h: 60, qty: 1 });
+check(naPrice?.unavailable === true && naPrice.unit == null, 'not available has no price');
+for (const type of ['arch_xo', 'arch_xox', 'arch_sh', 'arch_hr']) {
+  const line = { brand: 'milgard', series: 'V400', type, w: 40, h: 60 };
+  check(installUnit({ type: 'standard', surcharges: [] }, line) === 360, type + ' retrofit labor');
+  check(installUnit({ type: 'block', surcharges: [] }, line) === 380, type + ' block labor');
+  check(installUnit({ type: 'stucco-fin', surcharges: [] }, line) === 400, type + ' nail fin labor');
+  check(addonUnit({ type: 'standard', surcharges: ['oversize'] }, line) === 85, type + ' large');
+  check(addonUnit({ type: 'standard', surcharges: ['second-story'] }, line) === 75, type + ' two-story');
+}
+check(quoteOf('V400', 'archtop', 36, 60).pricePending === true, 'old equal-leg arch top stays pending');
+
 if (errs.length) {
   console.log('FAILED', errs.length);
   for (const e of errs) console.log(' -', e);
