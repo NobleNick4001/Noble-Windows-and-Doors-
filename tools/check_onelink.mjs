@@ -448,7 +448,7 @@ const xox400 = quoteOf('V400', 'arch_xox', 60, 60);
 check(xox400.errors.length === 0 && xox400.provisional === true && xox400.material === ceilDollar(765 + 10.49 * 120), 'V400 XOX provisional ' + xox400.material);
 check(quoteOf('V300', 'arch_xox', 60, 60).unavailable === true && quoteOf('V250', 'arch_xox', 60, 60).unavailable === true, 'V300 and V250 arch XOX are not available');
 check(quoteOf('V250', 'arch_sh', 36, 60).unavailable === true && quoteOf('V400', 'arch_sh', 36, 60).unavailable === true, 'arch single hung is not available on V250 or V400');
-check(quoteOf('V300', 'arch_xo', 36, 48, { color: 'bw' }).unavailable === true && quoteOf('V250', 'arch_xo', 36, 70, { color: 'bb' }).unavailable === true, 'V300 and V250 black arch colors are not available');
+check(quoteOf('V300', 'arch_xox', 60, 60, { color: 'bw' }).unavailable === true && quoteOf('V250', 'arch_sh', 36, 60, { color: 'bb' }).unavailable === true, 'V300 XOX and V250 arch single hung stay not available in black');
 check(quoteOf('V400', 'arch_hr', 36, 60, { color: 'bw' }).unavailable === true && quoteOf('V400', 'arch_hr', 36, 60, { color: 'bb' }).unavailable === true, 'black is not offered on V400 half-round');
 const hr = quoteOf('V400', 'arch_hr', 36, 72);
 check(hr.errors.length === 0 && hr.provisional === false && hr.material === ceilDollar(955 + 5.86 * 108), 'V400 half-round 36x72 ' + hr.material);
@@ -472,6 +472,38 @@ for (const type of ['arch_xo', 'arch_xox', 'arch_sh', 'arch_hr']) {
   check(addonUnit({ type: 'standard', surcharges: ['second-story'] }, line) === 75, type + ' two-story');
 }
 check(quoteOf('V400', 'archtop', 36, 60).pricePending === true, 'old equal-leg arch top stays pending');
+
+// Black on V300/V250 arch is a formula adder on the White price, then round up.
+// The app price must be at least the OneLink black unit price at every sample size.
+const WHITE = { 'V300|arch_xo': [379, 8.98], 'V250|arch_xo': [303, 8.17], 'V300|arch_sh': [507, 6.58] };
+const blackSamples = [
+  ['V300', 'arch_xo', 175, 2.33, 175, 2.79, [[48, 60, 1774.43, 1824.55], [60, 72, 1983.61, 2040.42], [66, 78, 2181.44, 2248.27], [72, 84, 2274.34, 2342.51]]],
+  ['V250', 'arch_xo', 211, 1.78, 210, 2.23, [[48, 60, 1587.46, 1634.83], [60, 72, 1772.19, 1828.35], [66, 78, 1945.42, 2009.02], [72, 84, 2037.44, 2101.73]]],
+  ['V300', 'arch_sh', 78, 1.87, 82, 2.17, [[30, 60, 1344.69, 1375.43], [36, 72, 1450.95, 1486.37], [36, 78, 1546.52, 1585.29], [36, 84, 1597.99, 1636.75]]],
+];
+for (const [series, type, bwA, bwB, bbA, bbB, sizes] of blackSamples) {
+  const [wBase, wPer] = WHITE[series + '|' + type];
+  for (const [w, h, bwObs, bbObs] of sizes) {
+    const u = w + h;
+    const whiteRaw = wBase + wPer * u;
+    const bwExpect = ceilDollar(whiteRaw + bwA + bwB * u);
+    const bbExpect = ceilDollar(whiteRaw + bbA + bbB * u);
+    const bw = quoteOf(series, type, w, h, { color: 'bw' });
+    const bb = quoteOf(series, type, w, h, { color: 'bb' });
+    const where = `${series} ${type} ${w}x${h}`;
+    check(bw.provisional === true && bw.pricePending === false && bw.unavailable !== true && bw.material === bwExpect, `${where} black/white ${bw.material} != ${bwExpect}`);
+    check(bb.provisional === true && bb.material === bbExpect, `${where} black/black ${bb.material} != ${bbExpect}`);
+    check(bw.material + 1e-9 >= bwObs, `${where} black/white ${bw.material} is under OneLink ${bwObs}`);
+    check(bb.material + 1e-9 >= bbObs, `${where} black/black ${bb.material} is under OneLink ${bbObs}`);
+  }
+}
+const v300bw = quoteOf('V300', 'arch_xo', 60, 72, { color: 'bw' });
+check(v300bw.errors.length === 0 && v300bw.material === 2047, 'V300 arch XO 60x72 black/white is $2,047 ' + v300bw.material);
+check(!data.milgardOnelink.pendingWindows.styles.arch_sh.rates.V300.bw.adder.min && !data.milgardOnelink.pendingWindows.styles.arch_sh.rates.V300.bb.adder.min, 'arch single hung black adders have no floor');
+const v300adobe = quoteOf('V300', 'arch_xo', 60, 72, { color: 'adobe' });
+check(v300adobe.material === quoteOf('V300', 'arch_xo', 60, 72).material && v300adobe.notes.some((n) => /Adobe priced as White/.test(n)), 'V300 arch Adobe stays on the white price');
+check(quoteOf('V300', 'arch_xo', 60, 72, { color: 'bronze' }).pricePending === true, 'V300 arch bronze stays pending');
+check(quoteOf('V400', 'arch_xo', 60, 72, { color: 'bw' }).material === ceilDollar(xoRaw + 562.78), 'V400 flat black adder still works');
 
 if (errs.length) {
   console.log('FAILED', errs.length);

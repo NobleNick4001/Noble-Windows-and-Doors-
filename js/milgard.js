@@ -298,6 +298,27 @@ const emptyCharge = () => ({
   provisional: false, roundUp: false, adobeAsWhite: false,
 });
 
+// A color adder is a flat dollar amount, or { base, perUI, min } = max(min, base + perUI×U).
+function adderSpecOf(raw) {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return { flat: raw };
+  if (raw && typeof raw === 'object') {
+    const base = Number(raw.base) || 0;
+    const perUI = Number(raw.perUI) || 0;
+    const min = raw.min == null || raw.min === '' ? null : Number(raw.min);
+    if (base || perUI || (min != null && Number.isFinite(min))) {
+      return { base, perUI, min: Number.isFinite(min) ? min : null };
+    }
+  }
+  return null;
+}
+function adderDollars(spec, ui) {
+  if (!spec) return 0;
+  if (spec.flat != null) return spec.flat;
+  let amount = (spec.base || 0) + (spec.perUI || 0) * ui;
+  if (spec.min != null && amount < spec.min) amount = spec.min;
+  return amount;
+}
+
 function pendingCharge(row, series, colorId) {
   const key = RATE_COLOR[colorId] || null;
   const seriesRates = row?.rates?.[series];
@@ -315,11 +336,10 @@ function pendingCharge(row, series, colorId) {
     const ownPer = Number(spec.perUI) || 0;
     const min = spec.min == null || spec.min === '' ? null : Number(spec.min);
     const hasOwn = !!(ownBase || ownPer || (min != null && min > 0));
-    const adder = Number(spec.adder) || 0;
-    // { adder } with no base uses the White formula plus that per-unit adder.
-    // Swap a "status": "unavailable" color for { adder, provisional } when a
-    // color addendum arrives. Black on V300 and V250 is stored that way.
-    const src = hasOwn ? spec : (adder ? seriesRates.ww : null);
+    const adderSpec = adderSpecOf(spec.adder);
+    // { adder } with no base uses the White formula plus that adder.
+    // adder may be a flat number (V400 black) or { base, perUI, min }.
+    const src = hasOwn ? spec : (adderSpec ? seriesRates.ww : null);
     if (src && (hasOwn || Number(src.base) || Number(src.perUI))) {
       const base = hasOwn ? ownBase : (Number(src.base) || 0);
       const perUI = hasOwn ? ownPer : (Number(src.perUI) || 0);
@@ -330,7 +350,7 @@ function pendingCharge(row, series, colorId) {
         base,
         perUI,
         min: Number.isFinite(srcMin) ? srcMin : null,
-        adder,
+        adderSpec,
         provisional: !!(spec.provisional || (!hasOwn && src.provisional)),
         roundUp: !!row.roundUp,
         adobeAsWhite: colorId === 'adobe',
@@ -363,8 +383,9 @@ function pendingWindow(D, series, style, w, h, colorId) {
   const pricePending = !row || charge.pricePending;
   const perUI = pricePending ? 0 : charge.perUI;
   const base = pricePending ? 0 : charge.base;
-  const adder = pricePending ? 0 : (charge.adder || 0);
-  let material = pricePending ? 0 : base + perUI * (Number(w) + Number(h)) + adder;
+  const ui = Number(w) + Number(h);
+  const adder = pricePending ? 0 : adderDollars(charge.adderSpec, ui);
+  let material = pricePending ? 0 : base + perUI * ui + adder;
   const min = !pricePending && charge.min != null ? charge.min : null;
   if (min != null && material < min) material = min;
   if (!pricePending && charge.roundUp) material = Math.ceil(Number(material) - 1e-6);
@@ -374,6 +395,7 @@ function pendingWindow(D, series, style, w, h, colorId) {
   if (row?.note) notes.push(row.note);
   return {
     items: [['base', material]], notes, errors, material, perUI, base, min, adder,
+    adderSpec: pricePending ? null : (charge.adderSpec || null),
     limits: pendingLimits(D, series, style), pricePending,
     unavailable: false, provisional: !pricePending && !!charge.provisional,
     roundUp: !pricePending && !!charge.roundUp, formula: !pricePending,
