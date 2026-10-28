@@ -474,50 +474,35 @@ for (const type of ['arch_xo', 'arch_xox', 'arch_sh', 'arch_hr']) {
 check(quoteOf('V400', 'archtop', 36, 60).pricePending === true, 'old equal-leg arch top stays pending');
 
 // Black on V300/V250 arch is a formula adder on the White price, then round up.
-// Each formula must clear the OneLink adder at every source size.
-const adderOf = (base, per, u, floor = null) => {
-  const raw = base + per * u;
-  return floor != null && raw < floor ? floor : raw;
-};
-const archBlack = (series, type, color, w, h) => quoteOf(series, type, w, h, { color });
-const sourcePoints = [
-  ['V300', 'arch_xo', 60, 72, 174, 2.07, null, 446.27, 168, 2.54, null, 503.08],
-  ['V300', 'arch_xo', 72, 84, 174, 2.07, null, 495.83, 168, 2.54, null, 564],
-  ['V250', 'arch_xo', 60, 72, 165, 1.91, null, 415.55, 177, 2.25, null, 471.71],
-  ['V250', 'arch_xo', 72, 84, 165, 1.91, null, 461.18, 177, 2.25, null, 525.47],
-  ['V300', 'arch_sh', 36, 72, -195, 4.15, 253, 252.77, -190, 4.43, 289, 288.19],
-  ['V300', 'arch_sh', 36, 84, -195, 4.15, 253, 302.51, -190, 4.43, 289, 341.27],
+// The app price must be at least the OneLink black unit price at every sample size.
+const WHITE = { 'V300|arch_xo': [379, 8.98], 'V250|arch_xo': [303, 8.17], 'V300|arch_sh': [507, 6.58] };
+const blackSamples = [
+  ['V300', 'arch_xo', 175, 2.33, 175, 2.79, [[48, 60, 1774.43, 1824.55], [60, 72, 1983.61, 2040.42], [66, 78, 2181.44, 2248.27], [72, 84, 2274.34, 2342.51]]],
+  ['V250', 'arch_xo', 211, 1.78, 210, 2.23, [[48, 60, 1587.46, 1634.83], [60, 72, 1772.19, 1828.35], [66, 78, 1945.42, 2009.02], [72, 84, 2037.44, 2101.73]]],
+  ['V300', 'arch_sh', 78, 1.87, 82, 2.17, [[30, 60, 1344.69, 1375.43], [36, 72, 1450.95, 1486.37], [36, 78, 1546.52, 1585.29], [36, 84, 1597.99, 1636.75]]],
 ];
-for (const [series, type, w, h, bwA, bwB, bwFloor, bwObs, bbA, bbB, bbFloor, bbObs] of sourcePoints) {
-  const u = w + h;
-  const bwAdd = adderOf(bwA, bwB, u, bwFloor);
-  const bbAdd = adderOf(bbA, bbB, u, bbFloor);
-  check(bwAdd + 1e-9 >= bwObs, `${series} ${type} ${w}x${h} black/white adder ${bwAdd} under ${bwObs}`);
-  check(bbAdd + 1e-9 >= bbObs, `${series} ${type} ${w}x${h} black/black adder ${bbAdd} under ${bbObs}`);
-  const white = quoteOf(series, type, w, h);
-  const bw = archBlack(series, type, 'bw', w, h);
-  const bb = archBlack(series, type, 'bb', w, h);
-  const whiteRaw = white.base + white.perUI * u;
-  if (!white.errors.length) {
-    check(bw.provisional === true && bw.pricePending === false && bw.material === ceilDollar(whiteRaw + bwAdd), `${series} ${type} ${w}x${h} black/white price ${bw.material}`);
-    check(bb.provisional === true && bb.material === ceilDollar(whiteRaw + bbAdd), `${series} ${type} ${w}x${h} black/black price ${bb.material}`);
-    check(bw.material + 1e-9 >= ceilDollar(whiteRaw + bwObs), `${series} ${type} ${w}x${h} black/white under the source adder`);
-  } else {
-    check(Math.abs(bw.adder - bwAdd) < 0.001 && bw.provisional === true, `${series} ${type} ${w}x${h} adder still applies when the size is blocked ${bw.adder}`);
+for (const [series, type, bwA, bwB, bbA, bbB, sizes] of blackSamples) {
+  const [wBase, wPer] = WHITE[series + '|' + type];
+  for (const [w, h, bwObs, bbObs] of sizes) {
+    const u = w + h;
+    const whiteRaw = wBase + wPer * u;
+    const bwExpect = ceilDollar(whiteRaw + bwA + bwB * u);
+    const bbExpect = ceilDollar(whiteRaw + bbA + bbB * u);
+    const bw = quoteOf(series, type, w, h, { color: 'bw' });
+    const bb = quoteOf(series, type, w, h, { color: 'bb' });
+    const where = `${series} ${type} ${w}x${h}`;
+    check(bw.provisional === true && bw.pricePending === false && bw.unavailable !== true && bw.material === bwExpect, `${where} black/white ${bw.material} != ${bwExpect}`);
+    check(bb.provisional === true && bb.material === bbExpect, `${where} black/black ${bb.material} != ${bbExpect}`);
+    check(bw.material + 1e-9 >= bwObs, `${where} black/white ${bw.material} is under OneLink ${bwObs}`);
+    check(bb.material + 1e-9 >= bbObs, `${where} black/black ${bb.material} is under OneLink ${bbObs}`);
   }
 }
 const v300bw = quoteOf('V300', 'arch_xo', 60, 72, { color: 'bw' });
-const v300whiteRaw = 379 + 8.98 * 132;
-const v300bwAdd = 174 + 2.07 * 132;
-check(v300bw.errors.length === 0 && v300bw.provisional === true && v300bw.material === ceilDollar(v300whiteRaw + v300bwAdd), 'V300 arch XO 60x72 black/white ' + v300bw.material);
-check(v300bwAdd + 1e-9 >= 446.27 && Math.abs(v300bwAdd - 447.24) < 0.001, 'V300 60x72 black/white adder ' + v300bwAdd);
+check(v300bw.errors.length === 0 && v300bw.material === 2047, 'V300 arch XO 60x72 black/white is $2,047 ' + v300bw.material);
+check(!data.milgardOnelink.pendingWindows.styles.arch_sh.rates.V300.bw.adder.min && !data.milgardOnelink.pendingWindows.styles.arch_sh.rates.V300.bb.adder.min, 'arch single hung black adders have no floor');
 const v300adobe = quoteOf('V300', 'arch_xo', 60, 72, { color: 'adobe' });
 check(v300adobe.material === quoteOf('V300', 'arch_xo', 60, 72).material && v300adobe.notes.some((n) => /Adobe priced as White/.test(n)), 'V300 arch Adobe stays on the white price');
 check(quoteOf('V300', 'arch_xo', 60, 72, { color: 'bronze' }).pricePending === true, 'V300 arch bronze stays pending');
-const shFloor = quoteOf('V300', 'arch_sh', 9.5, 41.5, { color: 'bw' });
-const smallU = 9.5 + 41.5;
-const underFloor = -195 + 4.15 * smallU;
-check(underFloor < 253 && shFloor.errors.length === 0 && shFloor.material === ceilDollar(507 + 6.58 * smallU + 253), 'V300 arch single hung black/white uses the $253 floor ' + shFloor.material);
 check(quoteOf('V400', 'arch_xo', 60, 72, { color: 'bw' }).material === ceilDollar(xoRaw + 562.78), 'V400 flat black adder still works');
 
 if (errs.length) {
