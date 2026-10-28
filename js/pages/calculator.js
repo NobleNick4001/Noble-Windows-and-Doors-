@@ -1,6 +1,7 @@
 import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE } from '../core.js';
 import { renderMilgard, roomLabelProps } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
+import { drawingEl } from '../drawings.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
 const persist = () => store.set('nwd.calc', calc);
@@ -262,12 +263,16 @@ export function render(root) {
     priceBox.replaceChildren();
     const summary = `${brand.name} ${calc.series} · ${typeName(calc.type)} · ${colorById(calc.color).name}`;
     priceBox.append(h('div', { class: 'eyebrow' }, summary));
+    const sizedDraw = parseFloat(calc.w) > 0 && parseFloat(calc.h) > 0;
+    if (p && p.combo && !blocked && sizedDraw) {
+      priceBox.append(h('div', { class: 'calc-drawing-row' }, ...p.parts.map((part) => drawingEl(part.line, 'calc-drawing', { boxW: 200, boxH: 170 }))));
+    } else if (sizedDraw) priceBox.append(drawingEl(args(), 'calc-drawing', { boxW: 240, boxH: 200 }));
     const frameWarn = needsFrameWarning({ brand: calc.brand, series: calc.series, install: calc.install })
       ? h('p', { class: 'warn frame-warn', id: 'frame-warn' }, FRAME_TYPE_WARNING) : null;
     const flushNote = (calc.addons || []).includes('flush_fin_trim') ? h('p', { class: 'note flush-fin-note', id: 'flush-fin-note' }, FLUSH_FIN_NOTE) : null;
     if (p && p.combo && !blocked) {
       const qty = parseInt(calc.qty) || 1;
-      priceBox.append(
+      priceBox.append(...[
         h('div', { class: 'big', id: 'price-window' }, fmt(p.parts[0].unit)),
         h('div', { class: 'sub', id: 'price-arch-label' }, p.parts[0].label),
         h('div', { class: 'big', id: 'price-window-2' }, fmt(p.parts[1].unit)),
@@ -275,7 +280,7 @@ export function render(root) {
         h('p', { class: 'fine', id: 'combo-note' }, p.note),
         flushNote,
         h('button', { class: 'btn primary xl', id: 'btn-add', disabled: locationOk ? null : true, title: locationOk ? '' : 'Enter a location (e.g. Kitchen)', onclick: addToEstimate }, '+ Add both lines'),
-      );
+      ].filter(Boolean));
       return;
     }
     if (!p || blocked) {

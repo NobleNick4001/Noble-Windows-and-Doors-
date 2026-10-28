@@ -1,5 +1,6 @@
 import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL } from '../core.js';
 import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions, styleLimits } from '../milgard.js';
+import { drawingEl } from '../drawings.js';
 
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
@@ -60,6 +61,9 @@ function ensure(calc) {
     calc.install.type = FRAME_LABOR[calc.frame] || 'standard';
     calc.install.frameType = calc.frame;
   }
+  if (calc.type === 'arch_xo' || calc.type === 'arch_xox') {
+    if (calc.shape !== 'eyebrow') calc.shape = 'arch';
+  }
 }
 
 export function installFromCalc(calc) {
@@ -88,6 +92,7 @@ function draftLine(calc) {
     unitsPerLine: 1, grids: door ? 'none' : calc.grids, obscure: door ? 'none' : calc.obscure,
     tempered: door ? false : !!calc.tempered, pureview: !!calc.pureview,
     frame: door ? '' : calc.frame, install: installFromCalc(calc),
+    shape: (!door && (calc.type === 'arch_xo' || calc.type === 'arch_xox') && calc.shape === 'eyebrow') ? 'eyebrow' : '',
   };
 }
 
@@ -136,6 +141,7 @@ function quoteText(l) {
   if (l.obscure && l.obscure !== 'none') extra.push(l.obscure === 'satin' ? 'Satin Etch' : 'P516');
   if (l.tempered) extra.push('tempered');
   if (l.pureview) extra.push('PureView');
+  if (!door && l.shape === 'eyebrow') extra.push('eyebrow');
   if (!door && l.frame === 'zbar') extra.push('Z-bar');
   if (!door && l.frame === 'block') extra.push('block');
   return `${qty}× ${l.series} ${style} ${l.w}×${l.h}${extra.length ? ' · ' + extra.join(', ') : ''}`;
@@ -219,6 +225,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   left.append(seg('Product', [['window', 'Window'], ['door', 'Patio door']], calc.product, setKind));
   left.append(seg('Series', calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES, calc.series, (id) => { calc.series = id; persist(); rerender(); }));
   left.append(seg('Style', stylesFor(calc), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
+  if (calc.product === 'window' && (calc.type === 'arch_xo' || calc.type === 'arch_xox')) {
+    left.append(seg('Head', [['arch', 'Arch'], ['eyebrow', 'Eyebrow']], calc.shape === 'eyebrow' ? 'eyebrow' : 'arch', (id) => { calc.shape = id; persist(); rerender(); }));
+    left.append(h('p', { class: 'fine', id: 'arch-head-note' }, 'Arch and eyebrow are the same price. Arch uses a semicircle: the leg, and the bottom window, are the height minus half the width. An eyebrow rise is one eighth of the width.'));
+  }
   const a250Win = calc.product === 'window' && calc.series === 'A250';
   const glass = a250Win ? a250GlassOptions(data.milgardOnelink, calc.type) : { tempered: true, obscure: true };
   if (a250Win) left.append(h('p', { class: 'fine', id: 'a250-note' }, A250_NOTE));
@@ -287,8 +297,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   if (calc.product === 'window') left.append(windowLabor(calc, persist, rerender, update));
   else left.append(doorLabor(calc, persist, rerender, update, doorLaborEl));
 
+  const drawHost = h('div', { id: 'calc-drawing' });
   const right = h('div', { class: 'col sticky' },
-    h('div', { class: 'card price' }, h('h3', {}, '2 · Price'), priceEl, unitEl, notesEl, addBtn),
+    h('div', { class: 'card price' }, h('h3', {}, '2 · Price'), drawHost, priceEl, unitEl, notesEl, addBtn),
     h('div', { class: 'card' }, h('h3', {}, '3 · Quote'), quoteEl));
   wrap.append(h('div', { class: 'two' }, left, right));
   root.replaceChildren(wrap);
@@ -344,6 +355,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       noteNodes.push(h('div', { class: 'note' }, n));
     }
     notesEl.replaceChildren(...noteNodes);
+    drawHost.replaceChildren(...(sized ? [drawingEl(line, 'calc-drawing', { boxW: 240, boxH: 200 })] : []));
     if (calc.product === 'door') {
       const base = data.install.doors.panels[calc.type] || 0;
       const tall = line.h > data.install.doors.tallOverInches;
@@ -362,8 +374,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       return;
     }
     e.lines.forEach((l, i) => {
-      quoteEl.append(h('div', { class: 'line' },
-        h('span', {}, quoteText(l), l.provisional ? h('div', { class: 'provisional-flag' }, 'Provisional price') : null),
+      quoteEl.append(h('div', { class: 'line qdraw' },
+        drawingEl(l, 'qdraw-art', { boxW: 108, boxH: 92 }),
+        h('span', { class: 'qdraw-txt' }, quoteText(l), l.provisional ? h('div', { class: 'provisional-flag' }, 'Provisional price') : null),
         h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending || l.unavailable ? 'pending-price' : '' }, linePriceText(l)),
           h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, '✕'))));
     });
@@ -392,6 +405,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       w: line.w, h: line.h, qty: line.qty, unitsPerLine: 1,
       options: optionIds(calc), addons: addonIds(calc),
       grids: line.grids, obscure: line.obscure, tempered: line.tempered, pureview: line.pureview, frame: line.frame,
+      shape: line.shape || '',
       supplierPrice: null, customDescription: '',
       unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: p.rate, rateSet: settings.rateSet,
       estimated: false, pricingMode: 'onelink', pricePending: !!p.pricePending, provisional: !!p.provisional, unavailable: false,

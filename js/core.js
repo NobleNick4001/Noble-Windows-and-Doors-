@@ -325,6 +325,7 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
   const times = ascii ? 'x' : '×';
   const bits = [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, isMilgardDoorLine(line) ? (doorColorLabel(line.series, line.color) || colorName(line.color)) : shortColorName(colorName(line.color)), ...lineOptionNames(line)];
   if (Number(line.unitsPerLine) > 1 && !isIntegralType(line)) bits.push(`${line.unitsPerLine} units`);
+  if (line.shape === 'eyebrow') bits.push('Eyebrow');
   if (line.provisional) bits.push('Provisional price');
   if (hasFlushFin(line)) bits.push(FLUSH_FIN_NOTE);
   bits.push(`Qty ${Number(line.qty) || 1}`);
