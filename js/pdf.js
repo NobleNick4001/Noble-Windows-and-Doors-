@@ -1,6 +1,7 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
 import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine } from './core.js';
 import { currentProfile } from './cloud.js';
+import { windowDrawingSVG } from './drawings.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -421,6 +422,41 @@ function drawMark(doc, pane, ox, oy) {
   }
 }
 
+function svgToPng(svg, w, h) {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined') { reject(new Error('no document')); return; }
+    const img = new Image();
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const finish = (err, data) => { URL.revokeObjectURL(url); err ? reject(err) : resolve(data); };
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        finish(null, canvas.toDataURL('image/png'));
+      } catch (err) { finish(err); }
+    };
+    img.onerror = () => finish(new Error('svg'));
+    img.src = url;
+  });
+}
+
+// The emailed PDF keeps the line drawing it already had if the SVG will not rasterize.
+async function lineDrawingImage(line) {
+  try {
+    const drawn = windowDrawingSVG(line, { boxW: 280, boxH: 230 });
+    const url = await svgToPng(drawn.svg, 280, 230);
+    return url ? { url, w: 280, h: 230 } : null;
+  } catch {
+    return null;
+  }
+}
+
 function drawElevation(doc, colX, colW, top, line, sizeText) {
   const model = elevationModel(line);
   const ox = colX + (colW - model.dw) / 2;
@@ -575,6 +611,7 @@ export async function makeEstimatePdf(e, opts = {}) {
   headerRow();
 
   const items = (e.lines || []).map((line, i) => ({ n: i + 1, line, ...quoteLine(line, { ascii: true }) }));
+  for (const item of items) item.drawing = await lineDrawingImage(item.line);
   (e.extras || []).forEach((extra) => {
     items.push({
       n: items.length + 1,
@@ -593,7 +630,8 @@ export async function makeEstimatePdf(e, opts = {}) {
     const rest = item.details.flatMap((d) => wrapped(d, descW, 8, false));
     const loc = wrapped(item.location || '', cols[2].w - 4, 8, false);
     const size = wrapped(item.size || '', cols[4].w - 4, 8, false);
-    const h = Math.max(item.line ? ELEVATION_BLOCK : 24, title.length * 11 + rest.length * 10 + 10, loc.length * 10 + 10, size.length * 10 + 10);
+    const elev = item.drawing ? 84 : (item.line ? ELEVATION_BLOCK : 24);
+    const h = Math.max(elev, title.length * 11 + rest.length * 10 + 10, loc.length * 10 + 10, size.length * 10 + 10);
     return { title, rest, loc, size, h };
   }
 
@@ -615,7 +653,16 @@ export async function makeEstimatePdf(e, opts = {}) {
     };
     paint(String(item.n), cols[0], base, 8, false, 'center');
     x += cols[0].w;
-    if (item.line) drawElevation(doc, x, cols[1].w, y + 2, item.line, item.size);
+    if (item.drawing) {
+      const maxW = cols[1].w - 4;
+      const maxH = 78;
+      let iw = maxW;
+      let ih = iw * (item.drawing.h / item.drawing.w);
+      if (ih > maxH) { ih = maxH; iw = ih * (item.drawing.w / item.drawing.h); }
+      const ix = x + (cols[1].w - iw) / 2;
+      try { doc.addImage(item.drawing.url, 'PNG', ix, y + 2, iw, ih); }
+      catch { drawElevation(doc, x, cols[1].w, y + 2, item.line, item.size); }
+    } else if (item.line) drawElevation(doc, x, cols[1].w, y + 2, item.line, item.size);
     x += cols[1].w;
     drawn.loc.forEach((line, i) => paint(line, cols[2], base + i * 10, 8, false, 'left'));
     x += cols[2].w;

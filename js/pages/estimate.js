@@ -3,7 +3,8 @@ import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../mil
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
-import { icon, frameKeyFor, stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
+import { stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
+import { drawingEl } from '../drawings.js';
 
 const open = new Set(); // line ids being edited
 const promoUi = { forId: null, draft: '', dirty: false, error: '' };
@@ -26,8 +27,10 @@ export function compactWindowList(lines, { always = false, id = 'compact-windows
     for (const l of section.lines) {
       const row = compactWindowLine(l);
       root.append(h('div', { class: 'win-card' },
-        h('div', { class: 'win-top' }, h('span', { class: 'win-title' }, row.title), h('b', { class: 'win-price' + (row.priceText ? ' pending-price' : '') }, row.priceText || fmt(row.price))),
-        h('div', { class: 'win-sub' }, row.detail)));
+        drawingEl(l, 'win-drawing', { boxW: 132, boxH: 112 }),
+        h('div', { class: 'win-copy' },
+          h('div', { class: 'win-top' }, h('span', { class: 'win-title' }, row.title), h('b', { class: 'win-price' + (row.priceText ? ' pending-price' : '') }, row.priceText || fmt(row.price))),
+          h('div', { class: 'win-sub' }, row.detail))));
     }
   }
   return root;
@@ -242,7 +245,8 @@ export function render(root) {
   e.lines.forEach((l, idx) => {
     const isOpen = open.has(l.id);
     const row = h('div', { class: 'lineitem' },
-      h('div', { class: 'li-main' }, icon(l.type, frameKeyFor(l.color), 'tyicon sm'),
+      h('div', { class: 'li-main' },
+        drawingEl(l, 'line-drawing', { boxW: 168, boxH: 142 }),
         h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
           h('div', { class: 'fine' }, `Install: ${installLabel(l.install, l)}`),
           needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
@@ -451,7 +455,7 @@ function estimateSheet(e) {
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));
   const tw = h('table', { class: 'sh-table sh-wide' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
-  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit))), h('td', { class: 'r' }, linePriceText(l)))));
+  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit))), h('td', { class: 'r' }, linePriceText(l)))));
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
   if (t.percentDiscountAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-percent-discount-row' }, h('td', { colspan: 5, class: 'r' }, t.percentDiscountLabel), h('td', { class: 'r' }, fmt(-t.percentDiscountAmount))));

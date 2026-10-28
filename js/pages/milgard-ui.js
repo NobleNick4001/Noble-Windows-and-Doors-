@@ -1,5 +1,6 @@
 import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL } from '../core.js';
 import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions, styleLimits } from '../milgard.js';
+import { drawingEl } from '../drawings.js';
 
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
@@ -287,8 +288,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   if (calc.product === 'window') left.append(windowLabor(calc, persist, rerender, update));
   else left.append(doorLabor(calc, persist, rerender, update, doorLaborEl));
 
+  const drawHost = h('div', { id: 'calc-drawing' });
   const right = h('div', { class: 'col sticky' },
-    h('div', { class: 'card price' }, h('h3', {}, '2 · Price'), priceEl, unitEl, notesEl, addBtn),
+    h('div', { class: 'card price' }, h('h3', {}, '2 · Price'), drawHost, priceEl, unitEl, notesEl, addBtn),
     h('div', { class: 'card' }, h('h3', {}, '3 · Quote'), quoteEl));
   wrap.append(h('div', { class: 'two' }, left, right));
   root.replaceChildren(wrap);
@@ -332,6 +334,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       unitEl.textContent = qty > 1 ? `${qty} × ${fmt(each)}` : 'per unit';
     }
     notesEl.replaceChildren(...(q?.notes || []).map((n) => h('div', { class: 'note' }, n)));
+    drawHost.replaceChildren(...(sized ? [drawingEl(line, 'calc-drawing', { boxW: 240, boxH: 200 })] : []));
     if (calc.product === 'door') {
       const base = data.install.doors.panels[calc.type] || 0;
       const tall = line.h > data.install.doors.tallOverInches;
@@ -350,8 +353,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       return;
     }
     e.lines.forEach((l, i) => {
-      quoteEl.append(h('div', { class: 'line' },
-        h('span', {}, quoteText(l)),
+      quoteEl.append(h('div', { class: 'line qdraw' },
+        drawingEl(l, 'qdraw-art', { boxW: 108, boxH: 92 }),
+        h('span', { class: 'qdraw-txt' }, quoteText(l)),
         h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending ? 'pending-price' : '' }, linePriceText(l)),
           h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, '✕'))));
     });

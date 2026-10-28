@@ -1,6 +1,7 @@
 import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType } from '../core.js';
 import { renderMilgard, roomLabelProps } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
+import { drawingEl } from '../drawings.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
 const persist = () => store.set('nwd.calc', calc);
@@ -255,6 +256,7 @@ export function render(root) {
     priceBox.replaceChildren();
     const summary = `${brand.name} ${calc.series} · ${typeName(calc.type)} · ${colorById(calc.color).name}`;
     priceBox.append(h('div', { class: 'eyebrow' }, summary));
+    if (parseFloat(calc.w) > 0 && parseFloat(calc.h) > 0) priceBox.append(drawingEl(args(), 'calc-drawing', { boxW: 240, boxH: 200 }));
     const frameWarn = needsFrameWarning({ brand: calc.brand, series: calc.series, install: calc.install })
       ? h('p', { class: 'warn frame-warn', id: 'frame-warn' }, FRAME_TYPE_WARNING) : null;
     if (!p || blocked) {
