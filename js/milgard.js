@@ -273,57 +273,132 @@ function pendingErrors(D, series, style, w, h) {
       e.push(`Each sash must be ${L.sashWmin}–${L.sashWmax}" wide (overall ${L.wmin}–${L.wmax}")`);
     }
   } else if (w < L.wmin || w > L.wmax) e.push(`Width must be ${L.wmin}–${L.wmax}"`);
-  if (h < L.hmin || h > L.hmax) e.push(`Height must be ${L.hmin}–${L.hmax}"`);
+  const hmin = L.hmin == null || L.hmin === '' ? null : Number(L.hmin);
+  const hmax = L.hmax == null || L.hmax === '' ? null : Number(L.hmax);
+  if (hmin != null && hmax != null) {
+    if (h < hmin || h > hmax) e.push(`Height must be ${hmin}–${hmax}"`);
+  } else if (hmax != null && h > hmax) e.push(`Height must be ${hmax}" or less`);
+  else if (hmin != null && h < hmin) e.push(`Height must be at least ${hmin}"`);
   if (style === 'archtop' && w > 0 && h <= w / 2) {
     e.push('Height must be taller than half the width for an equal-leg arch over a unit. Eyebrow and quarter arch are different shapes.');
+  }
+  if (L.legMin != null && w > 0 && h > 0) {
+    const leg = h - w / 2;
+    if (leg + 1e-6 < Number(L.legMin)) {
+      e.push(`Leg must be at least ${L.legMin}" (overall height minus half the width). This size leaves a ${+leg.toFixed(2)}" leg.`);
+    }
   }
   return e;
 }
 
 // App color id → rate-table key. Adobe uses the White rate, same as other OneLink windows.
-const RATE_COLOR = { white: 'ww', ww: 'ww', adobe: 'ww', black_ext: 'bw', bw: 'bw' };
+const RATE_COLOR = { white: 'ww', ww: 'ww', adobe: 'ww', black_ext: 'bw', bw: 'bw', bb: 'bb', black_black: 'bb' };
+const emptyCharge = () => ({
+  pricePending: true, unavailable: false, base: 0, perUI: 0, min: null, adder: 0,
+  provisional: false, roundUp: false, adobeAsWhite: false,
+});
+
+// A color adder is a flat dollar amount, or { base, perUI, min } = max(min, base + perUI×U).
+function adderSpecOf(raw) {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return { flat: raw };
+  if (raw && typeof raw === 'object') {
+    const base = Number(raw.base) || 0;
+    const perUI = Number(raw.perUI) || 0;
+    const min = raw.min == null || raw.min === '' ? null : Number(raw.min);
+    if (base || perUI || (min != null && Number.isFinite(min))) {
+      return { base, perUI, min: Number.isFinite(min) ? min : null };
+    }
+  }
+  return null;
+}
+function adderDollars(spec, ui) {
+  if (!spec) return 0;
+  if (spec.flat != null) return spec.flat;
+  let amount = (spec.base || 0) + (spec.perUI || 0) * ui;
+  if (spec.min != null && amount < spec.min) amount = spec.min;
+  return amount;
+}
 
 function pendingCharge(row, series, colorId) {
   const key = RATE_COLOR[colorId] || null;
-  const spec = key ? row?.rates?.[series]?.[key] : null;
+  const seriesRates = row?.rates?.[series];
+  // A series or color marked unavailable cannot be quoted. A missing color on a
+  // rate table stays Price pending, which is the older double-casement rule.
+  if (seriesRates?.status === 'unavailable') {
+    return { ...emptyCharge(), pricePending: false, unavailable: true };
+  }
+  const spec = key && seriesRates ? seriesRates[key] : null;
+  if (spec?.status === 'unavailable') {
+    return { ...emptyCharge(), pricePending: false, unavailable: true };
+  }
   if (spec && spec.pricePending !== true) {
-    const base = Number(spec.base) || 0;
-    const perUI = Number(spec.perUI) || 0;
+    const ownBase = Number(spec.base) || 0;
+    const ownPer = Number(spec.perUI) || 0;
     const min = spec.min == null || spec.min === '' ? null : Number(spec.min);
-    if (base || perUI || (min != null && min > 0)) {
-      return { pricePending: false, base, perUI, min: Number.isFinite(min) ? min : null, adobeAsWhite: colorId === 'adobe' };
+    const hasOwn = !!(ownBase || ownPer || (min != null && min > 0));
+    const adderSpec = adderSpecOf(spec.adder);
+    // { adder } with no base uses the White formula plus that adder.
+    // adder may be a flat number (V400 black) or { base, perUI, min }.
+    const src = hasOwn ? spec : (adderSpec ? seriesRates.ww : null);
+    if (src && (hasOwn || Number(src.base) || Number(src.perUI))) {
+      const base = hasOwn ? ownBase : (Number(src.base) || 0);
+      const perUI = hasOwn ? ownPer : (Number(src.perUI) || 0);
+      const srcMin = hasOwn ? min : (src.min == null || src.min === '' ? null : Number(src.min));
+      return {
+        pricePending: false,
+        unavailable: false,
+        base,
+        perUI,
+        min: Number.isFinite(srcMin) ? srcMin : null,
+        adderSpec,
+        provisional: !!(spec.provisional || (!hasOwn && src.provisional)),
+        roundUp: !!row.roundUp,
+        adobeAsWhite: colorId === 'adobe',
+      };
     }
   }
   // A rate table means unlisted series and colors stay pending. A style with no
   // table still uses the single perUI once its own pricePending flag is off.
-  if (row?.rates) return { pricePending: true, base: 0, perUI: 0, adobeAsWhite: false };
+  if (row?.rates) return emptyCharge();
   return {
+    ...emptyCharge(),
     pricePending: !!row?.pricePending,
     base: Number(row?.base) || 0,
     perUI: Number(row?.perUI) || 0,
-    min: null,
-    adobeAsWhite: false,
   };
 }
 
 function pendingWindow(D, series, style, w, h, colorId) {
   const row = pendingStyle(D, style);
-  const errors = pendingErrors(D, series, style, w, h);
   const charge = pendingCharge(row, series, colorId || 'white');
+  if (charge.unavailable) {
+    return {
+      items: [['base', 0]], notes: ['Not available'], errors: [], material: 0,
+      perUI: 0, base: 0, min: null, adder: 0,
+      limits: pendingLimits(D, series, style), pricePending: false,
+      unavailable: true, provisional: false, formula: false,
+    };
+  }
+  const errors = pendingErrors(D, series, style, w, h);
   const pricePending = !row || charge.pricePending;
   const perUI = pricePending ? 0 : charge.perUI;
   const base = pricePending ? 0 : charge.base;
-  let material = pricePending ? 0 : base + perUI * (Number(w) + Number(h));
+  const ui = Number(w) + Number(h);
+  const adder = pricePending ? 0 : adderDollars(charge.adderSpec, ui);
+  let material = pricePending ? 0 : base + perUI * ui + adder;
   const min = !pricePending && charge.min != null ? charge.min : null;
   if (min != null && material < min) material = min;
+  if (!pricePending && charge.roundUp) material = Math.ceil(Number(material) - 1e-6);
   const notes = [];
   if (pricePending) notes.push('Price pending — placeholder rate, not a OneLink price.');
   else if (charge.adobeAsWhite) notes.push('Adobe priced as White (forces Adobe interior)');
   if (row?.note) notes.push(row.note);
   return {
-    items: [['base', material]], notes, errors, material, perUI, base, min,
+    items: [['base', material]], notes, errors, material, perUI, base, min, adder,
+    adderSpec: pricePending ? null : (charge.adderSpec || null),
     limits: pendingLimits(D, series, style), pricePending,
-    formula: !pricePending,
+    unavailable: false, provisional: !pricePending && !!charge.provisional,
+    roundUp: !pricePending && !!charge.roundUp, formula: !pricePending,
   };
 }
 

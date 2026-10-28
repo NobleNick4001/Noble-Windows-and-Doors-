@@ -67,7 +67,10 @@ export function restoreView(snap) {
   if (typeof snap.y === 'number') window.scrollTo(0, snap.y);
 }
 export const PRICE_PENDING_LABEL = 'Price pending';
+export const NOT_AVAILABLE_LABEL = 'Not available';
+export const FLUSH_FIN_NOTE = 'Flush fin is only for installs into an existing aluminum frame with at least 3/8 inch of exterior surface. Not for tear-out replacements or openings over 3 stories above grade.';
 export function linePriceText(line) {
+  if (line?.unavailable) return NOT_AVAILABLE_LABEL;
   if (line?.pricePending) return PRICE_PENDING_LABEL;
   if (line?.unpriced) return 'Not priced';
   return fmt((Number(line?.unit) || 0) * (Number(line?.qty) || 0));
@@ -154,6 +157,17 @@ const ADDON_NAMES = {
   truscene: 'TruScene screen',
 };
 const finite = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+function hasFlushFin(line) {
+  return (line?.addons || []).includes('flush_fin_trim') || (line?.options || []).includes('flush_fin_trim');
+}
+// Andersen has no single arch-over-slider unit and no eyebrow. The quote is the
+// existing equal-leg arch plus the existing XO or XOX, same width, no mull charge.
+// XOX starts at 59.5 in here. The arch itself stops at 95.5, so the pair stops there.
+// Standalone XOX is unchanged and still starts at 47.5.
+export const ARCH_OVER = {
+  arch_over_xo: { name: 'Arch over XO', base: 'hslider', baseName: 'XO', w: [23.5, 71.5], h: [11.5, 71.5] },
+  arch_over_xox: { name: 'Arch over XOX', base: 'xox', baseName: 'XOX', w: [59.5, 95.5], h: [17.5, 71.5] },
+};
 const lineUnits = (line) => { const n = Number(line?.unitsPerLine ?? line?.units ?? 1); return n > 0 ? n : 1; };
 
 function andersenConfig() { return data.variableRates?.andersen || null; }
@@ -197,6 +211,16 @@ function classifyLine(line) {
   if (brand === 'andersen') {
     const A = vr.andersen;
     if (!A || series !== A.series) return { mode: 'fallback' };
+    if (ARCH_OVER[type]) {
+      const spec = ARCH_OVER[type];
+      return {
+        mode: 'arch-over', family: 'andersen', typeId: type,
+        typeDef: { name: spec.name, flushFin: { factor: 1, adder: 0 }, limits: { w: spec.w, h: spec.h } },
+        colorDef: { adder: 0, ratio: 1, adjustPerUnit: 0 },
+        addons: A.addons || {},
+        integral: true,
+      };
+    }
     const typeId = andersenTypeId(type);
     const typeDef = A.types?.[typeId];
     if (!typeDef) return { mode: 'fallback' };
@@ -241,7 +265,7 @@ export function isCustomLine(line) {
 }
 export function lineAddonDefs(line) {
   const model = classifyLine(line);
-  if (model.mode !== 'variable' || !model.addons) return null;
+  if ((model.mode !== 'variable' && model.mode !== 'arch-over') || !model.addons) return null;
   const addons = { ...model.addons };
   if (model.family === 'andersen') {
     if (!model.typeDef?.flushFin) delete addons.flush_fin_trim;
@@ -301,12 +325,15 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
   const times = ascii ? 'x' : '×';
   const bits = [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, isMilgardDoorLine(line) ? (doorColorLabel(line.series, line.color) || colorName(line.color)) : shortColorName(colorName(line.color)), ...lineOptionNames(line)];
   if (Number(line.unitsPerLine) > 1 && !isIntegralType(line)) bits.push(`${line.unitsPerLine} units`);
+  if (line.shape === 'eyebrow') bits.push('Eyebrow');
+  if (line.provisional) bits.push('Provisional price');
+  if (hasFlushFin(line)) bits.push(FLUSH_FIN_NOTE);
   bits.push(`Qty ${Number(line.qty) || 1}`);
   return {
     title,
     detail: bits.filter(Boolean).join(' · '),
     price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
-    priceText: line.pricePending ? PRICE_PENDING_LABEL : (line.unpriced ? 'Not priced' : ''),
+    priceText: line.unavailable ? NOT_AVAILABLE_LABEL : (line.pricePending ? PRICE_PENDING_LABEL : (line.unpriced ? 'Not priced' : '')),
     brandName: brandName || 'Windows',
   };
 }
@@ -357,6 +384,9 @@ export function quoteLine(line, { ascii = false } = {}) {
   if (ids.has('screen')) details.push('Screen');
   if (line.pureview || ids.has('pureview')) details.push('PureView screen');
   if (line.pricePending) details.push('Price pending — not a OneLink price');
+  if (line.provisional) details.push('Provisional price');
+  if (line.unavailable) details.push(NOT_AVAILABLE_LABEL);
+  if (hasFlushFin(line)) details.push(FLUSH_FIN_NOTE);
   if (Number(line.unitsPerLine) > 1 && !isIntegralType(line)) details.push(`${line.unitsPerLine} units`);
   const times = ascii ? 'x' : '×';
   return {
@@ -366,7 +396,7 @@ export function quoteLine(line, { ascii = false } = {}) {
     size: `${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`,
     qty: Number(line.qty) || 1,
     price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
-    priceText: line.pricePending ? PRICE_PENDING_LABEL : (line.unpriced ? 'Not priced' : ''),
+    priceText: line.unavailable ? NOT_AVAILABLE_LABEL : (line.pricePending ? PRICE_PENDING_LABEL : (line.unpriced ? 'Not priced' : '')),
   };
 }
 export function windowSections(lines) {
@@ -403,8 +433,9 @@ export function variableRateInfo(brand, series, color, type) {
   const model = classifyLine(probe);
   if (model.mode === 'onelink') {
     const q = milgardQuote(data.milgardOnelink, probe);
+    if (q?.unavailable) return { onelink: true, unavailable: true };
     if (q?.pricePending) return { onelink: true, pricePending: true, perUI: q.perUI || 0, base: q.base || 0 };
-    if (q?.formula) return { onelink: true, base: q.base || 0, perUI: q.perUI || 0, min: q.min || null };
+    if (q?.formula) return { onelink: true, base: q.base || 0, perUI: q.perUI || 0, min: q.min || null, adder: q.adder || 0, adderSpec: q.adderSpec || null, provisional: !!q.provisional };
     return { onelink: true };
   }
   if (model.mode !== 'variable') return null;
@@ -426,6 +457,12 @@ function limitRange(pair) {
   return '';
 }
 export function sizeLimitText(line) {
+  const over = ARCH_OVER[line?.type];
+  if (over && line?.brand === 'andersen') {
+    const w = limitRange(over.w);
+    const h = limitRange(over.h);
+    return `${over.name}: width ${w}, height ${h}. The arch is the same width, with a rise of about one quarter of the width. No eyebrow. No mull charge.`;
+  }
   const A = andersenConfig();
   if (!A || line?.brand !== 'andersen' || line?.series !== A.series) return '';
   const typeDef = A.types?.[andersenTypeId(line.type)];
@@ -594,6 +631,50 @@ function andersenRaw(model, line) {
     ratio: 1, adjust: colorAdder, scaledPerUI: 0, typeDef: t, roundedUp: true,
   };
 }
+function archOverLimitErrors(spec, w, h) {
+  const name = spec.name;
+  const errs = [];
+  const [wmin, wmax] = spec.w;
+  const [hmin, hmax] = spec.h;
+  if (w < wmin - 1e-6) errs.push(`${name} width must be at least ${formatInches(wmin)} (Andersen 100 limit).`);
+  if (w > wmax + 1e-6) errs.push(`${name} width must be ${formatInches(wmax)} or less (Andersen 100 limit).`);
+  if (h < hmin - 1e-6) errs.push(`${name} height must be at least ${formatInches(hmin)} (Andersen 100 limit).`);
+  if (h > hmax + 1e-6) errs.push(`${name} height must be ${formatInches(hmax)} or less (Andersen 100 limit).`);
+  return errs;
+}
+function buildArchOver(line) {
+  const spec = ARCH_OVER[line.type];
+  const w = finite(line.w), h = finite(line.h);
+  const rise = Math.round(w * 0.25 * 1000) / 1000;
+  const note = 'Two lines, no mull charge. Andersen has no eyebrow. The arch price assumes a rise of about one quarter of the width.';
+  const errors = archOverLimitErrors(spec, w, h);
+  const shared = {
+    brand: 'andersen', series: line.series, color: line.color, w,
+    qty: 1, unitsPerLine: 1,
+    addons: [...(line.addons || [])],
+    options: [...(line.options || [])],
+    install: line.install,
+  };
+  const archLine = { ...shared, type: 'specialty_arch', h: rise, customDescription: 'Equal-leg arch, rise about 1/4 of the width' };
+  const baseLine = { ...shared, type: spec.base, h, customDescription: '' };
+  const archBuilt = errors.length ? null : buildMaterial(archLine);
+  const baseBuilt = errors.length ? null : buildMaterial(baseLine);
+  if (archBuilt?.blocked) errors.push(`Arch rise is about ${formatInches(rise)} (one quarter of the width). ${archBuilt.errors.join(' ')}`);
+  if (baseBuilt?.blocked) errors.push(...baseBuilt.errors);
+  const blank = { mode: 'arch-over', combo: true, blocked: true, errors, unit: null, unitBase: null, optionsEach: 0, rate: null, estimated: false, wh: w + h, fromQuotes: true, detail: null, parts: [], note, provisional: false };
+  if (errors.length) return blank;
+  const parts = [
+    { label: `Equal-leg arch ${formatInches(w)} × ${formatInches(rise)}`, role: 'arch', ...archBuilt, line: archLine },
+    { label: `${spec.baseName} ${formatInches(w)} × ${formatInches(h)}`, role: 'base', ...baseBuilt, line: baseLine },
+  ];
+  const unit = r2(archBuilt.unit + baseBuilt.unit);
+  return {
+    mode: 'arch-over', combo: true, blocked: false, errors: [], unit, unitBase: unit,
+    optionsEach: r2((archBuilt.optionsEach || 0) + (baseBuilt.optionsEach || 0)),
+    rate: null, estimated: false, wh: w + h, fromQuotes: true, detail: null, parts, note,
+    provisional: false, flush: hasFlushFin(line),
+  };
+}
 // One material unit (factory-mull units included, quantity not included).
 // Rounded once, to the cent, or to the dollar when that setting is on.
 function buildMaterial(line) {
@@ -608,15 +689,24 @@ function buildMaterial(line) {
     return { mode: 'custom', unit, unitBase: unit, optionsEach: 0, rate: null, estimated: false, wh: w + h, fromQuotes: false, detail: null };
   }
   if (!(w > 0) || !(h > 0)) return null;
+  if (model.mode === 'arch-over') return buildArchOver(line);
   if (model.mode === 'onelink') {
     const q = milgardQuote(data.milgardOnelink, line);
     const units = lineUnits(line);
+    if (q.unavailable) {
+      return {
+        mode: 'onelink', blocked: true, unavailable: true, errors: [NOT_AVAILABLE_LABEL],
+        unit: null, unitBase: null, optionsEach: 0, rate: null, estimated: false, wh: w + h,
+        fromQuotes: false, detail: null, notes: q.notes, pricePending: false, provisional: false,
+      };
+    }
     const pricePending = !!q.pricePending;
     const unit = pricePending ? 0 : roundMoney(q.material * units);
     return {
       mode: 'onelink', unit, unitBase: unit, optionsEach: 0,
       rate: q.perUI ?? null, estimated: false, wh: w + h, fromQuotes: !pricePending, detail: null,
-      notes: q.notes, errors: q.errors, onelink: q, pricePending,
+      notes: q.notes, errors: q.errors, onelink: q, pricePending, provisional: !!q.provisional,
+      unavailable: false,
     };
   }
   if (model.mode === 'variable') {

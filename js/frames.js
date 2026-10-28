@@ -22,7 +22,7 @@ export function frameSVG(type, colorKey = 'white', aspect = 1.2, { glassOpacity 
   if (type === 'patio_door_2p') type = '2panel';
   else if (type === 'twin_casement') type = 'dcasement';
   else if (type === 'dshung') type = 'twin_vslider';
-  else if (type === 'specialty_arch') type = 'arch';
+  else if (type === 'specialty_arch' || type === 'arch_xo' || type === 'arch_xox' || type === 'arch_hr' || type === 'arch_over_xo' || type === 'arch_over_xox') type = 'arch';
   const W = aspect >= 1 ? size : size * aspect;
   const H = aspect >= 1 ? size / aspect : size;
   const fc = frameColors(colorKey);

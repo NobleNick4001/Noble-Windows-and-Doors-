@@ -5,7 +5,7 @@ import { drawingEl } from '../drawings.js';
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const STYLES = {
-  window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['dshung', 'Double Single Hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['dcasement', 'Double casement'], ['awning', 'Awning'], ['archtop', 'Arch top']],
+  window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['dshung', 'Double Single Hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['dcasement', 'Double casement'], ['awning', 'Awning'], ['arch_xo', 'Arch / eyebrow XO'], ['arch_xox', 'Arch / eyebrow XOX'], ['arch_sh', 'Arch single hung'], ['arch_hr', 'Half-round single hung']],
   door: [['2panel', '2-panel XO'], ['3panel', '3-panel'], ['4panel', '4-panel OXXO']],
 };
 const COLORS = [['ww', 'White'], ['adobe', 'Adobe'], ['bronze', 'Bronze'], ['bw', 'Black ext'], ['bb', 'Black/Black']];
@@ -61,6 +61,9 @@ function ensure(calc) {
     calc.install.type = FRAME_LABOR[calc.frame] || 'standard';
     calc.install.frameType = calc.frame;
   }
+  if (calc.type === 'arch_xo' || calc.type === 'arch_xox') {
+    if (calc.shape !== 'eyebrow') calc.shape = 'arch';
+  }
 }
 
 export function installFromCalc(calc) {
@@ -89,6 +92,7 @@ function draftLine(calc) {
     unitsPerLine: 1, grids: door ? 'none' : calc.grids, obscure: door ? 'none' : calc.obscure,
     tempered: door ? false : !!calc.tempered, pureview: !!calc.pureview,
     frame: door ? '' : calc.frame, install: installFromCalc(calc),
+    shape: (!door && (calc.type === 'arch_xo' || calc.type === 'arch_xox') && calc.shape === 'eyebrow') ? 'eyebrow' : '',
   };
 }
 
@@ -137,6 +141,7 @@ function quoteText(l) {
   if (l.obscure && l.obscure !== 'none') extra.push(l.obscure === 'satin' ? 'Satin Etch' : 'P516');
   if (l.tempered) extra.push('tempered');
   if (l.pureview) extra.push('PureView');
+  if (!door && l.shape === 'eyebrow') extra.push('eyebrow');
   if (!door && l.frame === 'zbar') extra.push('Z-bar');
   if (!door && l.frame === 'block') extra.push('block');
   return `${qty}× ${l.series} ${style} ${l.w}×${l.h}${extra.length ? ' · ' + extra.join(', ') : ''}`;
@@ -220,6 +225,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   left.append(seg('Product', [['window', 'Window'], ['door', 'Patio door']], calc.product, setKind));
   left.append(seg('Series', calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES, calc.series, (id) => { calc.series = id; persist(); rerender(); }));
   left.append(seg('Style', stylesFor(calc), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
+  if (calc.product === 'window' && (calc.type === 'arch_xo' || calc.type === 'arch_xox')) {
+    left.append(seg('Head', [['arch', 'Arch'], ['eyebrow', 'Eyebrow']], calc.shape === 'eyebrow' ? 'eyebrow' : 'arch', (id) => { calc.shape = id; persist(); rerender(); }));
+    left.append(h('p', { class: 'fine', id: 'arch-head-note' }, 'Arch and eyebrow are the same price. Arch uses a semicircle: the leg, and the bottom window, are the height minus half the width. An eyebrow rise is one eighth of the width.'));
+  }
   const a250Win = calc.product === 'window' && calc.series === 'A250';
   const glass = a250Win ? a250GlassOptions(data.milgardOnelink, calc.type) : { tempered: true, obscure: true };
   if (a250Win) left.append(h('p', { class: 'fine', id: 'a250-note' }, A250_NOTE));
@@ -308,20 +317,26 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   function update() {
     const L = limitsNow();
-    wHint.textContent = L ? (L.hintW || `Allowed ${L.wmin}–${L.wmax}"`) : '';
-    hHint.textContent = L ? (L.hintH || `Allowed ${L.hmin}–${L.hmax}"${L.curve ? ' (max shrinks on wide units)' : ''}`) : '';
+    const bounded = !!(L && (L.wmin != null || L.wmax != null || L.hmin != null || L.hmax != null || L.hintW || L.hintH));
+    wHint.textContent = bounded ? (L.hintW || (L.wmin != null ? `Allowed ${L.wmin}–${L.wmax}"` : '')) : '';
+    hHint.textContent = bounded ? (L.hintH || (L.hmin != null ? `Allowed ${L.hmin}–${L.hmax}"${L.curve ? ' (max shrinks on wide units)' : ''}` : '')) : '';
     const line = draftLine(calc);
     const q = milgardQuote(data.milgardOnelink, line);
     const sized = line.w > 0 && line.h > 0;
-    const errors = sized && q ? q.errors : [];
+    const unavailable = !!q?.unavailable;
+    const errors = !unavailable && sized && q ? q.errors : [];
     errEl.textContent = errors.join(' ');
     const locationOk = String(calc.label || '').trim().length > 0;
     roomMsg.hidden = locationOk;
-    addBtn.disabled = !sized || errors.length > 0 || !locationOk;
-    addBtn.title = locationOk ? '' : 'Enter a location (e.g. Kitchen)';
+    addBtn.disabled = unavailable || !sized || errors.length > 0 || !locationOk;
+    addBtn.title = unavailable ? 'Not available' : (locationOk ? '' : 'Enter a location (e.g. Kitchen)');
     const qty = line.qty;
     priceEl.classList.remove('pending');
-    if (!sized || !q || errors.length) {
+    if (unavailable) {
+      priceEl.textContent = 'Not available';
+      priceEl.classList.add('pending');
+      unitEl.textContent = 'this combination cannot be added';
+    } else if (!sized || !q || errors.length) {
       priceEl.textContent = '—';
       unitEl.textContent = 'per unit';
     } else if (q.pricePending) {
@@ -333,7 +348,13 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       priceEl.textContent = fmt(each * qty);
       unitEl.textContent = qty > 1 ? `${qty} × ${fmt(each)}` : 'per unit';
     }
-    notesEl.replaceChildren(...(q?.notes || []).map((n) => h('div', { class: 'note' }, n)));
+    const noteNodes = [];
+    if (q?.provisional && sized && !errors.length && !unavailable) noteNodes.push(h('div', { class: 'provisional-flag', id: 'provisional-flag' }, 'Provisional price'));
+    for (const n of q?.notes || []) {
+      if (unavailable && n === 'Not available') continue;
+      noteNodes.push(h('div', { class: 'note' }, n));
+    }
+    notesEl.replaceChildren(...noteNodes);
     drawHost.replaceChildren(...(sized ? [drawingEl(line, 'calc-drawing', { boxW: 240, boxH: 200 })] : []));
     if (calc.product === 'door') {
       const base = data.install.doors.panels[calc.type] || 0;
@@ -355,8 +376,8 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     e.lines.forEach((l, i) => {
       quoteEl.append(h('div', { class: 'line qdraw' },
         drawingEl(l, 'qdraw-art', { boxW: 108, boxH: 92 }),
-        h('span', { class: 'qdraw-txt' }, quoteText(l)),
-        h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending ? 'pending-price' : '' }, linePriceText(l)),
+        h('span', { class: 'qdraw-txt' }, quoteText(l), l.provisional ? h('div', { class: 'provisional-flag' }, 'Provisional price') : null),
+        h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending || l.unavailable ? 'pending-price' : '' }, linePriceText(l)),
           h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, '✕'))));
     });
     for (const row of quoteTotalRows(t)) {
@@ -373,9 +394,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     const location = String(calc.label || '').trim();
     const line = draftLine(calc);
     const q = milgardQuote(data.milgardOnelink, line);
-    if (!location || !q || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
+    if (!location || !q || q.unavailable || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
     const p = priceWindow(line);
-    if (!p) return;
+    if (!p || p.blocked || p.unit == null) return;
     const e = estimates.current();
     const inst = installFromCalc(calc);
     e.lines.push({
@@ -384,9 +405,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       w: line.w, h: line.h, qty: line.qty, unitsPerLine: 1,
       options: optionIds(calc), addons: addonIds(calc),
       grids: line.grids, obscure: line.obscure, tempered: line.tempered, pureview: line.pureview, frame: line.frame,
+      shape: line.shape || '',
       supplierPrice: null, customDescription: '',
       unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: p.rate, rateSet: settings.rateSet,
-      estimated: false, pricingMode: 'onelink', pricePending: !!p.pricePending,
+      estimated: false, pricingMode: 'onelink', pricePending: !!p.pricePending, provisional: !!p.provisional, unavailable: false,
       install: inst, installUnit: installUnit(inst, line),
     });
     estimates.persist();

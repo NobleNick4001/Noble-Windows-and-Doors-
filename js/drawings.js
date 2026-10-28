@@ -22,10 +22,13 @@ const ARCH_BODY = {
   specialty_arch: 'picture',
   eyebrow: 'picture',
   arch_sh: 'hung',
+  arch_hr: 'hung',
   arch_xo: 'xo',
   arch_xox: 'xox',
   eyebrow_xo: 'xo',
   eyebrow_xox: 'xox',
+  arch_over_xo: 'xo',
+  arch_over_xox: 'xox',
 };
 
 export function canonicalType(line) {
@@ -39,6 +42,7 @@ export function canonicalType(line) {
   if (t === 'archxo' || t === 'xo_arch' || t === 'arch_top_xo') t = 'arch_xo';
   if (t === 'archxox' || t === 'xox_arch') t = 'arch_xox';
   if (t === 'eyebrow_picture') t = 'eyebrow';
+  if (t === 'half_round_sh' || t === 'halfround_sh') t = 'arch_hr';
   if ((t === 'arch' || t === 'archtop') && line?.brand === 'andersen') t = 'specialty_arch';
   if (t === 'swing' || t === 'entry' || t === 'hinged' || t === 'entry_door') t = 'swing';
   return t;
@@ -63,36 +67,43 @@ function sizeOf(line) {
   return { w, h };
 }
 
-function isEyebrow(type) {
-  return type === 'eyebrow' || type === 'eyebrow_xo' || type === 'eyebrow_xox';
-}
-function isAndersenArch(type) {
-  return type === 'arch_sh' || type === 'specialty_arch';
-}
 function isArch(type) {
   return Object.prototype.hasOwnProperty.call(ARCH_BODY, type);
 }
+function shapeName(line) {
+  return String(line?.shape || line?.head || line?.archShape || '').trim().toLowerCase();
+}
+function wantsEyebrow(line, type) {
+  if (shapeName(line) === 'eyebrow' || type.startsWith('eyebrow')) return true;
+  return /eyebrow/.test(String(line?.customDescription || ''));
+}
+// Andersen equal-leg arch is a segment: rise about one quarter of the width.
+// Milgard arch XO / XOX / half-round / arch single hung use the equal-leg leg,
+// which is overall height minus half the width.
+function andersenSegment(line, type) {
+  if (type === 'specialty_arch') return true;
+  if (line?.brand !== 'andersen') return false;
+  return type === 'arch_sh' || type === 'arch' || type === 'archtop' || type === 'arch_over_xo' || type === 'arch_over_xox';
+}
 
-// Rise of the curved head, in inches. Leg / bottom-window height, when the line has one, is the rectangle under the springline.
+// Rise of the curved head, in inches. An entered leg or bottom-window height is the
+// rectangle under the springline. Otherwise arch XO/XOX use height − width/2.
 export function archRiseInches(line) {
   const type = canonicalType(line || {});
   if (!isArch(type)) return 0;
   const { w, h } = sizeOf(line);
   const explicit = num(line?.rise);
-  const bottom = num(line?.bottomHeight ?? line?.bottom ?? line?.unitHeight);
+  const bottom = num(line?.bottomHeight ?? line?.bottomWindow ?? line?.bottom ?? line?.unitHeight);
   const leg = num(line?.legHeight ?? line?.leg);
   let rise = 0;
   if (explicit) rise = explicit;
   else if (bottom && bottom < h) rise = h - bottom;
   else if (leg && leg < h) rise = h - leg;
-  else if (isEyebrow(type)) rise = w / 8;
-  else if (isAndersenArch(type)) rise = w / 4;
+  else if (wantsEyebrow(line, type)) rise = w / 8;
+  else if (andersenSegment(line, type)) rise = w / 4;
   else rise = w / 2;
-  rise = Math.min(rise, w / 2, h);
-  const body = ARCH_BODY[type];
-  const pureHalf = (type === 'halfround' || type === 'arch') && !(bottom || leg || explicit);
-  if (!pureHalf && body && h - rise < Math.min(6, h * 0.28)) rise = Math.min(rise, h * 0.58);
-  if (rise < Math.min(h, w) * 0.06) rise = Math.min(h, w) * 0.06;
+  rise = Math.min(Math.max(rise, 0), w / 2, h);
+  if (rise < Math.min(h, w) * 0.04) rise = Math.min(h, w) * 0.04;
   return rise;
 }
 
@@ -408,7 +419,8 @@ export const DRAWING_TYPES = [
   'picture', 'vslider', 'dshung', 'twin_vslider', 'hslider', 'xox',
   'casement', 'dcasement', 'twin_casement', 'awning', 'hvb',
   '2panel', '3panel', '4panel', 'patio_door_2p',
-  'archtop', 'arch', 'halfround', 'arch_sh', 'specialty_arch',
+  'archtop', 'arch', 'halfround', 'arch_sh', 'arch_hr', 'specialty_arch',
   'arch_xo', 'arch_xox', 'eyebrow', 'eyebrow_xo', 'eyebrow_xox',
+  'arch_over_xo', 'arch_over_xox',
   'swing', 'custom_supplier',
 ];

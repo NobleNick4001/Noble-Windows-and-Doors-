@@ -81,6 +81,21 @@ near(archRiseInches({ type: 'specialty_arch', brand: 'andersen', w: 48, h: 72 })
 near(archRiseInches({ type: 'arch', brand: 'andersen', w: 40, h: 60 }), 10, 0.05, 'old Andersen arch id uses the specialty rise');
 near(archRiseInches({ type: 'eyebrow_xo', w: 80, h: 40 }), 10, 0.05, 'eyebrow rise is width/8');
 near(archRiseInches({ type: 'halfround', w: 60, h: 30 }), 30, 0.05, 'half-round rise is the semicircle');
+near(archRiseInches({ type: 'arch_xo', brand: 'milgard', w: 60, h: 72 }), 30, 0.05, 'arch XO leg is height minus half the width');
+near(archRiseInches({ type: 'arch_xox', brand: 'milgard', w: 60, h: 72 }), 30, 0.05, 'arch XOX uses the same leg');
+near(archRiseInches({ type: 'arch_xo', shape: 'eyebrow', w: 80, h: 48 }), 10, 0.05, 'eyebrow rise is width/8');
+near(archRiseInches({ type: 'arch_sh', brand: 'milgard', w: 36, h: 72 }), 18, 0.05, 'Milgard arch single hung is equal-leg');
+near(archRiseInches({ type: 'arch_hr', w: 36, h: 72 }), 18, 0.05, 'half-round head is a semicircle');
+const transom = windowDrawingSVG({ type: 'specialty_arch', brand: 'andersen', w: 60, h: 15 }, { boxW: 220, boxH: 188 });
+near(transom.rise, 15, 0.05, 'Andersen arch line whose height is the rise stays an arch');
+if (transom.svg.includes('data-op=')) fail('a standalone arch transom has no vent');
+const milgardHung = windowDrawingSVG({ type: 'arch_sh', brand: 'milgard', w: 36, h: 72 }, { boxW: 220, boxH: 188 });
+if (!milgardHung.svg.includes('slide-up') || !milgardHung.svg.includes('class="glass arch"')) fail('Milgard arch single hung');
+const hr = windowDrawingSVG({ type: 'arch_hr', w: 36, h: 72 }, { boxW: 220, boxH: 188 });
+if (!hr.svg.includes('slide-up')) fail('half-round single hung vent');
+const eye = windowDrawingSVG({ type: 'arch_xo', shape: 'eyebrow', w: 80, h: 48 }, { boxW: 220, boxH: 188 });
+near(eye.rise, 10, 0.05, 'eyebrow drawing rise');
+if (!eye.svg.includes('data-op="slide-right"')) fail('eyebrow XO still shows the vent');
 
 function ops(type, extra = {}) {
   const svg = windowDrawingSVG({ type, w: 72, h: 60, ...extra }, { boxW: 220, boxH: 188 }).svg;

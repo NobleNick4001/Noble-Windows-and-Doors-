@@ -196,8 +196,8 @@
    },
    "specialty_arch": {
     "name": "Specialty arch",
-    "base": -7.3,
-    "perUI": 12.7059,
+    "base": 0,
+    "perUI": 12.76,
     "perSqFt": 0.0,
     "flushFin": {
      "factor": 1.0476,
