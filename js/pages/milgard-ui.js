@@ -4,7 +4,7 @@ import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorCol
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const STYLES = {
-  window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['dshung', 'Double Single Hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['dcasement', 'Double casement'], ['awning', 'Awning'], ['archtop', 'Arch top']],
+  window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['dshung', 'Double Single Hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['dcasement', 'Double casement'], ['awning', 'Awning'], ['arch_xo', 'Arch / eyebrow XO'], ['arch_xox', 'Arch / eyebrow XOX'], ['arch_sh', 'Arch single hung'], ['arch_hr', 'Half-round single hung']],
   door: [['2panel', '2-panel XO'], ['3panel', '3-panel'], ['4panel', '4-panel OXXO']],
 };
 const COLORS = [['ww', 'White'], ['adobe', 'Adobe'], ['bronze', 'Bronze'], ['bw', 'Black ext'], ['bb', 'Black/Black']];
@@ -306,20 +306,26 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   function update() {
     const L = limitsNow();
-    wHint.textContent = L ? (L.hintW || `Allowed ${L.wmin}–${L.wmax}"`) : '';
-    hHint.textContent = L ? (L.hintH || `Allowed ${L.hmin}–${L.hmax}"${L.curve ? ' (max shrinks on wide units)' : ''}`) : '';
+    const bounded = !!(L && (L.wmin != null || L.wmax != null || L.hmin != null || L.hmax != null || L.hintW || L.hintH));
+    wHint.textContent = bounded ? (L.hintW || (L.wmin != null ? `Allowed ${L.wmin}–${L.wmax}"` : '')) : '';
+    hHint.textContent = bounded ? (L.hintH || (L.hmin != null ? `Allowed ${L.hmin}–${L.hmax}"${L.curve ? ' (max shrinks on wide units)' : ''}` : '')) : '';
     const line = draftLine(calc);
     const q = milgardQuote(data.milgardOnelink, line);
     const sized = line.w > 0 && line.h > 0;
-    const errors = sized && q ? q.errors : [];
+    const unavailable = !!q?.unavailable;
+    const errors = !unavailable && sized && q ? q.errors : [];
     errEl.textContent = errors.join(' ');
     const locationOk = String(calc.label || '').trim().length > 0;
     roomMsg.hidden = locationOk;
-    addBtn.disabled = !sized || errors.length > 0 || !locationOk;
-    addBtn.title = locationOk ? '' : 'Enter a location (e.g. Kitchen)';
+    addBtn.disabled = unavailable || !sized || errors.length > 0 || !locationOk;
+    addBtn.title = unavailable ? 'Not available' : (locationOk ? '' : 'Enter a location (e.g. Kitchen)');
     const qty = line.qty;
     priceEl.classList.remove('pending');
-    if (!sized || !q || errors.length) {
+    if (unavailable) {
+      priceEl.textContent = 'Not available';
+      priceEl.classList.add('pending');
+      unitEl.textContent = 'this combination cannot be added';
+    } else if (!sized || !q || errors.length) {
       priceEl.textContent = '—';
       unitEl.textContent = 'per unit';
     } else if (q.pricePending) {
@@ -331,7 +337,13 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       priceEl.textContent = fmt(each * qty);
       unitEl.textContent = qty > 1 ? `${qty} × ${fmt(each)}` : 'per unit';
     }
-    notesEl.replaceChildren(...(q?.notes || []).map((n) => h('div', { class: 'note' }, n)));
+    const noteNodes = [];
+    if (q?.provisional && sized && !errors.length && !unavailable) noteNodes.push(h('div', { class: 'provisional-flag', id: 'provisional-flag' }, 'Provisional price'));
+    for (const n of q?.notes || []) {
+      if (unavailable && n === 'Not available') continue;
+      noteNodes.push(h('div', { class: 'note' }, n));
+    }
+    notesEl.replaceChildren(...noteNodes);
     if (calc.product === 'door') {
       const base = data.install.doors.panels[calc.type] || 0;
       const tall = line.h > data.install.doors.tallOverInches;
@@ -351,8 +363,8 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     }
     e.lines.forEach((l, i) => {
       quoteEl.append(h('div', { class: 'line' },
-        h('span', {}, quoteText(l)),
-        h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending ? 'pending-price' : '' }, linePriceText(l)),
+        h('span', {}, quoteText(l), l.provisional ? h('div', { class: 'provisional-flag' }, 'Provisional price') : null),
+        h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending || l.unavailable ? 'pending-price' : '' }, linePriceText(l)),
           h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, '✕'))));
     });
     for (const row of quoteTotalRows(t)) {
@@ -369,9 +381,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     const location = String(calc.label || '').trim();
     const line = draftLine(calc);
     const q = milgardQuote(data.milgardOnelink, line);
-    if (!location || !q || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
+    if (!location || !q || q.unavailable || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
     const p = priceWindow(line);
-    if (!p) return;
+    if (!p || p.blocked || p.unit == null) return;
     const e = estimates.current();
     const inst = installFromCalc(calc);
     e.lines.push({
@@ -382,7 +394,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       grids: line.grids, obscure: line.obscure, tempered: line.tempered, pureview: line.pureview, frame: line.frame,
       supplierPrice: null, customDescription: '',
       unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: p.rate, rateSet: settings.rateSet,
-      estimated: false, pricingMode: 'onelink', pricePending: !!p.pricePending,
+      estimated: false, pricingMode: 'onelink', pricePending: !!p.pricePending, provisional: !!p.provisional, unavailable: false,
       install: inst, installUnit: installUnit(inst, line),
     });
     estimates.persist();

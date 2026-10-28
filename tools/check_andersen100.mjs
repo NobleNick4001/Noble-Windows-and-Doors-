@@ -81,7 +81,15 @@ for (const p of points) {
   check(typeof unit === 'number', `${where} did not price`);
   if (typeof unit !== 'number') continue;
   check(unit + 1e-9 >= p.real, `${where} app $${unit} is under Andersen customer $${p.real}`);
-  check(unit === p.formula, `${where} app $${unit} != formula $${p.formula}`);
+  if (p.type === 'specialty_arch') {
+    const ui = p.w + p.h;
+    const core = 12.76 * ui;
+    const pre = p.fin === 'flush' ? core * 1.0476 + 0.14 : core;
+    const expected = Math.ceil(pre - 1e-6);
+    check(unit === expected, `${where} app $${unit} != arch formula $${expected} (was sheet $${p.formula})`);
+  } else {
+    check(unit === p.formula, `${where} app $${unit} != formula $${p.formula}`);
+  }
   minOver = Math.min(minOver, unit - p.real);
   const shown = priceWindow({ ...lineFor(p), qty: 2 });
   check(shown && shown.unit === unit && shown.total === unit * 2, `${where} quantity did not stay separate from the unit price`);
@@ -114,7 +122,7 @@ check(twinOnce === 1006 && twinDoubled === twinOnce, `twin 40x48 should be one c
 
 const arch = materialUnitPrice({ brand: 'andersen', series: '100', type: 'arch', color: 'ww', w: 36, h: 48, addons: [] });
 const specialty = materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 36, h: 48, addons: [] });
-check(arch === specialty && arch === 1060, `old arch id should match specialty arch $${arch}`);
+check(arch === specialty && arch === 1072, `old arch id should match specialty arch $${arch}`);
 
 const archFlush = materialUnitPrice({ brand: 'andersen', series: '100', type: 'arch_sh', color: 'ww', w: 36, h: 48, addons: ['flush_fin_trim'] });
 const archNail = materialUnitPrice({ brand: 'andersen', series: '100', type: 'arch_sh', color: 'ww', w: 36, h: 48, addons: [] });
@@ -142,6 +150,28 @@ check(offered.includes('twin_vslider'), 'Andersen twin single hung stays selecta
 check(data.rates.types.find((t) => t.id === 'twin_vslider')?.name === 'Double Single Hung', 'Andersen twin single hung is labeled Double Single Hung');
 check(data.variableRates.andersen.types.twin_vslider.name === 'Double Single Hung', 'Andersen size-limit name is Double Single Hung');
 check(data.variableRates.andersen.types.twin_vslider.base === -41.67 && data.variableRates.andersen.types.twin_vslider.perUI === 11.8955, 'Andersen twin formula is unchanged');
+check(data.variableRates.andersen.types.vslider.base === 2.79 && data.variableRates.andersen.types.hslider.base === -48.55, 'single hung and XO formulas stay put');
+check(data.variableRates.andersen.types.xox.limits.w[0] === 47.5 && data.variableRates.andersen.types.xox.limits.w[1] === 143.5, 'standalone XOX width stays 47.5–143.5');
+const archSpec = data.variableRates.andersen.types.specialty_arch;
+check(archSpec.base === 0 && archSpec.perUI === 12.76 && archSpec.flushFin.factor === 1.0476 && archSpec.flushFin.adder === 0.14, 'equal-leg arch formula is 0 + 12.76 per UI, flush fin unchanged');
+check(!data.variableRates.andersen.types.eyebrow && !offered.includes('eyebrow') && !offered.includes('arch_over_xo'), 'Andersen has no eyebrow and arch-over is not a stored formula');
+const archBig = materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 71.5, h: 71.5, addons: [] });
+const archBigFlush = materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 71.5, h: 71.5, addons: ['flush_fin_trim'] });
+check(archBig >= 1816 && archBig === 1825, `arch 71.5x71.5 nail fin $${archBig}`);
+check(archBigFlush >= 1902.4 && archBigFlush === 1912, `arch 71.5x71.5 flush fin $${archBigFlush}`);
+const over = priceWindow({ brand: 'andersen', series: '100', type: 'arch_over_xo', color: 'ww', w: 71.5, h: 60, qty: 1, addons: ['flush_fin_trim'], options: [] });
+check(over?.combo && !over.blocked && over.parts?.length === 2, 'arch over XO prices as two lines');
+check(over?.parts?.[0]?.line?.type === 'specialty_arch' && over?.parts?.[1]?.line?.type === 'hslider', 'arch over XO is the equal-leg arch plus the XO');
+check(over?.parts?.[0]?.line?.unitsPerLine === 1 && over?.parts?.[1]?.line?.unitsPerLine === 1, 'arch over XO has no mull charge');
+check(over?.parts?.[0]?.line?.w === 71.5 && Math.abs(over.parts[0].line.h - 71.5 / 4) < 1e-6, 'arch rise is about one quarter of the width');
+check(over?.parts?.[1]?.line?.w === 71.5 && over.parts[1].line.h === 60, 'XO keeps the entered width and height');
+const overXox = priceWindow({ brand: 'andersen', series: '100', type: 'arch_over_xox', color: 'bw', w: 72, h: 60, addons: [], options: [] });
+check(overXox?.combo && overXox.parts[1].line.type === 'xox', 'arch over XOX is the arch plus the XOX');
+check(overXox?.parts?.[0]?.unit === materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'bw', w: 72, h: 18, addons: [] }), 'black/white adder is on the arch line');
+check(overXox?.parts?.[1]?.unit === materialUnitPrice({ brand: 'andersen', series: '100', type: 'xox', color: 'bw', w: 72, h: 60, addons: [] }), 'black/white adder is on the XOX line');
+check(overXox.parts[0].unit > materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 72, h: 18, addons: [] }), 'black arch line is above white');
+const tooNarrow = priceWindow({ brand: 'andersen', series: '100', type: 'arch_over_xox', color: 'ww', w: 48, h: 60, addons: [] });
+check(tooNarrow?.blocked && /width/i.test(tooNarrow.errors.join(' ')), 'arch over XOX under 59.5 is blocked');
 
 if (errs.length) {
   console.log('FAILED');

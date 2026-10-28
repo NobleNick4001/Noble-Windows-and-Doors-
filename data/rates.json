@@ -34,6 +34,26 @@
    "name": "Equal-leg arch top"
   },
   {
+   "id": "arch_xo",
+   "name": "Arch / eyebrow XO"
+  },
+  {
+   "id": "arch_xox",
+   "name": "Arch / eyebrow XOX"
+  },
+  {
+   "id": "arch_hr",
+   "name": "Half-round single hung"
+  },
+  {
+   "id": "arch_over_xo",
+   "name": "Arch over XO"
+  },
+  {
+   "id": "arch_over_xox",
+   "name": "Arch over XOX"
+  },
+  {
    "id": "arch",
    "name": "Shape / Arch Top"
   },
@@ -197,7 +217,11 @@
       "casement",
       "dcasement",
       "awning",
-      "archtop"
+      "archtop",
+      "arch_xo",
+      "arch_xox",
+      "arch_sh",
+      "arch_hr"
      ]
     },
     {
@@ -220,6 +244,10 @@
       "dcasement",
       "awning",
       "archtop",
+      "arch_xo",
+      "arch_xox",
+      "arch_sh",
+      "arch_hr",
       "2panel",
       "3panel",
       "4panel"
@@ -245,6 +273,10 @@
       "dcasement",
       "awning",
       "archtop",
+      "arch_xo",
+      "arch_xox",
+      "arch_sh",
+      "arch_hr",
       "2panel",
       "3panel",
       "4panel"
