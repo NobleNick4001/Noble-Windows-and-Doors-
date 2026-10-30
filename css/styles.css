@@ -197,6 +197,17 @@ body[data-route="estimate-present"] main{max-width:none;padding:0 .35rem calc(96
 .calc-milgard .price .big{color:var(--navy)}
 .calc-milgard .btn.primary{background:var(--orange);color:var(--navy);border-color:var(--orange-d)}
 .calc-milgard .btn.primary:disabled{background:#9aa7b2;color:#fff;border-color:#9aa7b2;cursor:not-allowed}
+.pay-card h3{display:flex;align-items:center;gap:.45rem}
+.pay-card h3 .ico-svg svg{width:22px;height:22px;color:var(--blue)}
+.pay-ach{display:inline-flex;align-items:center;gap:.35rem;background:var(--soft);color:var(--navy);border:1.5px solid var(--blue);border-radius:999px;padding:.4rem .8rem;font-weight:800;margin:.2rem 0 .6rem}
+.pay-due-block{margin:.2rem 0 .7rem}
+.pay-due{font-size:2rem;font-weight:800;color:var(--orange-d);line-height:1.1}
+.pay-fee{background:var(--orange-soft);border:1px solid var(--orange);border-radius:12px;padding:.75rem .85rem;margin:.4rem 0 .7rem}
+.pay-fee p{margin:.35rem 0}
+.pay-qr-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:.55rem;margin-top:.8rem}
+.pay-qr{background:#fff;border:2px solid var(--navy);border-radius:12px;padding:.55rem;width:min(220px,100%)}
+.pay-qr svg{display:block;width:100%;height:auto}
+#qbo-pay-now{align-self:stretch;text-align:center}
 .calc-milgard .x{border:0;background:none;color:var(--bad);font:inherit;font-weight:700;cursor:pointer;padding:.2rem .35rem}
 .install-ed .labor-boxes{display:flex;flex-wrap:wrap;gap:.45rem;margin:.3rem 0}
 .install-ed .labor-add.on{background:var(--orange);border-color:var(--orange-d);color:var(--navy)}

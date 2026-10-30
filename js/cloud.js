@@ -144,6 +144,30 @@ export function fromRow(row) {
     const latest = [...contracts].sort((a, b) => String(b.signed_at).localeCompare(String(a.signed_at)))[0];
     e.contractRowId = latest.id;
   }
+  e.qbo = { ...(e.qbo && typeof e.qbo === 'object' ? e.qbo : {}) };
+  const qboCols = [
+    ['qbo_customer_id', 'customerId'],
+    ['qbo_invoice_id', 'invoiceId'],
+    ['qbo_doc_number', 'docNumber'],
+    ['qbo_payment_link', 'paymentLink'],
+    ['qbo_invoice_state', 'state'],
+    ['qbo_invoice_error', 'error'],
+    ['qbo_notice', 'notice'],
+    ['qbo_deposit_cents', 'depositCents'],
+    ['qbo_balance_cents', 'balanceCents'],
+    ['qbo_total_cents', 'totalCents'],
+    ['qbo_amount_due_cents', 'amountDueCents'],
+    ['qbo_paid_cents', 'paidCents'],
+    ['qbo_fee_deposit_cents', 'feeDepositCents'],
+    ['qbo_fee_final_cents', 'feeFinalCents'],
+    ['qbo_offline_payment_id', 'offlinePaymentId'],
+    ['qbo_offline_final_payment_id', 'offlineFinalPaymentId'],
+  ];
+  for (const [col, key] of qboCols) {
+    if (row[col] != null) e.qbo[key] = row[col];
+  }
+  if (row.qbo_card_on != null) e.qbo.cardOn = row.qbo_card_on === true;
+  if (row.qbo_synced_at) e.qbo.syncedAt = row.qbo_synced_at;
   return e;
 }
 
@@ -302,6 +326,10 @@ async function doFlush() {
           if (item.remoteId === focusRemote) hubReport = hub;
           if (!hub.ok && !hub.skipped) left.push(event);
         }
+        if (item.ops.includes('qbo')) {
+          const qbo = await syncQuickBooks(e, { quiet: true });
+          if (!qbo.ok) left.push('qbo');
+        }
         if (left.length) remain.push({ remoteId: item.remoteId, ops: ['upsert', ...left] });
       } catch (err) {
         const msg = String(err?.message || err);
@@ -338,8 +366,16 @@ async function insertContract(sb, e, ownerId) {
   return true;
 }
 
+const ESTIMATE_BASE = 'id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, sent_at, sent_to, updated_at, deleted_at';
+const QBO_COLS = 'qbo_customer_id, qbo_invoice_id, qbo_doc_number, qbo_payment_link, qbo_invoice_state, qbo_invoice_error, qbo_notice, qbo_deposit_cents, qbo_balance_cents, qbo_total_cents, qbo_amount_due_cents, qbo_paid_cents, qbo_fee_deposit_cents, qbo_fee_final_cents, qbo_card_on, qbo_offline_payment_id, qbo_offline_final_payment_id, qbo_synced_at';
+
 async function pull(sb) {
-  const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, sent_at, sent_to, updated_at, deleted_at, profiles!owner_id(full_name, email), contracts(id, signed_at)').order('updated_at', { ascending: false });
+  const tail = ', profiles!owner_id(full_name, email), contracts(id, signed_at)';
+  let res = await sb.from('estimates').select(ESTIMATE_BASE + ', ' + QBO_COLS + tail).order('updated_at', { ascending: false });
+  if (res.error && /qbo_|column|schema cache/i.test(res.error.message || '')) {
+    res = await sb.from('estimates').select(ESTIMATE_BASE + tail).order('updated_at', { ascending: false });
+  }
+  const { data, error } = res;
   if (error || !data) return;
   const queued = new Set(loadQueue().map((q) => q.remoteId));
   const all = estimates.all();
@@ -508,18 +544,186 @@ export async function sendEstimateEmail(e, pdfBase64) {
   return { ok: true, data };
 }
 
-export async function recordSigned(e) {
+const PDF_STASH = 'nwd.qboPdf';
+
+function stashPdf(remoteId, b64) {
+  if (!remoteId || !b64) return;
+  try {
+    const all = store.get(PDF_STASH, {});
+    all[remoteId] = b64;
+    store.set(PDF_STASH, all);
+  } catch { /* a later retry can rebuild the PDF */ }
+}
+
+function readPdf(remoteId) {
+  const all = store.get(PDF_STASH, {});
+  return all?.[remoteId] || '';
+}
+
+function clearPdf(remoteId) {
+  const all = store.get(PDF_STASH, {});
+  if (!all?.[remoteId]) return;
+  delete all[remoteId];
+  store.set(PDF_STASH, all);
+}
+
+async function invokeQbo(body) {
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'Sign in to create a QuickBooks invoice.' };
+  try {
+    const result = await sb.functions.invoke('quickbooks-invoice', { body });
+    let data = result.data;
+    const error = result.error;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch { /* keep the raw body */ }
+    }
+    if (error || !data?.ok) {
+      let message = data?.error;
+      if (!message && error?.context?.json) {
+        try { message = (await error.context.json())?.error; } catch { /* body already read */ }
+      }
+      if (!message && error?.message) message = error.message;
+      return { ok: false, error: message || 'QuickBooks is not available yet. The signed agreement is saved.', code: data?.code || '' };
+    }
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'QuickBooks is not available yet. The signed agreement is saved.' };
+  }
+}
+
+function applyQbo(e, data) {
+  const prev = e.qbo || {};
+  e.qbo = {
+    ...prev,
+    customerId: data.customerId ?? prev.customerId ?? '',
+    invoiceId: data.invoiceId ?? prev.invoiceId ?? '',
+    docNumber: data.docNumber ?? prev.docNumber ?? '',
+    paymentLink: data.paymentLink ?? prev.paymentLink ?? '',
+    state: data.state || 'created',
+    error: '',
+    notice: data.notice ?? prev.notice ?? '',
+    depositCents: data.depositCents ?? prev.depositCents,
+    balanceCents: data.balanceCents ?? prev.balanceCents,
+    totalCents: data.totalCents ?? prev.totalCents,
+    amountDueCents: data.amountDueCents ?? prev.amountDueCents,
+    paidCents: data.paidCents ?? prev.paidCents,
+    feeDepositCents: Object.prototype.hasOwnProperty.call(data, 'feeDepositCents') ? data.feeDepositCents : prev.feeDepositCents,
+    feeFinalCents: Object.prototype.hasOwnProperty.call(data, 'feeFinalCents') ? data.feeFinalCents : prev.feeFinalCents,
+    cardOn: data.cardOn != null ? data.cardOn === true : prev.cardOn === true,
+    offlinePaymentId: data.offlinePaymentId ?? prev.offlinePaymentId ?? '',
+    offlineFinalPaymentId: data.offlineFinalPaymentId ?? prev.offlineFinalPaymentId ?? '',
+    depositReceived: data.depositReceived === true,
+    linkNote: data.linkNote || prev.linkNote || '',
+    attachmentError: data.attachmentError || '',
+    mock: data.mock === true,
+    syncedAt: new Date().toISOString(),
+  };
+  origSave(e);
+}
+
+function rememberQboError(e, message) {
+  e.qbo = {
+    ...(e.qbo || {}),
+    error: message,
+    state: e.qbo?.invoiceId ? (e.qbo.state || 'created') : 'error',
+  };
+  origSave(e);
+}
+
+export async function syncQuickBooks(e, opts = {}) {
+  if (!e?.remoteId) return { ok: false, error: 'Save the estimate first.' };
+  if (e.status !== 'signed') return { ok: false, error: 'Sign the agreement first.' };
+  const pdfBase64 = opts.pdfBase64 || readPdf(e.remoteId) || '';
+  const result = await invokeQbo({ action: 'create', estimateId: e.remoteId, pdfBase64 });
+  if (!result.ok) {
+    rememberQboError(e, result.error || 'QuickBooks invoice was not created.');
+    if (!opts.quiet) toast(e.qbo.error);
+    return result;
+  }
+  applyQbo(e, result.data);
+  if (result.data.attached) clearPdf(e.remoteId);
+  return { ok: true, ...result.data };
+}
+
+export async function enableCardPayment(e, stage) {
+  if (!e?.remoteId) return { ok: false, error: 'Save the estimate first.' };
+  const result = await invokeQbo({ action: 'enable-card', estimateId: e.remoteId, stage: stage || 'deposit' });
+  if (!result.ok) {
+    rememberQboError(e, result.error || 'Card payments were not turned on.');
+    return result;
+  }
+  applyQbo(e, result.data);
+  return { ok: true, ...result.data };
+}
+
+export async function refreshQboPayment(e) {
+  if (!e?.remoteId) return { ok: false, error: 'Save the estimate first.' };
+  const result = await invokeQbo({ action: 'refresh', estimateId: e.remoteId });
+  if (!result.ok) {
+    rememberQboError(e, result.error || 'Could not refresh the invoice.');
+    return result;
+  }
+  applyQbo(e, result.data);
+  return { ok: true, ...result.data };
+}
+
+export async function recordOfflineDeposit(e) {
+  if (!e?.remoteId) return { ok: false, error: 'Save the estimate first.' };
+  const amountCents = e.qbo?.depositCents;
+  const result = await invokeQbo({
+    action: 'record-payment',
+    estimateId: e.remoteId,
+    purpose: 'deposit',
+    amountCents,
+  });
+  if (!result.ok) {
+    rememberQboError(e, result.error || 'The deposit was not recorded.');
+    return result;
+  }
+  applyQbo(e, result.data);
+  return { ok: true, ...result.data };
+}
+
+export async function qboStatus() {
+  const result = await invokeQbo({ action: 'status' });
+  if (!result.ok) return { ok: false, error: result.error, connected: false };
+  return { ok: true, ...result.data };
+}
+
+export function qboRedirectUri() {
+  const url = new URL('qbo-callback.html', location.href);
+  url.search = '';
+  url.hash = '';
+  return url.href;
+}
+
+export async function startQboConnect() {
+  const result = await invokeQbo({ action: 'oauth-start', redirectUri: qboRedirectUri() });
+  if (!result.ok) return result;
+  return { ok: true, url: result.data.url, mock: result.data.mock === true };
+}
+
+export async function disconnectQbo() {
+  return invokeQbo({ action: 'disconnect' });
+}
+
+export async function recordSigned(e, extras = {}) {
   ensureRemote(e);
   e.status = 'signed';
   e.signedAt = e.signedAt || new Date().toISOString();
+  if (!e.qbo?.invoiceId) e.qbo = { ...(e.qbo || {}), state: 'queued', error: e.qbo?.error || '' };
+  if (extras.pdfBase64) stashPdf(e.remoteId, extras.pdfBase64);
   estimates.save(e);
-  addOps(e.remoteId, ['contract', 'signed']);
+  addOps(e.remoteId, ['contract', 'signed', 'qbo']);
   if (browserOffline()) {
     toast(OFFLINE_MESSAGE);
     return { ok: false, offline: true };
   }
   const hub = await flushFocused(e.remoteId);
-  if (!hub?.ok) toast('Agreement saved. HubSpot sync is not available yet.');
+  if (e.qbo?.error && !e.qbo?.invoiceId) toast('Agreement saved. ' + e.qbo.error);
+  else if (e.qbo?.invoiceId) toast('Agreement saved. QuickBooks invoice is ready.');
+  else if (!hub?.ok) toast('Agreement saved. HubSpot sync is not available yet.');
+  else toast('Agreement saved.');
   return hub || { ok: false, skipped: true };
 }
 

@@ -1,5 +1,6 @@
 import { h, fmt, estimates, toast } from '../core.js';
 import { isAdmin, currentProfile, loadAdmin, loadRoster, setUserRole, setSeeAll, addRep, revokeAccess, restoreAccess, reassignEstimate, loadSignatures } from '../cloud.js';
+import { renderQboConnect } from '../pay.js';
 
 const fdate = (t) => t ? new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
 
@@ -19,6 +20,9 @@ export async function render(root) {
   const mine = String(currentProfile()?.email || '').toLowerCase();
   const wrap = h('div', { class: 'page' });
   wrap.append(h('div', { class: 'row between wrap' }, h('h1', {}, 'Admin'), h('button', { class: 'btn', id: 'admin-refresh', onclick: () => render(root) }, 'Refresh')));
+  const qboHost = h('div', { id: 'qbo-admin' });
+  wrap.append(qboHost);
+  renderQboConnect(qboHost);
 
   const nameInput = h('input', { type: 'text', id: 'rep-name', autocomplete: 'name', required: true });
   const emailInput = h('input', { type: 'email', id: 'rep-email', autocomplete: 'off', required: true });
