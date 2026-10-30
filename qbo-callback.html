@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connect QuickBooks — Noble Sales</title>
+<meta name="theme-color" content="#0e4c92">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<main id="app" class="page"><p class="loading">Connecting QuickBooks…</p></main>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { SUPABASE_URL, SUPABASE_KEY } from './js/cloud.js';
+
+const app = document.getElementById('app');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const params = new URLSearchParams(location.search);
+const code = params.get('code') || '';
+const state = params.get('state') || '';
+const realmId = params.get('realmId') || '';
+const oauthError = params.get('error') || '';
+
+function show(html) { app.innerHTML = html; }
+
+function redirectUri() {
+  const url = new URL('qbo-callback.html', location.href);
+  url.search = '';
+  url.hash = '';
+  return url.href;
+}
+
+if (oauthError) {
+  show(`<div class="card"><h1>QuickBooks</h1><p class="warn">${esc(oauthError)}</p><p><a class="btn" href="index.html#/admin">Back to Admin</a></p></div>`);
+} else if (!code || !state || !realmId) {
+  show('<div class="card"><h1>QuickBooks</h1><p class="warn">QuickBooks did not return a connection code.</p><p><a class="btn" href="index.html#/admin">Back to Admin</a></p></div>');
+} else {
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+  const { data } = await sb.auth.getSession();
+  if (!data.session) {
+    show('<div class="card"><h1>QuickBooks</h1><p class="warn">Sign in on this device, then choose Connect QuickBooks again.</p><p><a class="btn" href="index.html#/admin">Back to Admin</a></p></div>');
+  } else {
+    const { data: body, error } = await sb.functions.invoke('quickbooks-invoice', {
+      body: { action: 'oauth-callback', code, state, realmId, redirectUri: redirectUri() },
+    });
+    let payload = body;
+    if (!payload?.ok && error?.context?.json) {
+      try { payload = await error.context.json(); } catch { /* already read */ }
+    }
+    if (!payload?.ok) {
+      show(`<div class="card"><h1>QuickBooks</h1><p class="warn">${esc(payload?.error || error?.message || 'QuickBooks did not connect.')}</p><p><a class="btn" href="index.html#/admin">Back to Admin</a></p></div>`);
+    } else {
+      const mock = payload.mock ? '<p class="warn">Mock mode is on. This did not reach a live QuickBooks company.</p>' : '';
+      show(`<div class="card"><h1>QuickBooks connected</h1><p id="qbo-company"><b>QuickBooks company: ${esc(payload.companyName || 'Unknown company')}</b></p><p>Confirm this is the Windows &amp; Doors company. Noble General Contracting is a different file. If this name is wrong, disconnect and connect again, and pick the Windows &amp; Doors company in the Intuit screen.</p>${mock}<p class="fine">Realm ${esc(payload.realmId || '')}</p><p><a class="btn primary" href="index.html#/admin">Back to Admin</a></p></div>`);
+    }
+  }
+}
+</script>
+</body>
+</html>
