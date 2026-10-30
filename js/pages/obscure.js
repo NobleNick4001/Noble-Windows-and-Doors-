@@ -1,4 +1,5 @@
 import { h, data, settings, estimates, toast, priceWindow, installUnit } from '../core.js';
+import { icon } from '../icons.js';
 import { applyObscurePattern, currentObscurePattern } from './calculator.js';
 
 let openEl = null;
@@ -280,7 +281,7 @@ function openCompare(p) {
     : 'No window on the estimate yet. This choice is kept for the next one you add.');
   const btn = h('button', { type: 'button', class: 'btn primary xl', id: 'btn-obscure-select' }, already ? 'Selected for this window' : 'Select for this window');
   btn.addEventListener('click', () => savePattern(p, status, btn));
-  const close = h('button', { type: 'button', class: 'og-cmp-x', id: 'obscure-close', 'aria-label': 'Close', onclick: () => stop() }, '✕');
+  const close = h('button', { type: 'button', class: 'og-cmp-x', id: 'obscure-close', 'aria-label': 'Close', onclick: () => stop() }, icon('x'));
   const ov = h('div', { class: 'og-cmp', id: 'obscure-compare', role: 'dialog', 'aria-modal': 'true', 'aria-label': `${p.name} compared with clear glass` },
     h('div', { class: 'og-cmp-top' }, close),
     h('div', { class: 'og-cmp-stage' }, frame),

@@ -3,6 +3,7 @@ import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../mil
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
+import { icon } from '../icons.js';
 import { stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
 import { drawingEl } from '../drawings.js';
 
@@ -233,7 +234,7 @@ export function render(root) {
   const statusWord = e.status === 'signed' ? 'Signed' : e.status === 'presented' ? 'Presented' : 'Draft';
   wrap.append(h('div', { class: 'row between wrap' }, h('div', {}, h('h1', {}, 'Estimate'), h('div', { class: 'muted' }, `${e.number} · ${fdate(e.created)} · ${statusWord}`), signed ? h('div', { class: 'fine', id: 'agreement-signed' }, 'Agreement signed') : null),
     h('div', { class: 'row wrap gap' },
-      h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, '+ New'),
+      h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, icon('plus'), 'New'),
       h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name && !(e.overlays || []).length) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
       h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' || hubUi.busy ? true : null, onclick: () => presentEstimate(rerender) }, 'Mark presented'),
       h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
@@ -352,7 +353,7 @@ export function render(root) {
   e.extras.forEach((x, i) => ex.append(h('div', { class: 'row gap nowrap extra' },
     h('input', { type: 'text', value: x.label, 'aria-label': 'Item', oninput: (ev) => { x.label = ev.target.value; save(); } }),
     h('input', { type: 'text', inputmode: 'decimal', class: 'amt', value: x.amount, 'aria-label': 'Amount', oninput: (ev) => { x.amount = ev.target.value.replace(/[^0-9.-]/g, ''); save(); refreshTotals(); } }),
-    h('button', { class: 'btn sm danger', onclick: () => { e.extras.splice(i, 1); save(); rerender(); } }, '✕'))));
+    h('button', { class: 'btn sm danger', 'aria-label': 'Remove item', onclick: () => { e.extras.splice(i, 1); save(); rerender(); } }, icon('x')))));
   ex.append(h('div', { class: 'chips' }, data.install.jobExtras.map((x) => h('button', { class: 'chip', onclick: () => { e.extras.push({ id: uid(), label: x.name, amount: x.amount }); save(); rerender(); } }, '+ ' + x.name)), h('button', { class: 'chip', id: 'btn-custom-extra', onclick: () => { e.extras.push({ id: uid(), label: 'Custom item', amount: 0 }); save(); rerender(); } }, '+ Custom')));
   wrap.append(ex);
 
@@ -502,13 +503,13 @@ function estimateSheet(e) {
 export function renderPrint(root) {
   const e = estimates.current();
   root.replaceChildren(h('div', { class: 'page printpage' },
-    h('div', { class: 'noprint row gap wrap safe-top' }, h('a', { class: 'btn', href: '#/estimate' }, '← Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), estimateSheet(e)));
+    h('div', { class: 'noprint row gap wrap safe-top' }, h('a', { class: 'btn', href: '#/estimate' }, icon('arrow'), 'Back to estimate'), h('button', { class: 'btn primary', id: 'btn-do-print', onclick: () => window.print() }, 'Print / Save as PDF'), h('span', { class: 'muted' }, 'On iPad: tap Print, then pinch-out on the preview (or Share → Save to Files) to save a PDF.')), estimateSheet(e)));
 }
 export function renderPresent(root) {
   const e = estimates.current();
   const rerender = () => renderPresent(root);
   const page = h('div', { class: 'page present-page' },
-    h('div', { class: 'noprint present-top safe-top' }, h('a', { class: 'btn sm', id: 'btn-present-back', href: '#/estimate' }, '← Estimate')),
+    h('div', { class: 'noprint present-top safe-top' }, h('a', { class: 'btn sm', id: 'btn-present-back', href: '#/estimate' }, icon('arrow'), 'Estimate')),
     sendUi.error ? h('p', { class: 'warn', id: 'send-error' }, sendUi.error) : null,
     estimateSheet(e),
     h('div', { class: 'present-bar noprint' },

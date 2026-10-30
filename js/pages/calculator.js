@@ -2,6 +2,7 @@ import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, in
 import { renderMilgard, roomLabelProps } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
 import { drawingEl } from '../drawings.js';
+import { icon as uiIcon } from '../icons.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
 const persist = () => store.set('nwd.calc', calc);
@@ -141,7 +142,7 @@ export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', 
     } });
   const bump = (d) => { const v = Math.max(min, (parseFloat(input.value) || 0) + d); input.value = Math.round(v * 100) / 100; onChange(String(input.value)); };
   return h('label', { class: 'field stepper' }, h('span', { class: 'lbl' }, label, unit && h('em', {}, ' ' + unit)),
-    h('div', { class: 'row nowrap' }, h('button', { type: 'button', class: 'btn sq', onclick: () => bump(-step) }, '−'), input, h('button', { type: 'button', class: 'btn sq', onclick: () => bump(step) }, '+')));
+    h('div', { class: 'row nowrap' }, h('button', { type: 'button', class: 'btn sq', 'aria-label': 'Decrease ' + label, onclick: () => bump(-step) }, uiIcon('minus')), input, h('button', { type: 'button', class: 'btn sq', 'aria-label': 'Increase ' + label, onclick: () => bump(step) }, uiIcon('plus'))));
 }
 
 // Reusable install editor (calculator + estimate line editing). inst is mutated; onChange called after.
@@ -279,7 +280,7 @@ export function render(root) {
         h('div', { class: 'sub', id: 'price-base-label' }, p.parts[1].label),
         h('p', { class: 'fine', id: 'combo-note' }, p.note),
         flushNote,
-        h('button', { class: 'btn primary xl', id: 'btn-add', disabled: locationOk ? null : true, title: locationOk ? '' : 'Enter a location (e.g. Kitchen)', onclick: addToEstimate }, '+ Add both lines'),
+        h('button', { class: 'btn primary xl', id: 'btn-add', disabled: locationOk ? null : true, title: locationOk ? '' : 'Enter a location (e.g. Kitchen)', onclick: addToEstimate }, uiIcon('plus'), 'Add both lines'),
       ].filter(Boolean));
       return;
     }
@@ -294,7 +295,7 @@ export function render(root) {
         h('p', { class: blocked ? 'warn' : 'muted', id: 'price-block' }, msg),
         blocked ? h('p', { class: 'muted' }, 'Andersen 100 is not priced outside these limits. Some formulas start from a negative base, so a size past the limit is left blank.') : null,
         frameWarn,
-        h('button', { class: 'btn primary xl', id: 'btn-add', disabled: true, title: blocked ? 'Size is outside the Andersen 100 limit' : '' }, '+ Add to estimate'));
+        h('button', { class: 'btn primary xl', id: 'btn-add', disabled: true, title: blocked ? 'Size is outside the Andersen 100 limit' : '' }, uiIcon('plus'), 'Add to estimate'));
       return;
     }
     const qty = parseInt(calc.qty) || 1, inst = installUnit(calc.install), add = addonUnit(calc.install);
@@ -318,7 +319,7 @@ export function render(root) {
       doorWidth && h('p', { class: 'warn' }, '8900 doors are quoted for widths of about 59"–192".'),
       h('button', { class: 'link', onclick: () => { calc.details = !calc.details; persist(); update(); } }, calc.details ? 'Hide math' : 'Show math'),
       calc.details && h('div', { class: 'math' }, mathText(p, calc.w, calc.h), ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`, add ? ` · add-ons ${fmt(add)}` : ''),
-      h('button', { class: 'btn primary xl', id: 'btn-add', disabled: locationOk ? null : true, title: locationOk ? '' : 'Enter a location (e.g. Kitchen)', onclick: addToEstimate }, '+ Add to estimate'),
+      h('button', { class: 'btn primary xl', id: 'btn-add', disabled: locationOk ? null : true, title: locationOk ? '' : 'Enter a location (e.g. Kitchen)', onclick: addToEstimate }, uiIcon('plus'), 'Add to estimate'),
       h('p', { class: 'fine' }, p.mode === 'custom'
         ? 'Supplier price is the material price. Installation is separate and rolls into the estimate’s Installation / Labor line. Promo codes do not discount this line.'
         : 'Window price includes glass upcharges. Installation and add-ons stay off this price and roll into the estimate’s Installation / Labor line.')].filter(Boolean));
