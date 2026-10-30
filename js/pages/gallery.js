@@ -1,4 +1,5 @@
 import { h, data, settings } from '../core.js';
+import { icon } from '../icons.js';
 
 let timer = null;
 let group = 'all';
@@ -29,7 +30,7 @@ function labelOf(s) { return s.caption || s.title || ''; }
 
 export function render(root) {
   const list = visible();
-  const wrap = h('div', { class: 'page gal' }, h('div', { class: 'row between wrap' }, h('h1', {}, 'Gallery'), h('button', { class: 'btn primary', id: 'btn-slideshow', onclick: () => startShow(0) }, '▶ Start slideshow')));
+  const wrap = h('div', { class: 'page gal' }, h('div', { class: 'row between wrap' }, h('h1', {}, 'Gallery'), h('button', { class: 'btn primary', id: 'btn-slideshow', onclick: () => startShow(0) }, icon('play'), 'Start slideshow')));
   wrap.append(h('div', { class: 'chips', id: 'gal-filters' },
     h('button', { type: 'button', class: 'chip' + (group === 'all' ? ' on' : ''), onclick: () => { group = 'all'; render(root); } }, 'All'),
     ...groups().map((g) => h('button', { type: 'button', class: 'chip' + (group === g.id ? ' on' : ''), onclick: () => { group = g.id; render(root); } }, g.label))));
@@ -48,8 +49,8 @@ export function startShow(start = 0) {
   const img = h('img', { class: 'ss-img', alt: '' });
   const cap = h('div', { class: 'ss-cap' });
   const dots = h('div', { class: 'ss-dots' });
-  const play = h('button', { class: 'ss-btn', id: 'ss-play', 'aria-label': 'Play/pause', onclick: (e) => { e.stopPropagation(); toggle(); } }, '❚❚');
-  const close = h('button', { class: 'ss-btn ss-close', id: 'ss-close', 'aria-label': 'Close', onclick: (e) => { e.stopPropagation(); end(); } }, '✕');
+  const play = h('button', { class: 'ss-btn', id: 'ss-play', 'aria-label': 'Pause', onclick: (e) => { e.stopPropagation(); toggle(); } }, icon('pause'));
+  const close = h('button', { class: 'ss-btn ss-close', id: 'ss-close', 'aria-label': 'Close', onclick: (e) => { e.stopPropagation(); end(); } }, icon('x'));
   const ov = h('div', { class: 'ss', id: 'slideshow' }, img, close, h('div', { class: 'ss-bar' }, play, cap, dots));
   const show = (n) => {
     i = (n + list.length) % list.length;
@@ -74,7 +75,7 @@ export function startShow(start = 0) {
     else dots.replaceChildren(...list.map((_, k) => h('i', { class: k === i ? 'on' : '' })));
   };
   const restart = () => { clearInterval(timer); if (playing) timer = setInterval(() => show(i + 1), (settings.slideshowSeconds || 5) * 1000); };
-  const toggle = () => { playing = !playing; play.textContent = playing ? '❚❚' : '▶'; restart(); };
+  const toggle = () => { playing = !playing; play.replaceChildren(icon(playing ? 'pause' : 'play')); play.setAttribute('aria-label', playing ? 'Pause' : 'Play'); restart(); };
   const end = () => { clearInterval(timer); timer = null; document.removeEventListener('keydown', key); ov.remove(); if (document.fullscreenElement) document.exitFullscreen?.(); };
   const key = (e) => { if (e.key === 'ArrowRight') { show(i + 1); restart(); } else if (e.key === 'ArrowLeft') { show(i - 1); restart(); } else if (e.key === 'Escape') end(); else if (e.key === ' ') { e.preventDefault(); toggle(); } };
   ov.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; x0 = e.clientX; });

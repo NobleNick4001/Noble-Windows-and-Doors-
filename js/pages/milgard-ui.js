@@ -1,6 +1,7 @@
 import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL } from '../core.js';
 import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions, styleLimits } from '../milgard.js';
 import { drawingEl } from '../drawings.js';
+import { icon } from '../icons.js';
 
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
@@ -206,7 +207,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   const errEl = h('div', { class: 'size-err', id: 'size-err' });
   const wHint = h('div', { class: 'fine', id: 'size-w-hint' });
   const hHint = h('div', { class: 'fine', id: 'size-h-hint' });
-  const addBtn = h('button', { type: 'button', class: 'btn primary xl', id: 'btn-add' }, 'Add to quote');
+  const addBtn = h('button', { type: 'button', class: 'btn primary xl', id: 'btn-add' }, icon('plus'), 'Add to quote');
   const quoteEl = h('div', { id: 'quote-body' });
   const doorLaborEl = h('div', { class: 'labor-box on', id: 'door-labor-box' });
 
@@ -378,7 +379,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
         drawingEl(l, 'qdraw-art', { boxW: 108, boxH: 92 }),
         h('span', { class: 'qdraw-txt' }, quoteText(l), l.provisional ? h('div', { class: 'provisional-flag' }, 'Provisional price') : null),
         h('span', { class: 'row nowrap' }, h('b', { class: l.pricePending || l.unavailable ? 'pending-price' : '' }, linePriceText(l)),
-          h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, '✕'))));
+          h('button', { type: 'button', class: 'x', 'aria-label': 'Remove line', onclick: () => { e.lines.splice(i, 1); estimates.persist(); update(); } }, icon('x')))));
     });
     for (const row of quoteTotalRows(t)) {
       quoteEl.append(h('div', {

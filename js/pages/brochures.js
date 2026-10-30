@@ -1,4 +1,5 @@
 import { h } from '../core.js';
+import { icon } from '../icons.js';
 
 // Official PDFs only. The Andersen 100 product guide is not in this list.
 const GROUPS = [
@@ -306,9 +307,9 @@ function card(item, groupId) {
     class: 'br-card ' + groupId,
     onclick: () => openBrochure(item),
   },
-  h('span', { class: 'br-mark', 'aria-hidden': 'true' }, 'PDF'),
+  h('span', { class: 'br-mark', 'aria-hidden': 'true' }, icon('file'), 'PDF'),
   h('span', { class: 'br-copy' }, h('b', {}, item.label)),
-  h('span', { class: 'br-go', 'aria-hidden': 'true' }, 'Open'));
+  h('span', { class: 'br-go', 'aria-hidden': 'true' }, icon('chevron')));
 }
 
 export function render(root) {

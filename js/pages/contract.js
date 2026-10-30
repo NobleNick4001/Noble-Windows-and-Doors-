@@ -3,6 +3,7 @@ import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
 import { recordSigned } from '../cloud.js';
 import { compactWindowList } from './estimate.js';
+import { icon } from '../icons.js';
 
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -164,10 +165,10 @@ export function render(root) {
     stale,
     h('button', { type: 'button', class: 'btn primary xl', id: 'btn-send', onclick: () => send(e, c, a) }, 'Email contract and estimate'),
     fallback,
-    h('a', { class: 'btn', href: '#/estimate', id: 'btn-back-est' }, '← Back to estimate'));
+    h('a', { class: 'btn', href: '#/estimate', id: 'btn-back-est' }, icon('arrow'), 'Back to estimate'));
 
   const wrap = h('div', { class: 'page contract-page' },
-    h('div', { class: 'noprint row between wrap safe-top' }, h('h1', {}, 'Purchase agreement'), h('a', { class: 'btn', id: 'btn-contract-back', href: '#/estimate' }, '← Estimate')),
+    h('div', { class: 'noprint row between wrap safe-top' }, h('h1', {}, 'Purchase agreement'), h('a', { class: 'btn', id: 'btn-contract-back', href: '#/estimate' }, icon('arrow'), 'Estimate')),
     page1, page2, actions);
   root.replaceChildren(wrap);
 

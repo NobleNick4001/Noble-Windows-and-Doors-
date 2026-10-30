@@ -1,8 +1,7 @@
 import { h, fmt, data, settings } from '../core.js';
+import { icon } from '../icons.js';
 import { view as obscureView } from './obscure.js';
 import { view as frameTypeView } from './frame-types.js';
-
-const ICONS = { sun: '☀️', cloud: '☁️', shield: '🛡️', eye: '👁️', grid: '▦', screen: '▤', frame: '▢', edge: '▭', layers: '▣' };
 function priceLabel(o) {
   const p = o.price || {};
   if (p.unset) return h('span', { class: 'pill ph' }, 'Price not set');
@@ -22,7 +21,7 @@ export function render(root, sub = 'glass') {
   } else if (sub === 'frametype') {
     wrap.append(frameTypeView());
   } else if (sub === 'glass') {
-    wrap.append(h('div', { class: 'cards3' }, data.options.glass.map((o) => h('div', { class: 'card opt-card' }, h('div', { class: 'opt-ico' }, ICONS[o.icon] || '◻'), h('h2', {}, o.name), h('p', {}, o.desc), h('div', { class: 'row gap' }, priceLabel(o), badge(o))))));
+    wrap.append(h('div', { class: 'cards3' }, data.options.glass.map((o) => h('div', { class: 'card opt-card' }, h('div', { class: 'opt-ico' }, icon(o.icon || 'frame')), h('h2', {}, o.name), h('p', {}, o.desc), h('div', { class: 'row gap' }, priceLabel(o), badge(o))))));
     if (data.options.warranty) wrap.append(h('div', { class: 'card', id: 'warranty' }, h('h3', {}, data.options.warranty.title), h('p', {}, data.options.warranty.text)));
     if (data.options.process?.length) wrap.append(h('div', { class: 'card', id: 'process' }, h('h3', {}, 'How a job goes'), h('ol', { class: 'process' }, data.options.process.map((step) => h('li', {}, h('b', {}, step.title + '. '), step.desc)))));
   } else if (sub === 'frames') {
@@ -36,7 +35,7 @@ export function render(root, sub = 'glass') {
     const active = data.rates.brands.filter((b) => b.status === 'active');
     const where = (id) => active.flatMap((b) => b.series.filter((s) => s.colors.includes(id)).map((s) => (b.series.length > 1 ? `${b.name} ${s.id}` : `${b.name} ${s.name}`))).join(' · ');
     wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Frame colors'), h('div', { class: 'swatches wide' }, data.rates.colors.map((c) => h('div', { class: 'swatch static' }, h('i', { style: `background:${c.swatch}` }), h('span', {}, c.name), h('small', {}, where(c.id) || '—'))))));
-    wrap.append(h('div', { class: 'cards3' }, data.options.frame.map((o) => h('div', { class: 'card opt-card' }, h('div', { class: 'opt-ico' }, ICONS[o.icon] || '◻'), h('h2', {}, o.name), h('p', {}, o.desc), h('div', { class: 'row gap' }, priceLabel(o), badge(o))))));
+    wrap.append(h('div', { class: 'cards3' }, data.options.frame.map((o) => h('div', { class: 'card opt-card' }, h('div', { class: 'opt-ico' }, icon(o.icon || 'frame')), h('h2', {}, o.name), h('p', {}, o.desc), h('div', { class: 'row gap' }, priceLabel(o), badge(o))))));
   }
   root.replaceChildren(wrap);
 }
