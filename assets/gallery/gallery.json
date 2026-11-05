@@ -1,5 +1,5 @@
 {
-  "_readme": "Job photos. Every file listed here is shown, including andersen-100-05 (house number) and milgard-v300-02 (installer). Thumbnails and the slideshow use object-fit contain so the whole photo stays in frame. Order is Nick's photos first (Milgard V300, including the black sliders with white trim and the block-frame single hung, Milgard V400 Tuscany, Andersen 100 including the nail-fin slider, Andersen 100 retrofit / jump frame), then the Multi Slides pool-patio before/after, then website photos as Noble projects. caption is the on-screen label. installType 'unspecified' means show no install label. lowRes photos (760x570 site files) are not scaled past their pixel size in the slideshow. Gallery images are cached on first view (not all precached).",
+  "_readme": "Job photos. Every file listed here is shown, including andersen-100-05 (house number) and milgard-v300-02 (installer). Thumbnails and the slideshow use object-fit contain so the whole photo stays in frame. Order is Nick's photos first (Milgard V300, including the black sliders with white trim and the block-frame single hung, Milgard V400 Tuscany, Andersen 100 including the nail-fin slider, Andersen 100 retrofit / jump frame), then the Multi Slides pool-patio before/after, then six combined Before & After photos (Project 1, then Project 2), then website photos as Noble projects. caption is the on-screen label. installType 'unspecified' means show no install label. lowRes photos (760x570 site files) are not scaled past their pixel size in the slideshow. Gallery images are cached on first view (not all precached).",
   "groups": [
     {
       "id": "milgard-v300",
@@ -20,6 +20,10 @@
     {
       "id": "multi-slides",
       "label": "Multi Slides"
+    },
+    {
+      "id": "before-after",
+      "label": "Before & After"
     },
     {
       "id": "noble-projects",
@@ -350,6 +354,84 @@
       "group": "multi-slides",
       "w": 1600,
       "h": 1200,
+      "lowRes": false
+    },
+    {
+      "src": "NAVY-1-1-before-after-double-window.jpg",
+      "caption": "Project 1, double window, before and after",
+      "brand": null,
+      "series": "n/a",
+      "category": "double window",
+      "installType": "unspecified",
+      "source": "marketing-final",
+      "group": "before-after",
+      "w": 2160,
+      "h": 1650,
+      "lowRes": false
+    },
+    {
+      "src": "NAVY-1-2-before-after-kitchen-window.jpg",
+      "caption": "Project 1, kitchen window, before and after",
+      "brand": null,
+      "series": "n/a",
+      "category": "kitchen window",
+      "installType": "unspecified",
+      "source": "marketing-final",
+      "group": "before-after",
+      "w": 2160,
+      "h": 1650,
+      "lowRes": false
+    },
+    {
+      "src": "NAVY-1-3-before-after-front-window.jpg",
+      "caption": "Project 1, front window, before and after",
+      "brand": null,
+      "series": "n/a",
+      "category": "front window",
+      "installType": "unspecified",
+      "source": "marketing-final",
+      "group": "before-after",
+      "w": 2160,
+      "h": 1650,
+      "lowRes": false
+    },
+    {
+      "src": "NAVY-2-1-before-after-slider-and-window.jpg",
+      "caption": "Project 2, slider and window, before and after",
+      "brand": null,
+      "series": "n/a",
+      "category": "slider and window",
+      "installType": "unspecified",
+      "source": "marketing-final",
+      "group": "before-after",
+      "w": 2160,
+      "h": 1650,
+      "lowRes": false
+    },
+    {
+      "src": "NAVY-2-2-before-after-wide-patio-window.jpg",
+      "caption": "Project 2, wide patio window, before and after",
+      "brand": null,
+      "series": "n/a",
+      "category": "wide patio window",
+      "installType": "unspecified",
+      "source": "marketing-final",
+      "group": "before-after",
+      "w": 2160,
+      "h": 1650,
+      "lowRes": false
+    },
+    {
+      "src": "NAVY-2-3-before-after-small-patio-window.jpg",
+      "caption": "Project 2, small patio window, before and after",
+      "brand": null,
+      "series": "n/a",
+      "category": "small patio window",
+      "installType": "unspecified",
+      "source": "marketing-final",
+      "group": "before-after",
+      "w": 2160,
+      "h": 1650,
       "lowRes": false
     },
     {
