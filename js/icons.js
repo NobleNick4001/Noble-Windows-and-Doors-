@@ -35,6 +35,7 @@ export const ICON = {
   frame: stroke('<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><rect x="7.5" y="7.5" width="9" height="9" rx="1"/>'),
   edge: stroke('<path d="M3.5 7.5h17v9h-17z"/><path d="M8 7.5v9"/>'),
   layers: stroke('<path d="M12 3.5l8.5 4.5L12 12.5 3.5 8z"/><path d="M3.5 12l8.5 4.5L20.5 12"/><path d="M3.5 15.5L12 20l8.5-4.5"/>'),
+  card: stroke('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/>'),
 };
 
 export function svg(name) {

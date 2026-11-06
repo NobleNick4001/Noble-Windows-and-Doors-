@@ -9,3 +9,6 @@ verify_jwt = true
 
 [functions.revoke-sessions]
 verify_jwt = true
+
+[functions.quickbooks-invoice]
+verify_jwt = true

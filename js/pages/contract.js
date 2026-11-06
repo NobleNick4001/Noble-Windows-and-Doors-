@@ -2,6 +2,7 @@ import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, i
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
 import { recordSigned } from '../cloud.js';
+import { mountPayment, quoteDescriptions, blobToBase64 } from '../pay.js';
 import { compactWindowList } from './estimate.js';
 import { icon } from '../icons.js';
 
@@ -167,10 +168,13 @@ export function render(root) {
     fallback,
     h('a', { class: 'btn', href: '#/estimate', id: 'btn-back-est' }, icon('arrow'), 'Back to estimate'));
 
+  const payHost = h('div', { id: 'qbo-pay', class: 'noprint' });
   const wrap = h('div', { class: 'page contract-page' },
     h('div', { class: 'noprint row between wrap safe-top' }, h('h1', {}, 'Purchase agreement'), h('a', { class: 'btn', id: 'btn-contract-back', href: '#/estimate' }, icon('arrow'), 'Estimate')),
-    page1, page2, actions);
+    payHost, page1, page2, actions);
   root.replaceChildren(wrap);
+
+  mountPayment(e, payHandlers(e));
 
   wrap.querySelectorAll('.sig-box').forEach((box) => {
     const key = box._key;
@@ -187,6 +191,23 @@ export function render(root) {
       },
     });
   });
+}
+
+function payHandlers(e) {
+  return {
+    rebuildPdf: async () => {
+      const c = contractOf(e);
+      const a = data.agreement;
+      const sig = c.signatures || {};
+      const pay = contractPay(totals(e).total, a.depositPct);
+      const model = {
+        agreement: a, company: settings.company, number: e.number, customer: e.customer,
+        submittedBy: c.submittedBy, specifications: c.specifications, completionDate: c.completionDate,
+        pay, summary: summaryLines(totals(e)), words: moneyWords(pay.total), initials: c.initials, signatures: sig, signedOn: c.signedOn, lines: e.lines,
+      };
+      return blobToBase64(await makeContractPdf(model));
+    },
+  };
 }
 
 async function send(e, c, a) {
@@ -212,9 +233,11 @@ async function send(e, c, a) {
     };
     const contractBlob = await makeContractPdf(model);
     const estimateBlob = await makeEstimatePdf(e);
-    c.snapshot = { at: Date.now(), total: pay.total, deposit: pay.deposit, balance: pay.balance, customer: { ...e.customer }, specifications: c.specifications, submittedBy: c.submittedBy };
+    c.snapshot = { at: Date.now(), total: pay.total, deposit: pay.deposit, balance: pay.balance, depositPct: Number(a.depositPct) || 60, customer: { ...e.customer }, specifications: c.specifications, submittedBy: c.submittedBy, lineDescriptions: quoteDescriptions(e) };
     estimates.save(e);
-    await recordSigned(e);
+    const pdfBase64 = await blobToBase64(contractBlob);
+    await recordSigned(e, { pdfBase64 });
+    mountPayment(e, payHandlers(e));
     await deliver(e, contractBlob, estimateBlob, pay);
   } catch (err) {
     console.error(err);

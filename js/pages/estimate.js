@@ -1,4 +1,5 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE } from '../core.js';
+import { mountPayment } from '../pay.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
@@ -240,6 +241,7 @@ export function render(root) {
       h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
       h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
   wrap.append(h('a', { class: 'btn primary xl', id: 'btn-present', href: '#/estimate/present' }, 'Present'));
+  if (e.status === 'signed') wrap.append(h('div', { id: 'qbo-pay', class: 'noprint' }));
   const picker = hubspotPicker(e, rerender);
   if (picker) wrap.append(picker);
 
@@ -425,6 +427,7 @@ export function render(root) {
   wrap.append(h('div', { class: 'card' }, h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes (shown on estimate)'), h('textarea', { rows: 3, id: 'e-notes', oninput: (ev) => { e.notes = ev.target.value; save(); } }, e.notes)),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Estimate valid for (days)'), h('input', { type: 'text', inputmode: 'numeric', value: e.validDays, oninput: (ev) => { e.validDays = parseInt(ev.target.value) || 30; save(); } }))));
   root.replaceChildren(wrap);
+  if (e.status === 'signed') mountPayment(e);
   restoreView(view);
 }
 

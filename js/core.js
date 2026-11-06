@@ -882,6 +882,7 @@ export const estimates = {
     delete c.sentAt;
     delete c.sentTo;
     delete c.contractRowId;
+    delete c.qbo;
     c.status = 'draft';
     this.save(c); this._cur = c; this.setCurrent(c.id); return c;
   },
