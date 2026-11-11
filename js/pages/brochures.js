@@ -324,7 +324,7 @@ export function render(root) {
   stop();
   const wrap = h('div', { class: 'page brochures' },
     h('h1', {}, 'Brochures'),
-    h('p', { class: 'muted br-lead' }, 'Official Milgard and Andersen brochures. Tap one to open it here. Back to Brochures stays on screen.'));
+    h('p', { class: 'muted br-lead' }, 'Official Milgard, Andersen and PRL brochures. Tap one to open it here. Back to Brochures stays on screen.'));
   for (const group of GROUPS) {
     wrap.append(
       h('section', { class: 'br-group', 'aria-labelledby': 'br-' + group.id },
