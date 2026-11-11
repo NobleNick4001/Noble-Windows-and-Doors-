@@ -1,7 +1,7 @@
 // Estimate email and the HubSpot follow-up task. No network.
 import { readFileSync } from 'node:fs';
 import {
-  SENDER_EMAIL, SENDER_FROM, COMPANY_PHONE, COMPANY_ROC, providerFor, buildHtml, buildRawMessage, safeFilename,
+  SENDER_EMAIL, SENDER_FROM, COMPANY_PHONE, COMPANY_ROC, providerFor, gmailTokenDead, buildHtml, buildRawMessage, safeFilename,
 } from '../supabase/functions/send-estimate/mail.js';
 import { followUpDue, followUpTitle, matchOwner, moneyLabel } from '../supabase/functions/hubspot-sync/followup.js';
 
@@ -19,6 +19,9 @@ eq(providerFor({ RESEND_API_KEY: 're_x' }), 'resend', 'Resend is the fallback');
 eq(providerFor({ GMAIL_CLIENT_ID: 'id', GMAIL_CLIENT_SECRET: 'sec', GMAIL_REFRESH_TOKEN: 'tok' }), 'gmail', 'all three Gmail secrets select Gmail');
 eq(providerFor({ GMAIL_CLIENT_ID: 'id', GMAIL_CLIENT_SECRET: ' ', GMAIL_REFRESH_TOKEN: 'tok', RESEND_API_KEY: 're_x' }), 'resend', 'a blank Gmail secret falls back to Resend');
 eq(providerFor({ GMAIL_CLIENT_ID: 'id', GMAIL_CLIENT_SECRET: 'sec', GMAIL_REFRESH_TOKEN: 'tok', RESEND_API_KEY: 're_x' }), 'gmail', 'Gmail wins when both providers are configured');
+eq(gmailTokenDead('Token has been expired or revoked.'), true, 'Google expired refresh token is dead');
+eq(gmailTokenDead('invalid_grant'), true, 'Google invalid_grant is dead');
+eq(gmailTokenDead('Client email is required'), false, 'a normal send error is not a dead Gmail token');
 
 const html = buildHtml({ repName: 'Eric Havins', customerName: 'Janice <Williams>', number: 'E-100', total: 3144.46, depositPct: 60 });
 has(html, COMPANY_PHONE, 'email shows the company phone');
@@ -63,7 +66,7 @@ eq(matchOwner([{ id: '1', email: 'other@example.com' }], 'eric@noblewandd.com'),
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const sendFn = read('../supabase/functions/send-estimate/index.ts');
-for (const needle of ['auth.getUser', "profile?.role !== 'admin'", 'estimate.owner_id', 'customer_email', 'JVBERi', 'sent_at', 'sent_to', 'providerFor', 'Email is not configured', 'Client email is required']) {
+for (const needle of ['auth.getUser', "profile?.role !== 'admin'", 'estimate.owner_id', 'customer_email', 'JVBERi', 'sent_at', 'sent_to', 'providerFor', 'gmailTokenDead', 'sendResend(secrets.RESEND_API_KEY', 'Company Gmail needs to be reconnected', 'Email is not configured', 'Client email is required']) {
   has(sendFn, needle, 'send-estimate function');
 }
 const hubFn = read('../supabase/functions/hubspot-sync/index.ts');
