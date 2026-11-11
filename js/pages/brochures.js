@@ -23,6 +23,14 @@ const GROUPS = [
       { file: 'brochures/andersen-100-series.pdf', label: 'Andersen 100 Series brochure' },
     ],
   },
+  {
+    id: 'prl',
+    name: 'PRL',
+    items: [
+      { file: 'brochures/prl-max-slider-multi-slide-door.pdf', label: 'PRL Max Slider Multi-Slide Door' },
+      { file: 'brochures/prl-bottom-rolling-bifold-door.pdf', label: 'PRL Bottom Rolling Bi-Fold Door' },
+    ],
+  },
 ];
 
 let viewer = null;
@@ -316,7 +324,7 @@ export function render(root) {
   stop();
   const wrap = h('div', { class: 'page brochures' },
     h('h1', {}, 'Brochures'),
-    h('p', { class: 'muted br-lead' }, 'Official Milgard and Andersen brochures. Tap one to open it here. Back to Brochures stays on screen.'));
+    h('p', { class: 'muted br-lead' }, 'Official Milgard, Andersen and PRL brochures. Tap one to open it here. Back to Brochures stays on screen.'));
   for (const group of GROUPS) {
     wrap.append(
       h('section', { class: 'br-group', 'aria-labelledby': 'br-' + group.id },
