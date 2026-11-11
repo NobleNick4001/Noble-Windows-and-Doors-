@@ -23,6 +23,14 @@ const GROUPS = [
       { file: 'brochures/andersen-100-series.pdf', label: 'Andersen 100 Series brochure' },
     ],
   },
+  {
+    id: 'prl',
+    name: 'PRL',
+    items: [
+      { file: 'brochures/prl-max-slider-multi-slide-door.pdf', label: 'PRL Max Slider Multi-Slide Door' },
+      { file: 'brochures/prl-bottom-rolling-bifold-door.pdf', label: 'PRL Bottom Rolling Bi-Fold Door' },
+    ],
+  },
 ];
 
 let viewer = null;
