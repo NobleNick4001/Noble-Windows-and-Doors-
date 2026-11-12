@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
-  BROCHURE_HOST, BROCHURE_SUBJECT, COMPANY_PHONE, RATE_MAX, SENDER_FROM,
-  brochureByFile, buildBrochureEmail, buildBrochureRaw, catalogItems, createRateBucket,
+  BROCHURE_HOST, COMPANY_PHONE, RATE_MAX, SENDER_FROM,
+  brochureByFile, brochureSubject, buildBrochureEmail, buildBrochureRaw, catalogItems, createRateBucket,
   replyToHeader, takeSendSlot, validateBrochureRequest,
 } from './mail.js';
 
 const V250 = 'brochures/milgard-v250-style-line.pdf';
+const V300 = 'brochures/milgard-v300-trinsic.pdf';
+const V400 = 'brochures/milgard-v400-tuscany.pdf';
 const PRL = 'brochures/prl-max-slider-multi-slide-door.pdf';
 const PAGE = readFileSync(new URL('../../../js/pages/brochures.js', import.meta.url), 'utf8');
 
@@ -27,8 +29,7 @@ test('brochure list matches the Brochures tab, including PRL', () => {
   assert.equal(items.length, 10);
   assert.ok(items.some((item) => item.file === PRL));
   assert.ok(items.some((item) => item.file === 'brochures/andersen-100-series.pdf'));
-  assert.match(PAGE, new RegExp(BROCHURE_HOST.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(PAGE, /\(623\) 810-3460/);
+  assert.match(PAGE, /buildBrochureEmail/);
 });
 
 test('links are only this site\'s brochure PDFs', () => {
@@ -59,14 +60,14 @@ test('signature, phone, and optional rep name', () => {
   const links = [brochureByFile(V250)];
   const withRep = buildBrochureEmail({ repName: 'Eric Havins', customerName: 'Alex Client', note: '', links });
   assert.match(withRep.html, /Eric Havins<br>/);
-  assert.match(withRep.text, /Eric Havins\nNoble Windows & Doors\n\(623\) 810-3460$/);
+  assert.match(withRep.text, /Warm regards,\nEric Havins\nNoble Windows & Doors\n\(623\) 810-3460$/);
   assert.match(withRep.html, new RegExp(COMPANY_PHONE.replace(/[()]/g, '\\$&')));
   assert.match(withRep.html, /Noble Windows &amp; Doors/);
   assert.equal(withRep.html.includes('Noble Windows & Doors'), false);
   const noRep = buildBrochureEmail({ repName: '', customerName: '', note: '', links });
   assert.equal(noRep.html.includes('Eric Havins'), false);
-  assert.match(noRep.text, /^Hello,\n\nHere are the brochures/);
-  assert.match(noRep.text, /Noble Windows & Doors\n\(623\) 810-3460$/);
+  assert.match(noRep.text, /^Hi there,\n\nThank you for taking the time to meet with us\. As promised, here is the digital brochure/);
+  assert.match(noRep.text, /Warm regards,\nNoble Windows & Doors\n\(623\) 810-3460$/);
   assert.equal(buildBrochureEmail({ repName: 'eric@noblewandd.com', customerName: 'Alex', note: '', links }).html.includes('eric@noblewandd.com'), false);
 });
 
@@ -84,10 +85,10 @@ test('escapes the name and the note in HTML and keeps them readable in text', ()
     note: parsed.value.note,
     links: parsed.value.links,
   });
-  assert.match(mail.html, /Hello Jane &lt;script&gt; &amp; &quot;O&#39;Brien&quot;,/);
+  assert.match(mail.html, /Hi Jane &lt;script&gt; &amp; &quot;O&#39;Brien&quot;,/);
   assert.match(mail.html, /Look at &lt;b&gt;this&lt;\/b&gt; &amp; that<br>Second line/);
   assert.doesNotMatch(mail.html, /<script>|<b>/);
-  assert.match(mail.text, /Hello Jane <script> & "O'Brien",/);
+  assert.match(mail.text, /Hi Jane <script> & "O'Brien",/);
   assert.match(mail.text, /Look at <b>this<\/b> & that\nSecond line/);
   const raw = buildBrochureRaw({
     from: SENDER_FROM,
@@ -123,10 +124,11 @@ test('raw message reply-to and subject cannot add headers', () => {
     text: mail.text,
     html: mail.html,
   });
-  assert.equal(BROCHURE_SUBJECT, mail.subject);
+  assert.equal(mail.subject, 'Noble Windows & Doors Brochures - Milgard V250 Style Line');
   assert.doesNotMatch(raw, /\r\nBcc:/i);
-  assert.match(raw, /Subject: =\?UTF-8\?B\?/);
-  assert.equal(raw.split('\r\n').some((line) => line.startsWith('Subject:') && line.includes('—')), false);
+  const subjectLine = raw.split('\r\n').find((line) => line.startsWith('Subject:'));
+  assert.equal(subjectLine, 'Subject: Noble Windows & Doors Brochures - Milgard V250 Style Line');
+  assert.equal(subjectLine.includes('\n'), false);
   assert.match(raw, /multipart\/alternative/);
 });
 
@@ -167,6 +169,48 @@ test('validation accepts a typed address and rejects anything that is not our PD
     assert.equal(result.ok, false, JSON.stringify(input));
   }
   assert.equal(brochureByFile('brochures/milgard-v250-style-line.pdf/../../secret.pdf'), null);
+});
+
+test('subject names the selected brochures and drops a long list to makers', () => {
+  const one = brochureSubject([brochureByFile(V250)]);
+  const same = brochureSubject([brochureByFile(V250), brochureByFile(V300)]);
+  const mixed = brochureSubject([brochureByFile(V250), brochureByFile(PRL)]);
+  const long = brochureSubject([brochureByFile(V250), brochureByFile(V300), brochureByFile(V400), brochureByFile(PRL)]);
+  assert.equal(one, 'Noble Windows & Doors Brochures - Milgard V250 Style Line');
+  assert.equal(same, 'Noble Windows & Doors Brochures - Milgard V250 Style Line, V300 Trinsic');
+  assert.equal(mixed, 'Noble Windows & Doors Brochures - Milgard V250 Style Line, PRL Max Slider');
+  assert.equal(long, 'Noble Windows & Doors Brochures - Milgard & PRL');
+  assert.ok(one.length <= 90 && mixed.length <= 90 && long.length <= 90);
+  const poisoned = brochureByFile(V250);
+  poisoned.series = 'V250\r\nBcc: evil@example.com';
+  poisoned.maker = 'Milgard\n';
+  const cleaned = brochureSubject([poisoned]);
+  assert.equal(cleaned.includes('\r'), false);
+  assert.equal(cleaned.includes('\n'), false);
+  assert.equal(cleaned, 'Noble Windows & Doors Brochures - Milgard V250 Bcc: evil@example.com');
+});
+
+test('the letter uses singular or plural wording and keeps a note in its own paragraph', () => {
+  const one = buildBrochureEmail({
+    repName: 'Eric Havins',
+    customerName: 'Alex Client',
+    note: '',
+    links: [brochureByFile(V250)],
+  });
+  assert.match(one.text, /here is the digital brochure for the product we discussed, so you can look it over/);
+  assert.equal(one.text.includes('here are'), false);
+  assert.equal(one.text.includes('attached'), false);
+  const parsed = sample();
+  const many = buildBrochureEmail({ repName: 'Eric Havins', ...parsed.value });
+  assert.match(many.text, /Hi Alex Client,\n\nThank you for taking the time to meet with us\. As promised, here are the digital brochures for the products we discussed, so you can look them over at your own pace:/);
+  assert.equal(many.text.includes('here is the digital brochure'), false);
+  assert.equal(many.text.includes('attached'), false);
+  const urlAt = many.text.indexOf(`${BROCHURE_HOST}/brochures/milgard-v250-style-line.pdf`);
+  const noteAt = many.text.indexOf('Please look before Thursday.');
+  const closeAt = many.text.indexOf('We truly appreciate the opportunity');
+  assert.ok(urlAt > 0 && urlAt < noteAt && noteAt < closeAt);
+  assert.match(many.html, /Please look before Thursday\.<\/p>/);
+  assert.match(many.text, /\(623\) 810-3460\.\n\nWarm regards,/);
 });
 
 test('rate limit allows a burst, then blocks repeats and the next send', () => {

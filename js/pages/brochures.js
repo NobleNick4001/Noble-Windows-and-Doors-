@@ -1,9 +1,7 @@
 import { h, estimates } from '../core.js';
 import { currentProfile, sendBrochureEmail } from '../cloud.js';
 import { icon } from '../icons.js';
-
-const BROCHURE_HOST = 'https://noblenick4001.github.io/Noble-Windows-and-Doors-';
-const COMPANY_PHONE = '(623) 810-3460';
+import { brochureByFile, buildBrochureEmail } from '../../supabase/functions/send-brochures/mail.js';
 
 // Official PDFs only. The Andersen 100 product guide is not in this list.
 const GROUPS = [
@@ -348,18 +346,14 @@ function selectedBrochures(root) {
 }
 
 function mailtoHref({ to, customerName, note, items }) {
-  const rep = String(currentProfile()?.full_name || '').trim();
-  const lines = [customerName ? `Hello ${customerName},` : 'Hello,', ''];
-  if (note) lines.push(note, '');
-  lines.push('Here are the brochures you asked about. Each link opens the PDF.', '');
-  for (const item of items) {
-    const name = String(item.file || '').split('/').filter(Boolean).pop();
-    lines.push(item.label, `${BROCHURE_HOST}/brochures/${name}`, '');
-  }
-  if (rep && !rep.includes('@')) lines.push(rep);
-  lines.push('Noble Windows & Doors', COMPANY_PHONE);
-  const subject = 'Noble Windows & Doors — brochures';
-  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+  const links = items.map((item) => brochureByFile(item.file)).filter(Boolean);
+  const mail = buildBrochureEmail({
+    repName: currentProfile()?.full_name || '',
+    customerName,
+    note,
+    links,
+  });
+  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(mail.subject)}&body=${encodeURIComponent(mail.text)}`;
 }
 
 function openMail() {
