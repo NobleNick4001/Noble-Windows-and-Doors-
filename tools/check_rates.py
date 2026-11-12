@@ -97,7 +97,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v56-prl-brochures'" in sw, 'service worker cache should be nwd-sales-v56-prl-brochures')
+check("const CACHE = 'nwd-sales-v57-email-brochures'" in sw, 'service worker cache should be nwd-sales-v57-email-brochures')
 check('js/drawings.js' in sw, 'window drawings should be precached')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
@@ -121,7 +121,7 @@ for banned in ('milgard-v300-01.jpg', 'site-finished-01.jpg'):
 check('js/pages/brochures.js' in sw, 'brochures page should be precached')
 precache = sw.split('const PRECACHE', 1)[1].split('];', 1)[0]
 check('js/vendor/pdf.min.mjs' in precache and 'js/vendor/pdf.worker.min.mjs' in precache, 'pdf.js viewer should be precached')
-for pdf in ('milgard-v250-style-line.pdf', 'milgard-v300-trinsic.pdf', 'milgard-v400-tuscany.pdf', 'milgard-c700-fiberglass.pdf', 'milgard-a250-aluminum.pdf', 'milgard-patio-doors.pdf', 'milgard-window-selection-guide.pdf', 'andersen-100-series.pdf'):
+for pdf in ('milgard-v250-style-line.pdf', 'milgard-v300-trinsic.pdf', 'milgard-v400-tuscany.pdf', 'milgard-c700-fiberglass.pdf', 'milgard-a250-aluminum.pdf', 'milgard-patio-doors.pdf', 'milgard-window-selection-guide.pdf', 'andersen-100-series.pdf', 'prl-max-slider-multi-slide-door.pdf', 'prl-bottom-rolling-bifold-door.pdf'):
     check(os.path.isfile('brochures/' + pdf), 'missing brochure ' + pdf)
     check(pdf not in precache, 'brochure PDF should not be precached: ' + pdf)
 for old in ('milgard-trinsic-v300.pdf', 'milgard-tuscany-v400.pdf', 'milgard-vinyl-line.pdf', 'milgard-series-comparison-chart.pdf'):

@@ -22,6 +22,7 @@ export const ICON = {
   plus: stroke('<path d="M12 5v14M5 12h14"/>'),
   minus: stroke('<path d="M5 12h14"/>'),
   x: stroke('<path d="M6 6l12 12M18 6L6 18"/>'),
+  mail: stroke('<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>'),
   chevron: stroke('<path d="M9 5.5l6.5 6.5L9 18.5"/>'),
   arrow: stroke('<path d="M19 12H5"/><path d="M11 6L5 12l6 6"/>'),
   play: stroke('<path d="M8 5.5v13l11-6.5z"/>'),

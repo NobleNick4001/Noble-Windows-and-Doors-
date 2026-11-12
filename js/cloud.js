@@ -508,6 +508,39 @@ export async function sendEstimateEmail(e, pdfBase64) {
   return { ok: true, data };
 }
 
+export async function sendBrochureEmail(payload) {
+  if (browserOffline()) return { ok: false, error: OFFLINE_MESSAGE, fallback: true };
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'Sign in to email brochures.', fallback: true };
+  const { data: sessionWrap } = await sb.auth.getSession();
+  if (!sessionWrap?.session) return { ok: false, error: 'Sign in to email brochures.', fallback: true };
+  let data = null;
+  let error = null;
+  try {
+    const result = await sb.functions.invoke('send-brochures', {
+      body: {
+        to: payload.to,
+        customerName: payload.customerName || '',
+        note: payload.note || '',
+        files: payload.files,
+      },
+    });
+    data = result.data;
+    error = result.error;
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Email failed.', fallback: true };
+  }
+  if (!error && data?.ok) return { ok: true, data };
+  let message = data?.error;
+  let status = 0;
+  if (error?.context?.status) status = Number(error.context.status) || 0;
+  if (!message && error?.context?.json) {
+    try { message = (await error.context.json())?.error; } catch { /* body already read */ }
+  }
+  const fallback = status === 0 || status === 404 || status >= 500;
+  return { ok: false, error: message || 'Email failed.', fallback, status };
+}
+
 export async function recordSigned(e) {
   ensureRemote(e);
   e.status = 'signed';
