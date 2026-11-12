@@ -26,10 +26,30 @@ function sample(extra = {}) {
 test('brochure list matches the Brochures tab, including PRL', () => {
   const items = [...PAGE.matchAll(/file:\s*'([^']+)',\s*label:\s*'([^']+)'/g)].map((m) => ({ file: m[1], label: m[2] }));
   assert.deepEqual(catalogItems(), items);
-  assert.equal(items.length, 10);
+  assert.equal(items.length, 13);
+  assert.ok(items.some((item) => item.file === 'brochures/milgard-ax650-bifold.pdf'));
+  assert.ok(items.some((item) => item.file === 'brochures/milgard-ax650-stacking.pdf'));
+  assert.ok(items.some((item) => item.file === 'brochures/milgard-ax650-pocket.pdf'));
   assert.ok(items.some((item) => item.file === PRL));
   assert.ok(items.some((item) => item.file === 'brochures/andersen-100-series.pdf'));
   assert.match(PAGE, /buildBrochureEmail/);
+});
+
+test('AX650 sheets are accepted and linked only from this site', () => {
+  const files = [
+    'brochures/milgard-ax650-bifold.pdf',
+    'brochures/milgard-ax650-stacking.pdf',
+    'brochures/milgard-ax650-pocket.pdf',
+  ];
+  const parsed = validateBrochureRequest({
+    to: 'test@example.com',
+    customerName: 'Alex Client',
+    note: '',
+    files,
+  });
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.value.links.map((item) => item.url), files.map((file) => `${BROCHURE_HOST}/${file}`));
+  assert.equal(brochureByFile('brochures/not-a-real-ax650.pdf'), null);
 });
 
 test('links are only this site\'s brochure PDFs', () => {

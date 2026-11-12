@@ -97,7 +97,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v58-brochure-letter'" in sw, 'service worker cache should be nwd-sales-v58-brochure-letter')
+check("const CACHE = 'nwd-sales-v59-ax650-laminated'" in sw, 'service worker cache should be nwd-sales-v59-ax650-laminated')
 check('js/drawings.js' in sw, 'window drawings should be precached')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
@@ -121,7 +121,7 @@ for banned in ('milgard-v300-01.jpg', 'site-finished-01.jpg'):
 check('js/pages/brochures.js' in sw, 'brochures page should be precached')
 precache = sw.split('const PRECACHE', 1)[1].split('];', 1)[0]
 check('js/vendor/pdf.min.mjs' in precache and 'js/vendor/pdf.worker.min.mjs' in precache, 'pdf.js viewer should be precached')
-for pdf in ('milgard-v250-style-line.pdf', 'milgard-v300-trinsic.pdf', 'milgard-v400-tuscany.pdf', 'milgard-c700-fiberglass.pdf', 'milgard-a250-aluminum.pdf', 'milgard-patio-doors.pdf', 'milgard-window-selection-guide.pdf', 'andersen-100-series.pdf', 'prl-max-slider-multi-slide-door.pdf', 'prl-bottom-rolling-bifold-door.pdf'):
+for pdf in ('milgard-v250-style-line.pdf', 'milgard-v300-trinsic.pdf', 'milgard-v400-tuscany.pdf', 'milgard-c700-fiberglass.pdf', 'milgard-a250-aluminum.pdf', 'milgard-ax650-bifold.pdf', 'milgard-ax650-stacking.pdf', 'milgard-ax650-pocket.pdf', 'milgard-patio-doors.pdf', 'milgard-window-selection-guide.pdf', 'andersen-100-series.pdf', 'prl-max-slider-multi-slide-door.pdf', 'prl-bottom-rolling-bifold-door.pdf'):
     check(os.path.isfile('brochures/' + pdf), 'missing brochure ' + pdf)
     check(pdf not in precache, 'brochure PDF should not be precached: ' + pdf)
 for old in ('milgard-trinsic-v300.pdf', 'milgard-tuscany-v400.pdf', 'milgard-vinyl-line.pdf', 'milgard-series-comparison-chart.pdf'):
@@ -155,10 +155,11 @@ check('C650' not in public_text(glass) and 'C700' not in public_text(glass), 'do
 
 gallery = json.load(open('assets/gallery/gallery.json'))
 gs = gallery['slides']
-check(len(gs) == 50, 'gallery should have 50 photos')
+check(len(gs) == 56, 'gallery should have 56 photos')
 check(all(s.get('source') == 'nick' for s in gs[:25]), 'first 25 slides are Nick photos')
-check(all(s.get('group') == 'noble-projects' for s in gs[25:]), 'website photos follow as Noble projects')
-check([g['label'] for g in gallery['groups']] == ['Milgard V300', 'Milgard V400 Tuscany', 'Andersen 100', 'Andersen 100 Retrofit', 'Multi Slides', 'Noble projects'], 'filter labels')
+check(all(s.get('group') == 'before-after' for s in gs[25:31]), 'before and after photos follow Nick')
+check(all(s.get('group') == 'noble-projects' for s in gs[31:]), 'website photos follow as Noble projects')
+check([g['label'] for g in gallery['groups']] == ['Milgard V300', 'Milgard V400 Tuscany', 'Andersen 100', 'Andersen 100 Retrofit', 'Multi Slides', 'Before & After', 'Noble projects'], 'filter labels')
 check(all(os.path.isfile('assets/gallery/' + s['src']) for s in gs), 'a gallery file is missing')
 check(sum(1 for s in gs if s.get('lowRes')) == 16, '760px site photos should be flagged lowRes')
 check(not any(s.get('placeholder') for s in gs), 'placeholders should be gone')
