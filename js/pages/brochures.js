@@ -1,5 +1,7 @@
-import { h } from '../core.js';
+import { h, estimates } from '../core.js';
+import { currentProfile, sendBrochureEmail } from '../cloud.js';
 import { icon } from '../icons.js';
+import { brochureByFile, buildBrochureEmail } from '../../supabase/functions/send-brochures/mail.js';
 
 // Official PDFs only. The Andersen 100 product guide is not in this list.
 const GROUPS = [
@@ -34,6 +36,7 @@ const GROUPS = [
 ];
 
 let viewer = null;
+let mailPanel = null;
 let pdfjsPromise = null;
 
 function loadPdfjs() {
@@ -48,6 +51,7 @@ function loadPdfjs() {
 
 export function stop() {
   viewer?.close();
+  mailPanel?.close();
 }
 
 function openBrochure(item) {
@@ -309,6 +313,134 @@ async function drawPdf(item, stage, status, state, title) {
   paintVisible();
 }
 
+function isClientEmail(value) {
+  const email = String(value ?? '').trim();
+  if (email !== String(value ?? '') || email.length < 6 || email.length > 254) return false;
+  if (/[\s<>"'(),;:\\]/.test(email)) return false;
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email);
+}
+
+function savedClients() {
+  const seen = new Set();
+  const out = [];
+  for (const e of estimates.list()) {
+    if (e.deletedAt) continue;
+    const email = String(e.customer?.email || '').trim();
+    const name = String(e.customer?.name || '').trim();
+    if (!isClientEmail(email)) continue;
+    const key = email.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ email, name });
+  }
+  return out.slice(0, 40);
+}
+
+function selectedBrochures(root) {
+  const chosen = new Set([...root.querySelectorAll('input[name="br-file"]:checked')].map((input) => input.value));
+  const items = [];
+  for (const group of GROUPS) {
+    for (const item of group.items) if (chosen.has(item.file)) items.push(item);
+  }
+  return items;
+}
+
+function mailtoHref({ to, customerName, note, items }) {
+  const links = items.map((item) => brochureByFile(item.file)).filter(Boolean);
+  const mail = buildBrochureEmail({
+    repName: currentProfile()?.full_name || '',
+    customerName,
+    note,
+    links,
+  });
+  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(mail.subject)}&body=${encodeURIComponent(mail.text)}`;
+}
+
+function openMail() {
+  viewer?.close();
+  mailPanel?.close();
+  const clients = savedClients();
+  const status = h('div', { id: 'br-mail-status' });
+  const nameInput = h('input', { type: 'text', id: 'br-mail-name', maxlength: '80', autocomplete: 'off', placeholder: 'Optional' });
+  const emailInput = h('input', { type: 'email', id: 'br-mail-email', maxlength: '254', autocomplete: 'off', placeholder: 'client@email.com', required: true });
+  const noteInput = h('textarea', { id: 'br-mail-note', maxlength: '600', rows: '3', placeholder: 'Short note for the client' });
+  const saved = clients.length ? h('label', { class: 'field' },
+    h('span', { class: 'lbl' }, 'Saved client'),
+    h('select', { id: 'br-mail-saved' },
+      h('option', { value: '' }, 'Type an email'),
+      ...clients.map((client, i) => h('option', { value: String(i) }, client.name ? `${client.name} — ${client.email}` : client.email)))) : null;
+  if (saved) {
+    saved.querySelector('select').addEventListener('change', (ev) => {
+      if (ev.target.value === '') return;
+      const client = clients[Number(ev.target.value)];
+      if (!client) return;
+      nameInput.value = client.name;
+      emailInput.value = client.email;
+    });
+  }
+  const picks = h('div', { class: 'br-pick-groups' }, GROUPS.map((group) => h('div', { class: 'br-picks', role: 'group', 'aria-labelledby': 'br-pick-' + group.id },
+    h('h3', { id: 'br-pick-' + group.id }, group.name),
+    ...group.items.map((item) => h('label', { class: 'check' },
+      h('input', { type: 'checkbox', name: 'br-file', value: item.file }),
+      h('span', {}, item.label))))));
+  const sendBtn = h('button', { type: 'button', class: 'btn primary xl', id: 'br-mail-send' }, 'Send');
+  const showError = (message) => {
+    status.replaceChildren(h('p', { class: 'warn br-mail-err', id: 'br-mail-error' }, message));
+  };
+  const closeBtn = h('button', { type: 'button', class: 'btn sm', id: 'br-mail-close' }, 'Close');
+  const card = h('div', { class: 'card br-mail-card', role: 'document' },
+    h('div', { class: 'row between' }, h('h2', { id: 'br-mail-title' }, 'Email to client'), closeBtn),
+    status,
+    h('p', { class: 'muted' }, 'Sends links to the PDFs. Nothing is attached, and prices stay off the email.'),
+    saved,
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Client name'), nameInput),
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Client email'), emailInput),
+    picks,
+    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Note'), noteInput),
+    sendBtn);
+  const ov = h('div', { class: 'br-mail', id: 'br-mail', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'br-mail-title' }, card);
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const close = () => {
+    document.removeEventListener('keydown', onKey);
+    ov.remove();
+    if (mailPanel && mailPanel.close === close) mailPanel = null;
+  };
+  closeBtn.addEventListener('click', close);
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  sendBtn.addEventListener('click', async () => {
+    const items = selectedBrochures(card);
+    const to = emailInput.value.trim();
+    const customerName = nameInput.value.trim();
+    const note = noteInput.value.trim();
+    if (!items.length) { showError('Choose at least one brochure.'); return; }
+    if (!isClientEmail(to)) { showError('Enter a valid client email.'); emailInput.focus(); return; }
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+    const result = await sendBrochureEmail({ to, customerName, note, files: items.map((item) => item.file) });
+    if (result.ok) {
+      card.querySelectorAll('input, select, textarea').forEach((el) => { el.disabled = true; });
+      sendBtn.textContent = 'Sent';
+      const names = items.map((item) => item.label).join(', ');
+      status.replaceChildren(h('p', { class: 'br-mail-ok', id: 'br-mail-result' }, `Sent to ${to}. Links only, no attachments: ${names}.`));
+      return;
+    }
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send';
+    showError(result.error || 'Email failed.');
+    if (result.fallback) {
+      status.append(h('a', {
+        class: 'btn',
+        id: 'br-mail-mailto',
+        href: mailtoHref({ to, customerName, note, items }),
+      }, 'Open email draft'));
+    }
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.append(ov);
+  mailPanel = { close };
+  emailInput.focus();
+}
+
 function card(item, groupId) {
   return h('button', {
     type: 'button',
@@ -324,7 +456,8 @@ export function render(root) {
   stop();
   const wrap = h('div', { class: 'page brochures' },
     h('h1', {}, 'Brochures'),
-    h('p', { class: 'muted br-lead' }, 'Official Milgard, Andersen and PRL brochures. Tap one to open it here. Back to Brochures stays on screen.'));
+    h('p', { class: 'muted br-lead' }, 'Official Milgard, Andersen and PRL brochures. Tap one to open it here. Back to Brochures stays on screen.'),
+    h('button', { type: 'button', class: 'btn primary br-email-open', id: 'br-email-open', onclick: () => openMail() }, icon('mail'), 'Email to client'));
   for (const group of GROUPS) {
     wrap.append(
       h('section', { class: 'br-group', 'aria-labelledby': 'br-' + group.id },

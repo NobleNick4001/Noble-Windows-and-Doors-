@@ -109,6 +109,18 @@ Do this once, on the Supabase project the app already uses, before anyone relies
 
 After that, Nick does not need the SQL editor to add or remove a rep. Admin → Add rep, or Revoke / Restore.
 
+## Email brochures to a client
+
+Brochures → **Email to client** sends links to the hosted PDFs. The PDFs are not attached. The message has no prices.
+
+It uses the same mailbox as estimate email. From: `Noble Windows & Doors <mgr@noblewandd.com>`. Reply-To: the signed-in rep. Gmail is used when `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, and `GMAIL_REFRESH_TOKEN` are set. Otherwise Resend uses `RESEND_API_KEY`. Those are the existing secret names. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are filled in by Supabase. Do not put the values in git.
+
+Merging the site only updates GitHub Pages. Deploy the function on its own:
+
+`supabase functions deploy send-brochures --project-ref nmyatpcjqfokmfbssimc`
+
+Until that function is deployed, the button offers a mailto draft with the same links. There is no send log: the database has no activity table for this, and brochure sends are not written onto estimates.
+
 ## Pricing files are still public on GitHub Pages
 
 Sign-in does not hide `data/*.json`. GitHub Pages and a raw preview link will still hand those files to anyone who requests the URL, including `data/milgard-onelink.json` and `data/rates.json`. Supabase row security covers estimates and accounts only. The service worker also keeps a copy of those files on a device that has opened the app while signed in.
