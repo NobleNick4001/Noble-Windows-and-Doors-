@@ -5,7 +5,8 @@ import { icon } from '../icons.js';
 import { drawingEl } from '../drawings.js';
 import {
   isPrehungLine, normalizePrehungSheet, defaultPrehungSheet, pricePrehung, stylesFor,
-  prehungImage, prehungSummary, applyPrehungSheet, setPrehungWidth,
+  prehungSummary, applyPrehungSheet, setPrehungWidth, setPrehungChoice, applySheetAdders,
+  migratePrehungEstimate, handingOf,
 } from '../prehung.js';
 
 const draft = Object.assign(
@@ -38,10 +39,10 @@ function moneyHint(amount) {
   return n < 0 ? `−${fmt(Math.abs(n))}` : `+${fmt(n)}`;
 }
 
-function optionAmount(cat, opt, sheet) {
-  if (opt.addByCore) return Number(opt.addByCore[sheet.core]) || 0;
-  if (opt.addByHeight) return Number(opt.addByHeight[sheet.height]) || 0;
-  return Number(opt.add) || 0;
+function optionHint(opt) {
+  if (opt.addByCore) return `solid ${moneyHint(opt.addByCore.solid)} · hollow ${moneyHint(opt.addByCore.hollow)}`;
+  if (opt.addByHeight) return `6'8" ${moneyHint(opt.addByHeight['6-8'])} · 8'0" ${moneyHint(opt.addByHeight['8-0'])}`;
+  return moneyHint(opt.add) || fmt(0);
 }
 
 export function render(root) {
@@ -51,6 +52,7 @@ export function render(root) {
     return;
   }
   const estimate = estimates.current();
+  if (migratePrehungEstimate(cat, estimate)) estimates.persist();
   const sheet = sheetOf(estimate);
   const priced = pricePrehung(cat, sheet);
   const locationOk = String(draft.label || '').trim().length > 0;
@@ -72,13 +74,15 @@ export function render(root) {
     const next = normalizePrehungSheet(cat, { ...sheet, ...patch });
     estimate.prehung = next;
     rememberSheet(next);
-    let touched = false;
-    for (const line of estimate.lines) {
-      if (!isPrehungLine(line)) continue;
-      applyPrehungSheet(cat, line, next);
-      touched = true;
+    const lineKeys = new Set(['core', 'style', 'height', 'double']);
+    const affectsLines = Object.keys(patch).some((key) => !lineKeys.has(key));
+    if (affectsLines) {
+      for (const line of estimate.lines) {
+        if (!isPrehungLine(line)) continue;
+        applySheetAdders(cat, line, next);
+      }
+      estimates.persist();
     }
-    if (touched) estimates.persist();
     render(root);
   };
   const toggleList = (key, id) => {
@@ -89,8 +93,8 @@ export function render(root) {
   };
 
   const menu = h('div', { class: 'card', id: 'door-menu' });
-  menu.append(h('h3', {}, 'Door for this sheet'));
-  menu.append(h('p', { class: 'fine' }, 'Style, core, height, jamb, options, and labor apply to every prehung door on this estimate.'));
+  menu.append(h('h3', {}, 'Next door starts as'));
+  menu.append(h('p', { class: 'fine' }, 'Style, core, height, and single or double are the starting point for the next door. Change them on each line. Jamb, options, and labor apply to every door, and the price follows that door’s height and core.'));
   menu.append(h('div', { class: 'lbl' }, 'Style'));
   menu.append(h('div', { class: 'style-tiles' }, stylesFor(cat, sheet.core).map((style) => h('button', {
     type: 'button',
@@ -100,9 +104,11 @@ export function render(root) {
   }, h('img', { src: style.image?.[sheet.core] || '', alt: '' }), h('span', {}, style.name)))));
   menu.append(chipRow('Core', cat.cores, sheet.core, (id) => setSheet({ core: id }), 'core-'));
   menu.append(chipRow('Height', cat.heights, sheet.height, (id) => setSheet({ height: id }), 'height-'));
+  menu.append(chipRow('Pair', [{ id: 'single', label: 'Single' }, { id: 'double', label: 'Double' }], sheet.double ? 'double' : 'single', (id) => setSheet({ double: id === 'double' }), 'pair-default-'));
+  menu.append(h('div', { class: 'lbl' }, 'Every door'));
   menu.append(chipRow('Jamb', (cat.jambs || []).map((jamb) => ({
     id: jamb.id,
-    label: jamb.id === 'standard' ? jamb.name : `${jamb.name} · ${moneyHint(jamb.add?.[sheet.height]) || fmt(0)}`,
+    label: jamb.id === 'standard' ? jamb.name : `${jamb.name} · +$${jamb.add['6-8']} / +$${jamb.add['8-0']}`,
   })), sheet.jamb, (id) => setSheet({ jamb: id }), 'jamb-'));
 
   const optionBoxes = h('div', { class: 'labor-boxes', id: 'door-options' });
@@ -111,15 +117,10 @@ export function render(root) {
     optionBoxes.append(h('button', {
       type: 'button', class: 'labor-box' + (on ? ' on' : ''), id: 'opt-' + opt.id,
       onclick: () => toggleList('options', opt.id),
-    }, opt.name, h('small', {}, moneyHint(optionAmount(cat, opt, sheet)) || fmt(0))));
+    }, opt.name, h('small', {}, optionHint(opt))));
   }
-  const doubleAdd = Number(cat.doubleDoor?.add?.[sheet.core]?.[sheet.height]) || 0;
-  const doubleHint = cat.doubleDoor?.mode === 'replace' ? `${fmt(doubleAdd)} door price` : moneyHint(doubleAdd);
-  optionBoxes.append(h('button', {
-    type: 'button', class: 'labor-box' + (sheet.double ? ' on' : ''), id: 'opt-double',
-    onclick: () => setSheet({ double: !sheet.double }),
-  }, 'Double door', h('small', {}, doubleHint)));
   menu.append(h('div', { class: 'lbl' }, 'Options'), optionBoxes);
+  menu.append(h('p', { class: 'fine' }, 'A double is priced on top of that door. Cut-down follows the door’s core. The jamb add and the ball-catch credit follow the door’s height.'));
 
   const laborBoxes = h('div', { class: 'labor-boxes', id: 'door-labor' });
   for (const item of cat.labor || []) {
@@ -180,14 +181,18 @@ export function render(root) {
   if (!doors.length) list.append(h('p', { class: 'muted', id: 'door-empty' }, 'No doors on this estimate yet.'));
   doors.forEach((line) => {
     const summary = prehungSummary(cat, line);
-    const src = prehungImage(cat, line.prehung);
+    const choose = (patch) => {
+      setPrehungChoice(cat, line, patch);
+      estimates.persist();
+      render(root);
+    };
     list.append(h('div', { class: 'door-line', id: 'sheet-door-' + line.id },
-      h('img', { src, alt: summary.title }),
+      drawingEl(line, 'line-drawing', { boxW: 168, boxH: 220 }),
       h('div', { class: 'qdraw-txt' },
         h('b', {}, line.label || 'Door'),
         h('div', { class: 'muted' }, summary.title),
         h('div', { class: 'fine' }, summary.detail)),
-      h('b', {}, linePriceText(line)),
+      h('b', { class: 'door-total' }, linePriceText(line)),
       h('button', {
         type: 'button', class: 'x', 'aria-label': 'Remove door',
         onclick: () => {
@@ -195,7 +200,8 @@ export function render(root) {
           estimates.persist();
           render(root);
         },
-      }, icon('x'))));
+      }, icon('x')),
+      lineChoices(cat, line, 'door-' + line.id + '-', choose)));
   });
   if (doors.length) {
     const labor = doors.reduce((sum, line) => sum + (Number(line.installUnit) || 0) * (Number(line.qty) || 1), 0);
@@ -208,9 +214,20 @@ export function render(root) {
   root.replaceChildren(wrap);
 }
 
+function lineChoices(cat, line, idPrefix, onChange) {
+  const spec = line.prehung || {};
+  const hands = (cat.handings || []).map((hand) => ({ id: hand.id, label: handingOf(hand.id).short }));
+  return h('div', { class: 'door-controls' },
+    chipRow('', cat.cores, spec.core, (id) => onChange({ core: id }), idPrefix + 'core-'),
+    chipRow('', cat.heights, spec.height, (id) => onChange({ height: id }), idPrefix + 'height-'),
+    chipRow('', [{ id: 'single', label: 'Single' }, { id: 'double', label: 'Double' }], spec.double ? 'double' : 'single', (id) => onChange({ double: id === 'double' }), idPrefix + 'pair-'),
+    chipRow('', stylesFor(cat, spec.core), spec.style, (id) => onChange({ style: id }), idPrefix + 'style-'),
+    chipRow('', hands, line.handing, (id) => { line.handing = id; onChange({}); }, idPrefix + 'hand-'));
+}
+
 function chipRow(label, items, current, onPick, idPrefix) {
   return h('div', {},
-    h('div', { class: 'lbl' }, label),
+    label ? h('div', { class: 'lbl' }, label) : null,
     h('div', { class: 'chips' }, (items || []).map((item) => h('button', {
       type: 'button',
       class: 'chip pick' + (item.id === current ? ' on' : ''),
@@ -282,14 +299,12 @@ export function prehungEstimateRow(line, idx, estimate, { save, rerender, open }
         oninput: (ev) => setLabel(ev.target.value),
       })),
       chipRow('Width', cat?.widths, line.widthId, (id) => { setPrehungWidth(cat, line, id); save(); rerender(); }, 'edit-width-' + line.id + '-'),
-      h('div', { class: 'lbl' }, 'Handing'),
-      h('div', { class: 'hand-picks' }, (cat?.handings || []).map((hand) => h('button', {
-        type: 'button',
-        class: 'chip pick' + (line.handing === hand.id ? ' on' : ''),
-        onclick: () => { line.handing = hand.id; save(); rerender(); },
-      }, hand.name))),
-      h('p', { class: 'fine' }, 'Style, core, height, jamb, options, and labor are set on Prehung Doors. They apply to every prehung door on this estimate.'),
-      h('a', { href: '#/doors' }, 'Change them on Prehung Doors')));
+      lineChoices(cat, line, 'edit-' + line.id + '-', (patch) => {
+        if (patch && Object.keys(patch).length) setPrehungChoice(cat, line, patch);
+        save();
+        rerender();
+      }),
+      h('p', { class: 'fine' }, 'Jamb, options, and labor are set on Prehung Doors and apply to every door. The price uses this door’s height and core.')));
   }
   return row;
 }

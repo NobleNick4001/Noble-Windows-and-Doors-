@@ -137,7 +137,36 @@ export function prehungQuoteLine(catalog, line, { ascii = false } = {}) {
 
 export function applyPrehungSheet(catalog, line, sheet) {
   const spec = normalizePrehungSheet(catalog, sheet);
-  const priced = pricePrehung(catalog, spec);
+  return stampLine(line, spec, pricePrehung(catalog, spec), catalog);
+}
+
+export function setPrehungWidth(catalog, line, widthId) {
+  const width = byId(catalog?.widths, widthId) || catalog?.widths?.[0];
+  if (!width) return line;
+  line.widthId = width.id;
+  line.w = width.inches;
+  return line;
+}
+
+// Outside view: Left Hand hinges on the left, Right Hand on the right.
+// Inswing opens away from that view. On a pair, handing names the active leaf.
+export function handingOf(id) {
+  const all = {
+    lhi: { id: 'lhi', hand: 'left', swing: 'in', short: 'LH Inswing', active: 'left' },
+    rhi: { id: 'rhi', hand: 'right', swing: 'in', short: 'RH Inswing', active: 'right' },
+    lho: { id: 'lho', hand: 'left', swing: 'out', short: 'LH Outswing', active: 'left' },
+    rho: { id: 'rho', hand: 'right', swing: 'out', short: 'RH Outswing', active: 'right' },
+  };
+  return all[id] || all.lhi;
+}
+
+export function handingLabel(line) {
+  const mark = handingOf(line?.handing);
+  if (line?.prehung?.double) return `${mark.short} · active ${mark.active}`;
+  return mark.short;
+}
+
+function stampLine(line, spec, priced, catalog) {
   const height = byId(catalog?.heights, spec.height);
   line.brand = 'prehung';
   line.series = 'interior';
@@ -148,9 +177,9 @@ export function applyPrehungSheet(catalog, line, sheet) {
     style: spec.style,
     height: spec.height,
     jamb: spec.jamb,
-    options: [...spec.options],
-    double: spec.double,
-    labor: [...spec.labor],
+    options: [...(spec.options || [])],
+    double: !!spec.double,
+    labor: [...(spec.labor || [])],
   };
   if (height) line.h = height.inches;
   line.unit = priced.material;
@@ -172,10 +201,65 @@ export function applyPrehungSheet(catalog, line, sheet) {
   return line;
 }
 
-export function setPrehungWidth(catalog, line, widthId) {
-  const width = byId(catalog?.widths, widthId) || catalog?.widths?.[0];
-  if (!width) return line;
-  line.widthId = width.id;
-  line.w = width.inches;
-  return line;
+export function repricePrehungLine(catalog, line) {
+  const spec = normalizePrehungSheet(catalog, line?.prehung || {});
+  return stampLine(line, spec, pricePrehung(catalog, spec), catalog);
+}
+
+// Style, core, height, and single/double belong to the line. Jamb, options, and labor stay.
+export function setPrehungChoice(catalog, line, patch) {
+  line.prehung = { ...(line.prehung || {}), ...patch };
+  return repricePrehungLine(catalog, line);
+}
+
+// Copy sheet-level jamb, options, and labor onto a line. Leave its style, core, height, and pair.
+export function applySheetAdders(catalog, line, sheet) {
+  const cur = line.prehung || {};
+  const spec = normalizePrehungSheet(catalog, sheet);
+  line.prehung = {
+    core: cur.core || spec.core,
+    style: cur.style || spec.style,
+    height: cur.height || spec.height,
+    double: cur.double != null ? !!cur.double : !!spec.double,
+    jamb: spec.jamb,
+    options: [...spec.options],
+    labor: [...spec.labor],
+  };
+  return repricePrehungLine(catalog, line);
+}
+
+function specKey(spec) {
+  const s = spec || {};
+  return [s.core, s.style, s.height, s.double ? 1 : 0, s.jamb, (s.options || []).join(','), (s.labor || []).join(',')].join('|');
+}
+
+// Older estimates stored one style, core, and height for the whole sheet.
+// A line that is missing any of those keeps the others and fills the gap from the sheet.
+export function migratePrehungEstimate(catalog, estimate) {
+  if (!catalog || !estimate) return false;
+  const sheet = normalizePrehungSheet(catalog, estimate.prehung || {});
+  let changed = false;
+  if (!estimate.prehung) {
+    estimate.prehung = sheet;
+    changed = true;
+  }
+  for (const line of estimate.lines || []) {
+    if (!isPrehungLine(line)) continue;
+    const cur = line.prehung || {};
+    const before = specKey(cur);
+    const prevUnit = line.unit;
+    const prevLabor = line.installUnit;
+    line.prehung = {
+      core: cur.core || sheet.core,
+      style: cur.style || sheet.style,
+      height: cur.height || sheet.height,
+      double: cur.double != null ? !!cur.double : !!sheet.double,
+      jamb: cur.jamb || sheet.jamb,
+      options: Array.isArray(cur.options) ? [...cur.options] : [...sheet.options],
+      labor: Array.isArray(cur.labor) ? [...cur.labor] : [...sheet.labor],
+    };
+    repricePrehungLine(catalog, line);
+    if (specKey(line.prehung) !== before || line.unit !== prevUnit || line.installUnit !== prevLabor) changed = true;
+  }
+  return changed;
 }

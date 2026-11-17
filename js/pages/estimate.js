@@ -1,6 +1,6 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine } from '../core.js';
 import { prehungEstimateRow } from './prehung-ui.js';
-import { prehungSizeText, prehungSummary } from '../prehung.js';
+import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
@@ -223,6 +223,7 @@ export function render(root) {
   sendUi.confirm = '';
   const view = captureView();
   const e = estimates.current();
+  if (migratePrehungEstimate(data.prehung, e)) estimates.persist();
   e.extras ||= [];
   e.stuccoRepair ||= { on: false, qty: null };
   e.promoCode ??= '';
