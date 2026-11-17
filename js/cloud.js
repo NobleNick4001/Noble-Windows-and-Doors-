@@ -111,6 +111,7 @@ export function toRow(e, ownerId) {
     status: e.status || 'draft',
     presented_at: e.presentedAt || null,
     signed_at: e.signedAt || null,
+    lost_at: e.lostAt || null,
   };
   if (e.sentAt) row.sent_at = e.sentAt;
   if (e.sentTo) row.sent_to = e.sentTo;
@@ -140,6 +141,7 @@ export function fromRow(row) {
   if (row.hubspot_deal_id) e.hubspotDealId = row.hubspot_deal_id;
   if (row.presented_at) e.presentedAt = row.presented_at;
   if (row.signed_at) e.signedAt = row.signed_at;
+  if (row.lost_at) e.lostAt = row.lost_at;
   if (row.sent_at) e.sentAt = row.sent_at;
   if (row.sent_to) e.sentTo = row.sent_to;
   if (row.updated_at) e.updated = Date.parse(row.updated_at);
@@ -308,7 +310,11 @@ async function doFlush() {
           const saved = await insertContract(sb, e, session.user.id);
           if (!saved) left.push('contract');
         }
-        if (item.ops.includes('signed') || item.ops.includes('presented')) {
+        if (item.ops.includes('lost')) {
+          const hub = await syncHubspot(e, 'lost', { quiet: true });
+          if (item.remoteId === focusRemote) hubReport = hub;
+          if (!hub.ok && !hub.skipped) left.push('lost');
+        } else if (item.ops.includes('signed') || item.ops.includes('presented')) {
           const event = item.ops.includes('signed') ? 'signed' : 'presented';
           const hub = await syncHubspot(e, event, { quiet: true, followUp: item.ops.includes('followup') });
           if (item.remoteId === focusRemote) hubReport = hub;
@@ -351,7 +357,7 @@ async function insertContract(sb, e, ownerId) {
 }
 
 async function pull(sb) {
-  const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, sent_at, sent_to, updated_at, deleted_at, profiles!owner_id(full_name, email), contracts(id, signed_at)').order('updated_at', { ascending: false });
+  const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, lost_at, sent_at, sent_to, updated_at, deleted_at, profiles!owner_id(full_name, email), contracts(id, signed_at)').order('updated_at', { ascending: false });
   if (error || !data) return;
   const queued = new Set(loadQueue().map((q) => q.remoteId));
   const all = estimates.all();
@@ -474,10 +480,14 @@ export async function markPresented(e, opts = {}) {
     estimates.save(e);
     return { ok: true, signed: true };
   }
+  if (e.status === 'lost') {
+    toast('This estimate is lost.');
+    return { ok: false };
+  }
   e.status = 'presented';
   e.presentedAt = e.presentedAt || new Date().toISOString();
   estimates.save(e);
-  addOps(e.remoteId, opts.followUp ? ['presented', 'followup'] : ['presented']);
+  addOps(e.remoteId, ['presented', 'followup']);
   const hub = await flushFocused(e.remoteId);
   if (!opts.quiet) {
     if (hub?.ok && hub.data?.task_error) toast('Marked presented. The follow-up task was not created.');
@@ -486,6 +496,109 @@ export async function markPresented(e, opts = {}) {
     else toast('Marked presented and saved. HubSpot sync is not available yet.');
   }
   return hub || { ok: false, skipped: true };
+}
+
+export async function markLost(e) {
+  if (e.status !== 'presented') {
+    toast('Only a presented estimate can be marked lost.');
+    return { ok: false };
+  }
+  ensureRemote(e);
+  e.status = 'lost';
+  e.lostAt = new Date().toISOString();
+  estimates.save(e);
+  addOps(e.remoteId, ['lost']);
+  const hub = await flushFocused(e.remoteId);
+  if (hub?.ok) toast('Marked lost. HubSpot deal moved to Closed Lost.');
+  else toast('Marked lost and saved. HubSpot sync is not available yet.');
+  return hub || { ok: false, skipped: true };
+}
+
+export async function recordAppointment(e) {
+  if (!e?.customer?.name && !(e.lines || []).length) {
+    toast('Add a customer or a window first.');
+    return { ok: false };
+  }
+  ensureRemote(e);
+  estimates.save(e);
+  await flush();
+  const sb = await getSupabase();
+  if (!sb || !me) return { ok: false, error: 'Sign in to record an appointment.' };
+  const { error } = await sb.from('appointments').insert({
+    estimate_id: e.remoteId,
+    owner_id: e.ownerId || me,
+    set_at: new Date().toISOString(),
+    source: 'app',
+  });
+  if (error) {
+    toast(error.message);
+    return { ok: false, error: error.message };
+  }
+  toast('Appointment set.');
+  return { ok: true };
+}
+
+export async function loadFollowUps() {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Sign in to see follow-ups.', rows: [] };
+  const { data, error } = await sb.from('follow_ups')
+    .select('id, estimate_id, owner_id, hubspot_task_id, due_at, status, completed_at, created_at, estimates(customer_name, total_amount, status), profiles!owner_id(full_name, email)')
+    .eq('status', 'open')
+    .order('due_at', { ascending: true });
+  if (error) return { error: error.message, rows: [] };
+  return { rows: data || [] };
+}
+
+export async function completeFollowUp(id) {
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'Sign in to complete a follow-up.' };
+  const { data, error } = await sb.functions.invoke('hubspot-sync', {
+    body: { action: 'complete-followup', followUpId: id },
+  });
+  if (error || !data?.ok) return { ok: false, error: data?.error || 'The follow-up was not completed.' };
+  return { ok: true, data };
+}
+
+export async function loadReportSource() {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Sign in to open the weekly report.' };
+  const [profiles, estimates, followUps, appointments, activity] = await Promise.all([
+    sb.from('profiles').select('id, email, full_name, role, hubspot_owner_id'),
+    sb.from('estimates').select('id, owner_id, customer_name, status, total_amount, presented_at, signed_at, lost_at, updated_at, created_at, deleted_at'),
+    sb.from('follow_ups').select('id, estimate_id, owner_id, due_at, status, completed_at, created_at, updated_at'),
+    sb.from('appointments').select('id, estimate_id, owner_id, set_at, source'),
+    sb.from('assistant_audit').select('estimate_id, created_at'),
+  ]);
+  const err = profiles.error || estimates.error || followUps.error || appointments.error || activity.error;
+  if (err) return { error: err.message };
+  return {
+    reps: profiles.data || [],
+    estimates: estimates.data || [],
+    followUps: followUps.data || [],
+    appointments: appointments.data || [],
+    activity: activity.data || [],
+  };
+}
+
+export async function loadHubspotOwners() {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.', people: [] };
+  const { data, error } = await sb.from('profiles').select('email, hubspot_owner_id');
+  if (error) return { error: error.message, people: [] };
+  return { people: data || [] };
+}
+
+export async function setHubspotOwner(email, ownerId) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.' };
+  const { error } = await sb.rpc('admin_set_hubspot_owner', {
+    p_email: String(email || '').trim().toLowerCase(),
+    p_owner_id: String(ownerId || '').trim(),
+  });
+  if (error) return { error: error.message };
+  return { ok: true };
 }
 
 export async function sendEstimateEmail(e, pdfBase64) {

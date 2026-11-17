@@ -15,3 +15,9 @@ verify_jwt = true
 
 [functions.account-passwords]
 verify_jwt = true
+
+[functions.daily-digest]
+verify_jwt = false
+
+[functions.weekly-report]
+verify_jwt = false

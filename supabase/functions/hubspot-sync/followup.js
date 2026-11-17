@@ -1,11 +1,21 @@
 // Follow-up task due date and title. No network.
 // Business days are counted on the Phoenix calendar (UTC-7, no daylight saving).
 
-const PHOENIX_MS = 7 * 60 * 60 * 1000;
+export const PHOENIX_MS = 7 * 60 * 60 * 1000;
+
+export function phoenixParts(from) {
+  const shifted = new Date(new Date(from).getTime() - PHOENIX_MS);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth(),
+    day: shifted.getUTCDate(),
+    dow: shifted.getUTCDay(),
+  };
+}
 
 function phoenixDate(from) {
-  const shifted = new Date(from.getTime() - PHOENIX_MS);
-  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()));
+  const p = phoenixParts(from);
+  return new Date(Date.UTC(p.year, p.month, p.day));
 }
 
 export function addBusinessDays(from, days) {
@@ -40,4 +50,19 @@ export function matchOwner(owners, email) {
   const want = String(email || '').trim().toLowerCase();
   if (!want) return null;
   return (owners || []).find((owner) => String(owner?.email || '').trim().toLowerCase() === want) || null;
+}
+
+// Prefer the id Nick stored on the rep. Fall back to the current email match.
+export function resolveTaskOwner({ hubspotOwnerId, owners, email } = {}) {
+  const id = String(hubspotOwnerId || '').trim();
+  if (id) return { ownerId: id, source: 'profile' };
+  const owner = matchOwner(owners, email);
+  if (owner?.id) return { ownerId: String(owner.id), source: 'email' };
+  return { ownerId: null, source: 'email' };
+}
+
+// An open follow-up that already has a HubSpot task is not created again.
+export function shouldCreateFollowUp(existing) {
+  if (!existing || existing.status !== 'open') return true;
+  return !String(existing.hubspot_task_id || '').trim();
 }

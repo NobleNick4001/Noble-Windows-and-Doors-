@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Sales assistant preview</title>
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<header class="top" id="chrome">
+  <a class="brand" href="#/calculator"><img src="../assets/noble-logo-trim.png" alt="Noble Windows & Doors LLC"></a>
+  <nav id="nav"></nav>
+  <div id="account"></div>
+</header>
+<main id="app"></main>
+<script type="module">
+import { h, fmt } from '../js/core.js';
+import { icon } from '../js/icons.js';
+import { mountAccounts } from '../js/pages/accounts.js';
+import { lostConfirm } from '../js/pages/lost.js';
+import { countDue, followUpCards } from '../js/pages/followups.js';
+import { reportPage } from '../js/pages/report.js';
+import {
+  buildDigestHtml, buildWeeklyHtml, buildWeeklyReport, digestPlan, digestSubject, weekRange,
+} from '../supabase/functions/_shared/assistant.js';
+
+const NOW = new Date('2026-11-17T16:00:00.000Z');
+const shot = new URLSearchParams(location.search).get('shot') || 'badge';
+
+const FOLLOWUPS = [
+  { id: 'fu-overdue', status: 'open', due_at: '2026-11-17T00:00:00.000Z', estimates: { customer_name: 'Janice Williams', total_amount: 8888.33 }, profiles: { full_name: 'Eric Havins' } },
+  { id: 'fu-today', status: 'open', due_at: '2026-11-18T00:00:00.000Z', estimates: { customer_name: 'Robert Alvarez', total_amount: 3144.46 }, profiles: { full_name: 'Eric Havins' } },
+  { id: 'fu-later', status: 'open', due_at: '2026-11-19T00:00:00.000Z', estimates: { customer_name: 'Priya Shah', total_amount: 6420 }, profiles: { full_name: 'Eric Havins' } },
+];
+const due = countDue(FOLLOWUPS, NOW);
+
+const PEOPLE = [
+  { email: 'nick@example.com', full_name: 'Nicholas Sommer', role: 'admin', created_at: '2026-01-04T16:10:00Z', last_sign_in_at: '2026-11-16T18:40:00Z', signed_up: true, revoked: false, must_change_password: false, on_list: true, hubspot_owner_id: '1001' },
+  { email: 'eric@example.com', full_name: 'Eric Havins', role: 'sales', created_at: '2026-03-12T15:10:00Z', last_sign_in_at: '2026-11-16T21:04:00Z', signed_up: true, revoked: false, must_change_password: false, on_list: true, hubspot_owner_id: '2044' },
+  { email: 'mike@example.com', full_name: 'Mike', role: 'sales', created_at: '2026-08-01T15:00:00Z', last_sign_in_at: '2026-11-12T17:30:00Z', signed_up: true, revoked: false, must_change_password: false, on_list: true, hubspot_owner_id: '' },
+];
+
+const eric = { id: 'eric', full_name: 'Eric Havins', email: 'eric@example.com', role: 'sales' };
+const mike = { id: 'mike', full_name: 'Mike', email: 'mike@example.com', role: 'sales', hubspot_owner_id: '' };
+const week = weekRange(NOW);
+const report = buildWeeklyReport({
+  reps: [eric, mike],
+  estimates: [
+    { id: 'e1', owner_id: 'eric', customer_name: 'Ada Cole', status: 'signed', total_amount: 12450, presented_at: '2026-11-10T18:00:00.000Z', signed_at: '2026-11-12T18:00:00.000Z', updated_at: '2026-11-12T18:00:00.000Z' },
+    { id: 'e2', owner_id: 'eric', customer_name: 'Bea Ortiz', status: 'lost', total_amount: 4200, presented_at: '2026-11-10T18:00:00.000Z', lost_at: '2026-11-13T18:00:00.000Z', updated_at: '2026-11-13T18:00:00.000Z' },
+    { id: 'e3', owner_id: 'eric', customer_name: 'Cam Nguyen', status: 'presented', total_amount: 8600, presented_at: '2026-11-01T18:00:00.000Z', updated_at: '2026-11-01T18:00:00.000Z', created_at: '2026-11-01T18:00:00.000Z' },
+    { id: 'e4', owner_id: 'mike', customer_name: 'Dee Patel', status: 'presented', total_amount: 5300, presented_at: '2026-11-14T18:00:00.000Z', updated_at: '2026-11-15T18:00:00.000Z', created_at: '2026-11-14T18:00:00.000Z' },
+    { id: 'e5', owner_id: 'mike', customer_name: 'Evan Brooks', status: 'signed', total_amount: 2750, presented_at: '2026-11-11T18:00:00.000Z', signed_at: '2026-11-14T18:00:00.000Z', updated_at: '2026-11-14T18:00:00.000Z' },
+  ],
+  followUps: [
+    { id: 'f1', owner_id: 'eric', estimate_id: 'e4', due_at: '2026-11-12T00:00:00.000Z', status: 'done', completed_at: '2026-11-12T18:00:00.000Z', created_at: '2026-11-10T18:00:00.000Z', updated_at: '2026-11-12T18:00:00.000Z' },
+    { id: 'f2', owner_id: 'eric', estimate_id: 'e3', due_at: '2026-11-05T00:00:00.000Z', status: 'open', created_at: '2026-11-01T18:00:00.000Z', updated_at: '2026-11-01T18:00:00.000Z' },
+    { id: 'f3', owner_id: 'mike', estimate_id: 'e4', due_at: '2026-11-14T00:00:00.000Z', status: 'open', created_at: '2026-11-12T18:00:00.000Z', updated_at: '2026-11-12T18:00:00.000Z' },
+  ],
+  appointments: [
+    { owner_id: 'eric', estimate_id: 'e1', set_at: '2026-11-10T18:00:00.000Z', source: 'app' },
+    { owner_id: 'mike', estimate_id: 'e5', set_at: '2026-11-11T18:00:00.000Z', source: 'hubspot' },
+  ],
+  activity: [],
+}, week);
+
+const NAV = [
+  ['calculator', 'Calculator', 'calculator'],
+  ['doors', 'Doors', 'door'],
+  ['estimate', 'Estimate', 'estimate'],
+  ['admin', 'Admin', 'user'],
+  ['accounts', 'Accounts', 'shield'],
+  ['saved', 'Mine', 'folder'],
+  ['followups', 'Follow-ups', 'followups'],
+  ['options', 'Options', 'options'],
+];
+const active = shot === 'accounts' ? 'accounts' : shot === 'report' ? 'admin' : shot === 'followups' || shot === 'badge' ? (shot === 'badge' ? 'saved' : 'followups') : 'estimate';
+const nav = document.getElementById('nav');
+nav.replaceChildren(...NAV.map(([id, label, ico]) => {
+  const link = h('a', { href: '#/' + id, class: id === active ? 'on' : '' }, icon(ico, 'ico'), h('span', { class: 'nl' }, label));
+  if (id === 'followups' && due > 0) {
+    link.append(h('span', { class: 'nav-badge', id: 'followup-badge' }, String(due)));
+  }
+  return link;
+}));
+document.getElementById('account').replaceChildren(h('span', { class: 'who' }, shot === 'accounts' || shot === 'report' ? 'Nicholas Sommer' : 'Eric Havins'));
+
+const app = document.getElementById('app');
+if (shot === 'email-digest' || shot === 'email-weekly') {
+  document.getElementById('chrome').style.display = 'none';
+  document.body.style.background = '#eef1f4';
+  const plans = digestPlan({
+    reps: [{ id: 'eric', email: 'eric@example.com', full_name: 'Eric Havins' }],
+    followUps: FOLLOWUPS.map((row) => ({ ...row, owner_id: 'eric', estimate_id: row.id })),
+    now: NOW,
+  });
+  const html = shot === 'email-digest'
+    ? buildDigestHtml({ repName: plans[0].repName, items: plans[0].items, now: NOW })
+    : buildWeeklyHtml(report);
+  document.title = shot === 'email-digest' ? digestSubject(NOW) : 'Weekly sales report';
+  app.replaceChildren(h('iframe', { id: 'email-preview', title: document.title, srcdoc: html, style: 'width:100%;height:100vh;border:0;background:#eef1f4' }));
+} else if (shot === 'followups') {
+  app.replaceChildren(h('div', { class: 'page', id: 'followups-page' },
+    h('h1', {}, 'Follow-ups'),
+    h('p', { class: 'fine' }, 'Open follow-ups for your jobs. The orange badge counts what is due today or overdue.'),
+    followUpCards(FOLLOWUPS, { now: NOW, onDone() {} })));
+} else if (shot === 'lost') {
+  app.replaceChildren(h('div', { class: 'page' },
+    h('div', { class: 'row between wrap' },
+      h('div', {}, h('h1', {}, 'Estimate'), h('div', { class: 'muted' }, 'NWD-1042 · November 14, 2026 · Presented')),
+      h('div', { class: 'row wrap gap' },
+        h('button', { type: 'button', class: 'btn', id: 'btn-presented' }, 'Mark presented'),
+        h('button', { type: 'button', class: 'btn danger', id: 'btn-lost' }, 'Lost'))),
+    h('div', { class: 'card' },
+      h('h3', {}, 'Customer'),
+      h('b', {}, 'Janice Williams'),
+      h('div', { class: 'muted' }, '412 W Orangewood Ave, Phoenix'),
+      h('div', { class: 'line big2' }, h('span', {}, 'Total'), h('b', {}, fmt(8888.33)))),
+    lostConfirm({ customer: 'Janice Williams', total: 8888.33, busy: false, onCancel() {}, onConfirm() {} })));
+} else if (shot === 'accounts') {
+  mountAccounts(app, {
+    selfEmail: 'nick@example.com',
+    initial: { people: PEOPLE },
+    load: async () => ({ people: PEOPLE }),
+    sendReset: async () => ({ ok: true }),
+    setTemp: async (_email, password) => ({ ok: true, temporaryPassword: password, signedOut: true }),
+    setOwner: async (email, ownerId) => {
+      const person = PEOPLE.find((row) => row.email === email);
+      if (person) person.hubspot_owner_id = String(ownerId || '').trim();
+      return { ok: true };
+    },
+  });
+} else if (shot === 'report') {
+  app.replaceChildren(reportPage(report, { onPrev() {}, onNext() {} }));
+} else {
+  app.replaceChildren(h('div', { class: 'page' },
+    h('div', { class: 'row between wrap gap' }, h('h1', {}, 'My estimates'), h('button', { class: 'btn primary' }, '+ New estimate')),
+    h('div', { class: 'card lineitem current' },
+      h('div', { class: 'li-main' },
+        h('div', { class: 'li-text' },
+          h('b', {}, 'Janice Williams'),
+          h('div', { class: 'muted' }, 'You · Eric Havins'),
+          h('div', { class: 'muted' }, 'NWD-1042 · Presented · November 14, 2026 · 6 windows')),
+        h('div', { class: 'li-price' }, h('b', {}, fmt(8888.33)))),
+      h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm' }, 'Open'), h('button', { class: 'btn sm danger', id: 'btn-lost-sample' }, 'Lost')))));
+}
+</script>
+</body>
+</html>
