@@ -6,6 +6,7 @@ import { icon as uiIcon } from '../icons.js';
 
 const calc = Object.assign({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: '', h: '', qty: 1, unitsPerLine: 1, label: '', options: null, addons: [], supplierPrice: '', customDescription: '', details: false, install: null }, store.get('nwd.calc', {}));
 const persist = () => store.set('nwd.calc', calc);
+export function openBrand(id) { calc.brand = id; persist(); }
 
 function knownOptionIds() {
   const ids = new Set([...(data.options.glass || []), ...(data.options.frame || [])].map((o) => o.id));
@@ -193,7 +194,7 @@ export function render(root) {
   }
   const view = captureView();
   const wrap = h('div', { class: 'page calc' });
-  const tabs = h('div', { class: 'tabs seg' }, data.rates.brands.map((b) => h('button', { class: 'seg-btn' + (b.id === calc.brand ? ' on' : ''), onclick: () => { calc.brand = b.id; persist(); rerender(); } }, b.name, b.status !== 'active' && h('small', {}, ' soon'))));
+  const tabs = h('div', { class: 'tabs seg' }, ...data.rates.brands.map((b) => h('button', { type: 'button', class: 'seg-btn' + (b.id === calc.brand ? ' on' : ''), onclick: () => { calc.brand = b.id; persist(); rerender(); } }, b.name, b.status !== 'active' && h('small', {}, ' soon'))), h('button', { type: 'button', class: 'seg-btn', id: 'tab-prehung', onclick: () => { location.hash = '#/doors'; } }, 'Prehung Doors'));
   wrap.append(h('h1', {}, 'Price Calculator'), tabs);
 
   if (brand.status !== 'active' || !brand.series.length) {

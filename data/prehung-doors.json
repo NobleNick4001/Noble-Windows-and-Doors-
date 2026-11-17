@@ -1,0 +1,106 @@
+{
+  "source": "OrePac Phoenix prehung net sheet OP-PH-1122, Steves doors. Every amount in this file is already the customer price. The app does not mark it up.",
+  "widths": [
+    { "id": "1-6", "label": "1/6", "inches": 18 },
+    { "id": "2-0", "label": "2/0", "inches": 24 },
+    { "id": "2-4", "label": "2/4", "inches": 28 },
+    { "id": "2-6", "label": "2/6", "inches": 30 },
+    { "id": "2-8", "label": "2/8", "inches": 32 },
+    { "id": "3-0", "label": "3/0", "inches": 36 }
+  ],
+  "heights": [
+    { "id": "6-8", "label": "6'8\"", "inches": 80 },
+    { "id": "8-0", "label": "8'0\"", "inches": 96 }
+  ],
+  "cores": [
+    {
+      "id": "solid",
+      "name": "Solid core",
+      "detail": "Stile and rail shaker",
+      "prices": { "6-8": 330, "8-0": 500 }
+    },
+    {
+      "id": "hollow",
+      "name": "Hollow core",
+      "detail": "Flat panel molded shaker",
+      "prices": { "6-8": 280, "8-0": 450 }
+    }
+  ],
+  "styles": [
+    {
+      "id": "1-panel",
+      "name": "1 Panel",
+      "cores": ["solid", "hollow"],
+      "image": {
+        "solid": "assets/doors/solid-1-panel-shaker.jpg",
+        "hollow": "assets/doors/hollow-1-panel-shaker.jpg"
+      }
+    },
+    {
+      "id": "2-panel",
+      "name": "2 Panel",
+      "cores": ["solid", "hollow"],
+      "image": {
+        "solid": "assets/doors/solid-2-panel-shaker.jpg",
+        "hollow": "assets/doors/hollow-2-panel-shaker.jpg"
+      }
+    },
+    {
+      "id": "3-panel-equal",
+      "name": "3 Panel Equal",
+      "cores": ["solid", "hollow"],
+      "image": {
+        "solid": "assets/doors/solid-3-panel-equal-shaker.jpg",
+        "hollow": "assets/doors/hollow-3-panel-equal-shaker.jpg"
+      }
+    },
+    {
+      "id": "3-panel-craftsman",
+      "name": "3 Panel Craftsman",
+      "cores": ["solid", "hollow"],
+      "image": {
+        "solid": "assets/doors/solid-3-panel-craftsman.jpg",
+        "hollow": "assets/doors/hollow-3-panel-craftsman.jpg"
+      }
+    },
+    {
+      "id": "5-panel",
+      "name": "5 Panel",
+      "cores": ["solid"],
+      "image": {
+        "solid": "assets/doors/solid-5-panel-shaker.jpg"
+      }
+    }
+  ],
+  "jambs": [
+    { "id": "standard", "name": "Standard", "add": { "6-8": 0, "8-0": 0 } },
+    { "id": "6-5-8", "name": "6-5/8\"", "add": { "6-8": 24, "8-0": 30 } },
+    { "id": "7-1-2", "name": "7-1/2\"", "add": { "6-8": 36, "8-0": 44 } }
+  ],
+  "options": [
+    { "id": "rip-jamb", "name": "Rip jamb width", "add": 20 },
+    { "id": "kerf", "name": "Drywall kerf jamb", "add": 20 },
+    { "id": "cut-down", "name": "Cut down height", "addByCore": { "solid": 40, "hollow": 60 } },
+    { "id": "ball-catch", "name": "Ball catches instead of latch", "addByHeight": { "6-8": -20, "8-0": -30 } }
+  ],
+  "doubleDoor": {
+    "mode": "add",
+    "note": "mode \"add\" puts this amount on top of the single-door price. Change mode to \"replace\" to use this amount as the door price instead of the single-door price. Jamb, rip, kerf, cut down, and ball catch still apply either way. This double-door amount is not confirmed yet.",
+    "add": {
+      "solid": { "6-8": 670, "8-0": 990 },
+      "hollow": { "6-8": 590, "8-0": 900 }
+    }
+  },
+  "labor": [
+    { "id": "install", "name": "Standard door install", "price": 225, "defaultOn": true },
+    { "id": "casing", "name": "Casing install, both sides", "price": 50, "defaultOn": false },
+    { "id": "removal", "name": "Removal of old door", "price": 25, "defaultOn": false },
+    { "id": "hardware", "name": "Hardware installation", "price": 15, "defaultOn": false }
+  ],
+  "handings": [
+    { "id": "lhi", "name": "Left Hand Inswing" },
+    { "id": "rhi", "name": "Right Hand Inswing" },
+    { "id": "lho", "name": "Left Hand Outswing" },
+    { "id": "rho", "name": "Right Hand Outswing" }
+  ]
+}

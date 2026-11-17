@@ -196,10 +196,12 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   ensure(calc);
   const wrap = h('div', { class: 'page calc calc-milgard' });
   wrap.append(h('h1', {}, 'Price Calculator'));
-  wrap.append(h('div', { class: 'tabs seg' }, data.rates.brands.map((b) => h('button', {
+  wrap.append(h('div', { class: 'tabs seg' }, ...data.rates.brands.map((b) => h('button', {
     type: 'button', class: 'seg-btn' + (b.id === 'milgard' ? ' on' : ''),
     onclick: () => { calc.brand = b.id; persist(); rerender(); },
-  }, b.name, b.status !== 'active' && h('small', {}, ' soon')))));
+  }, b.name, b.status !== 'active' && h('small', {}, ' soon'))), h('button', {
+    type: 'button', class: 'seg-btn', id: 'tab-prehung', onclick: () => { location.hash = '#/doors'; },
+  }, 'Prehung Doors')));
 
   const priceEl = h('div', { class: 'big', id: 'price-window' }, '—');
   const unitEl = h('div', { class: 'sub', id: 'price-unit' }, 'per unit');

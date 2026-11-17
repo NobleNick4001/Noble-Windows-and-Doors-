@@ -36,6 +36,18 @@ const GROUPS = [
       { file: 'brochures/prl-bottom-rolling-bifold-door.pdf', label: 'PRL Bottom Rolling Bi-Fold Door' },
     ],
   },
+  {
+    id: 'therma-tru',
+    name: 'Therma-Tru / Entry Doors',
+    items: [
+      { file: 'brochures/why-therma-tru-flyer-2026.pdf', label: 'Why Therma-Tru flyer 2026' },
+      { file: 'brochures/therma-tru-classic-craft-brochure-2026.pdf', label: 'Classic-Craft brochure 2026' },
+      { file: 'brochures/therma-tru-enliten-flush-glazed-catalog.pdf', label: 'Enliten full-lite and flush glazed catalog' },
+      { file: 'brochures/therma-tru-prismaguard-brochure.pdf', label: 'PrismaGuard finishes brochure' },
+      { file: 'brochures/orepac-therma-tru-southwest-region-catalog.pdf', label: 'OrePac Therma-Tru Southwest Region catalog' },
+      { file: 'brochures/therma-tru-fiberglass-steel-catalog-2026.pdf', label: 'Fiberglass & Steel catalog 2026' },
+    ],
+  },
 ];
 
 let viewer = null;
@@ -459,7 +471,7 @@ export function render(root) {
   stop();
   const wrap = h('div', { class: 'page brochures' },
     h('h1', {}, 'Brochures'),
-    h('p', { class: 'muted br-lead' }, 'Official Milgard, Andersen and PRL brochures. Tap one to open it here. Back to Brochures stays on screen.'),
+    h('p', { class: 'muted br-lead' }, 'Official Milgard, Andersen, PRL, and Therma-Tru brochures. Tap one to open it here. Back to Brochures stays on screen.'),
     h('button', { type: 'button', class: 'btn primary br-email-open', id: 'br-email-open', onclick: () => openMail() }, icon('mail'), 'Email to client'));
   for (const group of GROUPS) {
     wrap.append(

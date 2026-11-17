@@ -2,6 +2,7 @@
 import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine } from './core.js';
 import { currentProfile } from './cloud.js';
 import { windowDrawingSVG } from './drawings.js';
+import { isPrehungLine, prehungImage } from './prehung.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -448,10 +449,20 @@ function svgToPng(svg, w, h) {
 
 // The emailed PDF keeps the line drawing it already had if the SVG will not rasterize.
 async function lineDrawingImage(line) {
+  if (isPrehungLine(line)) {
+    const src = prehungImage(data.prehung, line.prehung || line);
+    if (!src) return null;
+    try {
+      const img = await loadImage(src);
+      return img?.data ? { url: img.data, w: img.w, h: img.h, fmt: img.fmt || 'JPEG' } : null;
+    } catch {
+      return null;
+    }
+  }
   try {
     const drawn = windowDrawingSVG(line, { boxW: 280, boxH: 230 });
     const url = await svgToPng(drawn.svg, 280, 230);
-    return url ? { url, w: 280, h: 230 } : null;
+    return url ? { url, w: 280, h: 230, fmt: 'PNG' } : null;
   } catch {
     return null;
   }
@@ -660,7 +671,7 @@ export async function makeEstimatePdf(e, opts = {}) {
       let ih = iw * (item.drawing.h / item.drawing.w);
       if (ih > maxH) { ih = maxH; iw = ih * (item.drawing.w / item.drawing.h); }
       const ix = x + (cols[1].w - iw) / 2;
-      try { doc.addImage(item.drawing.url, 'PNG', ix, y + 2, iw, ih); }
+      try { doc.addImage(item.drawing.url, item.drawing.fmt || 'PNG', ix, y + 2, iw, ih); }
       catch { drawElevation(doc, x, cols[1].w, y + 2, item.line, item.size); }
     } else if (item.line) drawElevation(doc, x, cols[1].w, y + 2, item.line, item.size);
     x += cols[1].w;
