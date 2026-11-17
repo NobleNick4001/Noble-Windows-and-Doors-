@@ -34,6 +34,7 @@ export const ICON = {
   grid: stroke('<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M12 4v16M4 12h16"/>'),
   screen: stroke('<rect x="4.5" y="3.5" width="15" height="17" rx="1.5"/><path d="M4.5 8h15M9 8v12.5M14.5 8v12.5M4.5 13h15"/>'),
   frame: stroke('<rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><rect x="7.5" y="7.5" width="9" height="9" rx="1"/>'),
+  door: stroke('<path d="M6 3.5h12v17H6z"/><path d="M15 12.2h.01"/>'),
   edge: stroke('<path d="M3.5 7.5h17v9h-17z"/><path d="M8 7.5v9"/>'),
   layers: stroke('<path d="M12 3.5l8.5 4.5L12 12.5 3.5 8z"/><path d="M3.5 12l8.5 4.5L20.5 12"/><path d="M3.5 15.5L12 20l8.5-4.5"/>'),
 };

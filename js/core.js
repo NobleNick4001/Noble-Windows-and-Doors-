@@ -1,6 +1,7 @@
 // Core helpers, data loading, settings, estimate store, pricing.
 import { isMilgardDoorLine, milgardQuote, doorColorLabel } from './milgard.js';
-export { isMilgardDoorLine };
+import { isPrehungLine, pricePrehung, prehungCompactLine, prehungQuoteLine } from './prehung.js';
+export { isMilgardDoorLine, isPrehungLine };
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -77,7 +78,7 @@ export function linePriceText(line) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null };
+export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null, prehung: null };
 export const OFFLINE_MESSAGE = "You're offline, try again when connected";
 export function browserOffline() { return typeof navigator !== 'undefined' && navigator.onLine === false; }
 export let settings = {};
@@ -85,8 +86,8 @@ export let settings = {};
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement, data.milgardOnelink] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'), getJSON('data/milgard-onelink.json'),
+  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement, data.milgardOnelink, data.prehung] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'), getJSON('data/milgard-onelink.json'), getJSON('data/prehung-doors.json'),
   ]);
   if (data.obscureGlass?.sections) {
     data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
@@ -317,6 +318,7 @@ function seriesLabel(line) {
   return brand?.series?.find((s) => s.id === line?.series)?.name || line?.series || '';
 }
 export function compactWindowLine(line, { includeBrand = false, ascii = false } = {}) {
+  if (isPrehungLine(line)) return prehungCompactLine(data.prehung, line, { ascii });
   line = line || {};
   const brandName = brandById(line.brand)?.name || line.brand || '';
   const custom = String(line.customDescription || '').trim();
@@ -355,6 +357,7 @@ function obscurePatternName(line) {
 }
 // Customer-facing quote row. Glass package is the brand default. Tempered, obscure, and grids appear only when selected.
 export function quoteLine(line, { ascii = false } = {}) {
+  if (isPrehungLine(line)) return prehungQuoteLine(data.prehung, line, { ascii });
   line = line || {};
   const brandId = line.brand === 'iwc_window' || line.brand === 'iwc_door' ? 'iwc' : line.brand;
   const brandName = brandById(line.brand)?.name || (brandId === 'iwc' ? 'IWC' : line.brand) || '';
@@ -403,7 +406,7 @@ export function windowSections(lines) {
   const groups = [];
   const index = new Map();
   for (const line of lines || []) {
-    const name = brandById(line.brand)?.name || line.brand || 'Windows';
+    const name = isPrehungLine(line) ? 'Prehung doors' : (brandById(line.brand)?.name || line.brand || 'Windows');
     if (!index.has(name)) {
       index.set(name, groups.length);
       groups.push({ brandName: name, lines: [] });
@@ -679,6 +682,14 @@ function buildArchOver(line) {
 // Rounded once, to the cent, or to the dollar when that setting is on.
 function buildMaterial(line) {
   line = line || {};
+  if (isPrehungLine(line)) {
+    const priced = pricePrehung(data.prehung, line.prehung || line);
+    return {
+      mode: 'prehung', unit: priced.material, unitBase: priced.material, optionsEach: 0,
+      rate: null, estimated: false, wh: (Number(line.w) || 0) + (Number(line.h) || 0), fromQuotes: true, detail: null,
+      pricePending: false, provisional: false, unavailable: false,
+    };
+  }
   const model = classifyLine(line);
   const w = finite(line.w), h = finite(line.h);
   if (model.mode === 'custom') {
@@ -754,6 +765,7 @@ const doorPanelKey = (line) => (data.install?.doors?.panels?.[line?.type] != nul
 // inst = {type, surcharges[], override, custom, headerFeet, writeIn:{description, amount}}
 // Labor only. Add-ons, including door header footage and the write-in, are addonUnit.
 export function installUnit(inst, line) {
+  if (line && isPrehungLine(line)) return pricePrehung(data.prehung, line.prehung || line).labor;
   inst = inst || defaultInstall();
   if (inst.override != null && inst.override !== '' && !isNaN(inst.override)) return roundMoney(Number(inst.override));
   if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
@@ -799,6 +811,7 @@ export function addonUnit(inst, line) {
   return roundMoney(sur);
 }
 export function installLabel(inst, line) {
+  if (line && isPrehungLine(line)) return 'Prehung door installation';
   inst = inst || defaultInstall();
   if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
     const name = { '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel' }[line.type] || 'Patio door';
@@ -810,7 +823,7 @@ export function installLabel(inst, line) {
   return frame ? `${frame.name} (${t.name})` : t.name;
 }
 export function windowCount(e) {
-  return (e?.lines || []).reduce((s, l) => s + (Number(l.qty) || 0), 0);
+  return (e?.lines || []).reduce((s, l) => s + (isPrehungLine(l) ? 0 : (Number(l.qty) || 0)), 0);
 }
 // Optional estimate line. qty null follows the window count until the rep types a quantity.
 export function stuccoState(e) {

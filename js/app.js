@@ -3,6 +3,7 @@ import { icon, svg } from './icons.js';
 import { startAuth, isAdmin, mountAccount, signIn, signUp, consumeAuthMessage } from './cloud.js';
 import { renderLogin } from './pages/auth.js';
 import * as calculator from './pages/calculator.js';
+import * as prehung from './pages/prehung-ui.js';
 import * as estimate from './pages/estimate.js';
 import * as contract from './pages/contract.js';
 import * as options from './pages/options.js';
@@ -16,6 +17,7 @@ import * as admin from './pages/admin.js';
 
 const ROUTES = [
   ['calculator', 'Calculator', 'calculator', (r) => calculator.render(r)],
+  ['doors', 'Doors', 'door', (r) => prehung.render(r)],
   ['estimate', 'Estimate', 'estimate', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'present' ? estimate.renderPresent(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
   ['saved', 'Mine', 'folder', (r) => estimate.renderList(r)],
   ['options', 'Options', 'options', (r, sub) => options.render(r, sub || 'glass')],

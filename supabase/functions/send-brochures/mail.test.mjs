@@ -26,12 +26,14 @@ function sample(extra = {}) {
 test('brochure list matches the Brochures tab, including PRL', () => {
   const items = [...PAGE.matchAll(/file:\s*'([^']+)',\s*label:\s*'([^']+)'/g)].map((m) => ({ file: m[1], label: m[2] }));
   assert.deepEqual(catalogItems(), items);
-  assert.equal(items.length, 13);
+  assert.equal(items.length, 19);
   assert.ok(items.some((item) => item.file === 'brochures/milgard-ax650-bifold.pdf'));
   assert.ok(items.some((item) => item.file === 'brochures/milgard-ax650-stacking.pdf'));
   assert.ok(items.some((item) => item.file === 'brochures/milgard-ax650-pocket.pdf'));
   assert.ok(items.some((item) => item.file === PRL));
   assert.ok(items.some((item) => item.file === 'brochures/andersen-100-series.pdf'));
+  assert.ok(items.some((item) => item.file === 'brochures/therma-tru-fiberglass-steel-catalog-2026.pdf'));
+  assert.ok(items.some((item) => item.label === 'Why Therma-Tru flyer 2026'));
   assert.match(PAGE, /buildBrochureEmail/);
 });
 

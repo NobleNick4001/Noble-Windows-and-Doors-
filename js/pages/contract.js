@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE } from '../core.js';
+import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine } from '../core.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
 import { recordSigned } from '../cloud.js';
@@ -8,6 +8,7 @@ import { icon } from '../icons.js';
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function isDoor(l) {
+  if (isPrehungLine(l)) return true;
   const name = `${typeName(l.type)} ${l.series || ''}`.toLowerCase();
   return name.includes('door');
 }
@@ -45,9 +46,15 @@ export function buildSpec(e) {
     return bits.length ? `Remove and replace ${listPhrase(bits)}.` : '';
   };
   const lines = e.lines || [];
-  const doors = lines.filter(isDoor);
-  const windows = lines.filter((l) => !isDoor(l));
+  const prehung = lines.filter(isPrehungLine);
+  const rest = lines.filter((l) => !isPrehungLine(l));
+  const doors = rest.filter(isDoor);
+  const windows = rest.filter((l) => !isDoor(l));
   const parts = [describe(windows, 'windows'), describe(doors, 'doors')].filter(Boolean);
+  if (prehung.length) {
+    const n = prehung.reduce((sum, l) => sum + (Number(l.qty) || 0), 0);
+    parts.push(`Remove and replace ${n} interior prehung ${n === 1 ? 'door' : 'doors'}.`);
+  }
   const counts = new Map();
   for (const l of lines) {
     const qty = Number(l.qty) || 0;
@@ -131,7 +138,7 @@ export function render(root) {
     field('Email Address:', e.customer.email, { id: 'ag-email', edit: true, type: 'email', oninput: (ev) => { e.customer.email = ev.target.value; save(); } }),
     spec,
     h('button', { type: 'button', class: 'link', id: 'spec-rebuild', onclick: () => { c.specsEdited = false; c.specifications = buildSpec(e); const box = document.getElementById('contract-spec'); if (box) box.value = c.specifications; save(); } }, 'Rebuild summary from the estimate'),
-    (e.lines || []).length ? h('div', { id: 'agreement-windows' }, h('div', { class: 'ag-lbl' }, 'Windows'), compactWindowList(e.lines, { always: true, id: 'agreement-window-lines' })) : null,
+    (e.lines || []).length ? h('div', { id: 'agreement-windows' }, h('div', { class: 'ag-lbl' }, (e.lines || []).some(isPrehungLine) ? 'Windows & doors' : 'Windows'), compactWindowList(e.lines, { always: true, id: 'agreement-window-lines' })) : null,
     field('Estimated completion date:', c.completionDate, { id: 'ag-complete', edit: true, type: 'date', oninput: (ev) => { c.completionDate = ev.target.value; save(); } }),
     h('div', { class: 'ag-money', id: 'contract-money' },
       ...summaryLines(totals(e)).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: 'contract-' + row.id }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),

@@ -44,6 +44,18 @@ export const BROCHURE_GROUPS = [
       { file: 'brochures/prl-bottom-rolling-bifold-door.pdf', label: 'PRL Bottom Rolling Bi-Fold Door', series: 'Bottom Rolling Bi-Fold' },
     ],
   },
+  {
+    id: 'therma-tru',
+    name: 'Therma-Tru / Entry Doors',
+    items: [
+      { file: 'brochures/why-therma-tru-flyer-2026.pdf', label: 'Why Therma-Tru flyer 2026', series: 'Why Therma-Tru' },
+      { file: 'brochures/therma-tru-classic-craft-brochure-2026.pdf', label: 'Classic-Craft brochure 2026', series: 'Classic-Craft' },
+      { file: 'brochures/therma-tru-enliten-flush-glazed-catalog.pdf', label: 'Enliten full-lite and flush glazed catalog', series: 'Enliten' },
+      { file: 'brochures/therma-tru-prismaguard-brochure.pdf', label: 'PrismaGuard finishes brochure', series: 'PrismaGuard' },
+      { file: 'brochures/orepac-therma-tru-southwest-region-catalog.pdf', label: 'OrePac Therma-Tru Southwest Region catalog', series: 'Southwest Region' },
+      { file: 'brochures/therma-tru-fiberglass-steel-catalog-2026.pdf', label: 'Fiberglass & Steel catalog 2026', series: 'Fiberglass & Steel' },
+    ],
+  },
 ];
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;

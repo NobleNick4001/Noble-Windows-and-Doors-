@@ -1,4 +1,6 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine } from '../core.js';
+import { prehungEstimateRow } from './prehung-ui.js';
+import { prehungSizeText, prehungSummary } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor } from './milgard-ui.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
@@ -15,6 +17,7 @@ const sendUi = { busy: false, error: '', confirm: '' };
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function lineDesc(l) {
+  if (isPrehungLine(l)) return prehungSummary(data.prehung, l).title;
   const custom = l.customDescription ? `${l.customDescription} — ` : '';
   const mull = Number(l.unitsPerLine) > 1 ? ` · ${l.unitsPerLine} units` : '';
   const color = isMilgardDoorLine(l) ? (doorColorLabel(l.series, l.color) || colorById(l.color)?.name || l.color) : (colorById(l.color)?.name || l.color);
@@ -248,11 +251,16 @@ export function render(root) {
   wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Customer'), h('div', { class: 'cols2' }, cf('name', 'Name'), cf('phone', 'Phone', 'tel'), cf('email', 'Email', 'email'), cf('address', 'Job address'))));
 
   // lines
-  const lines = h('div', { class: 'card' }, h('h3', {}, 'Windows'));
+  const doorLines = e.lines.filter(isPrehungLine).length;
+  const lines = h('div', { class: 'card' }, h('h3', {}, doorLines && doorLines === e.lines.length ? 'Prehung doors' : doorLines ? 'Windows & doors' : 'Windows'));
   if (e.lines.some((l) => l.pricePending)) lines.append(h('p', { class: 'warn', id: 'price-pending-banner' }, 'One or more windows say Price pending. That is a placeholder, not a OneLink price, and it is left out of the total until a real rate is entered.'));
   if (e.lines.some((l) => l.unpriced)) lines.append(h('p', { class: 'warn', id: 'size-block-banner' }, 'One or more Andersen sizes are outside the iQ limits and are not priced. Change the size before presenting this estimate.'));
   if (!e.lines.length) lines.append(h('p', { class: 'muted' }, 'No windows yet. ', h('a', { href: '#/calculator' }, 'Add one from the calculator →')));
   e.lines.forEach((l, idx) => {
+    if (isPrehungLine(l)) {
+      lines.append(prehungEstimateRow(l, idx, e, { save, rerender, open }));
+      return;
+    }
     const isOpen = open.has(l.id);
     const row = h('div', { class: 'lineitem' },
       h('div', { class: 'li-main' },
@@ -309,7 +317,9 @@ export function render(root) {
     }
     lines.append(row);
   });
-  lines.append(h('a', { class: 'btn', href: '#/calculator' }, '+ Add window'));
+  lines.append(h('div', { class: 'row gap wrap' },
+    h('a', { class: 'btn', href: '#/calculator' }, '+ Add window'),
+    h('a', { class: 'btn', href: '#/doors' }, '+ Add prehung door')));
   wrap.append(lines);
 
   const stDef = data.install.stuccoRepair || { name: 'Stucco repair & paint', price: 650 };
@@ -413,7 +423,8 @@ export function render(root) {
     const t = totals(e);
     const idFor = { windows: 't-win', discount: 't-discount', percentDiscount: 't-pdisc', install: 't-inst', shipping: 't-ship', extras: 't-extras', tax: 't-tax' };
     const pay = contractPay(t.total, payPct());
-    tot.replaceChildren(...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', { id: row.id === 'discount' ? 't-discount-lbl' : null }, row.id === 'windows' ? `Windows (${t.count})` : row.label), h('b', { id: idFor[row.id] }, fmt(row.amount)))),
+    const materialLabel = e.lines.some(isPrehungLine) ? 'Windows & doors' : 'Windows';
+    tot.replaceChildren(...summaryLines(t).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : '') }, h('span', { id: row.id === 'discount' ? 't-discount-lbl' : null }, row.id === 'windows' ? `${materialLabel} (${t.count})` : row.label), h('b', { id: idFor[row.id] }, fmt(row.amount)))),
       h('div', { class: 'line big2' }, h('span', {}, 'Total'), h('b', { id: 't-total' }, fmt(t.total))),
       h('div', { class: 'line' }, h('span', {}, `Deposit (${payPct()}%)`), h('b', { id: 't-deposit' }, fmt(pay.deposit))),
       h('div', { class: 'line' }, h('span', {}, `Final (${100 - payPct()}%)`), h('b', { id: 't-final' }, fmt(pay.balance))));
@@ -466,7 +477,11 @@ function estimateSheet(e) {
     h('div', { class: 'sh-meta' }, h('div', {}, h('b', {}, 'Prepared for'), h('div', {}, e.customer.name || '—'), h('div', {}, e.customer.address), h('div', {}, e.customer.phone), h('div', {}, e.customer.email)),
       h('div', { class: 'r' }, h('div', {}, h('b', {}, 'Estimate #: '), e.number), h('div', {}, h('b', {}, 'Date: '), fdate(e.created)), h('div', {}, h('b', {}, 'Valid through: '), fdate(valid)))));
   const tw = h('table', { class: 'sh-table sh-wide' }, h('thead', {}, h('tr', {}, ['Location', 'Window', 'Size (W × H)', 'Qty', 'Each', 'Total'].map((x, i) => h('th', { class: i > 2 ? 'r' : '' }, x)))));
-  const tb = h('tbody'); e.lines.forEach((l) => tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, ...lineFlags(l), l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit)))), h('td', { class: 'r' }, linePriceText(l)))));
+  const tb = h('tbody'); e.lines.forEach((l) => {
+    const door = isPrehungLine(l);
+    const detail = door ? prehungSummary(data.prehung, l).detail : '';
+    tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), door && detail ? h('div', { class: 'fine' }, detail) : null, !door && optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, ...lineFlags(l), !door && l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, door ? prehungSizeText(data.prehung, l) : `${l.w}" × ${l.h}"`), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit)))), h('td', { class: 'r' }, linePriceText(l))));
+  });
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
   if (t.percentDiscountAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-percent-discount-row' }, h('td', { colspan: 5, class: 'r' }, t.percentDiscountLabel), h('td', { class: 'r' }, fmt(-t.percentDiscountAmount))));
@@ -478,7 +493,7 @@ function estimateSheet(e) {
   if (t.promo?.windowAmount) foot.append(footLine(t.discountLabel, -t.promo.windowAmount, { discount: true, id: 'sh-compact-discount' }));
   if (t.percentDiscountAmount) foot.append(footLine(t.percentDiscountLabel, -t.percentDiscountAmount, { discount: true, id: 'sh-compact-percent' }));
   compact.append(foot);
-  sheet.append(h('h3', {}, 'Windows (materials, including glass)'), tw, compact);
+  sheet.append(h('h3', {}, e.lines.some(isPrehungLine) ? 'Windows & doors' : 'Windows (materials, including glass)'), tw, compact);
   if (e.lines.some((l) => l.pricePending)) sheet.append(h('p', { class: 'warn', id: 'sh-price-pending' }, 'Price pending is a placeholder. It is not a OneLink price and it is not included in the total.'));
   if (e.extras.length) {
     const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))));
