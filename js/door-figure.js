@@ -36,25 +36,35 @@ export async function renderPrehungPng(line, catalog = data.prehung) {
   if (!src || typeof document === 'undefined') return null;
   const img = await loadPhoto(src);
   const pair = !!spec.double;
-  const slabW = 280;
-  const slabH = 460;
-  const gap = 16;
-  const pad = 10;
-  const width = pad * 2 + slabW * (pair ? 2 : 1) + (pair ? gap : 0);
-  const height = pad * 2 + slabH;
+  const boxW = 335;
+  const boxH = 750;
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = boxW;
+  canvas.height = boxH;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, height);
-  ctx.drawImage(img, pad, pad, slabW, slabH);
-  if (pair) {
+  ctx.fillRect(0, 0, boxW, boxH);
+  const gap = pair ? 10 : 0;
+  const slots = pair ? 2 : 1;
+  const slotW = (boxW - gap * (slots - 1)) / slots;
+  const scale = Math.min(slotW / img.width, boxH / img.height);
+  const dw = img.width * scale;
+  const dh = img.height * scale;
+  const totalW = dw * slots + gap * (slots - 1);
+  const ox = (boxW - totalW) / 2;
+  const oy = (boxH - dh) / 2;
+  const draw = (x, mirror) => {
     ctx.save();
-    ctx.translate(pad + slabW + gap + slabW, pad);
-    ctx.scale(-1, 1);
-    ctx.drawImage(img, 0, 0, slabW, slabH);
+    if (mirror) {
+      ctx.translate(x + dw, oy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, 0, dw, dh);
+    } else {
+      ctx.drawImage(img, x, oy, dw, dh);
+    }
     ctx.restore();
-  }
-  return { url: canvas.toDataURL('image/png'), w: width, h: height, fmt: 'PNG' };
+  };
+  draw(ox, false);
+  if (pair) draw(ox + dw + gap, true);
+  return { url: canvas.toDataURL('image/png'), w: boxW, h: boxH, fmt: 'PNG' };
 }

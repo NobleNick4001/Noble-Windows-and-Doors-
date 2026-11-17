@@ -213,15 +213,14 @@ body[data-route="estimate-present"] main{max-width:none;padding:0 .35rem calc(96
 .door-controls{flex:1 0 100%;display:flex;flex-direction:column;gap:.15rem}
 .door-controls .chips{margin:.15rem 0}
 .door-controls .chip{min-height:34px;padding:.2rem .65rem;font-size:.78rem}
-.door-figure{width:100%}
-.door-slabs{display:flex;gap:4px;align-items:stretch}
-.slab-wrap{position:relative;flex:1 1 0;min-width:0;background:#f4f7fb;border-radius:8px}
-.slab-wrap img{width:100%;height:auto;display:block;object-fit:contain;background:#f4f7fb;border-radius:8px}
+.line-drawing.door-photo,.win-drawing.door-photo,.sheet-drawing.door-photo,.qdraw-art.door-photo{min-width:0;max-width:100%;overflow:hidden}
+.door-figure{box-sizing:border-box;width:100%;max-width:100%;aspect-ratio:335/750;display:flex;align-items:center;justify-content:center;overflow:hidden;min-width:0}
+.door-slabs{display:flex;align-items:center;justify-content:center;gap:3px;width:100%;height:100%;min-width:0;max-width:100%;max-height:100%}
+.slab-wrap{flex:1 1 0;min-width:0;max-width:100%;max-height:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.door-slabs.pair .slab-wrap{max-width:calc(50% - 2px)}
+.slab-wrap img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;background:#f4f7fb}
 .slab-wrap img.mirror{transform:scaleX(-1)}
-.line-drawing .door-figure{width:108px}
-.line-drawing .door-figure.pair{width:168px}
-.win-drawing .door-figure,.sheet-drawing .door-figure,.qdraw-art .door-figure{width:100%}
-.door-photo img,.line-drawing img,.win-drawing img,.sheet-drawing img,.qdraw-art img{width:100%;height:auto;display:block;object-fit:contain;background:#fff}
+.door-photo img,.line-drawing img,.win-drawing img,.sheet-drawing img,.qdraw-art img{width:auto;max-width:100%;height:auto;max-height:100%;display:block;object-fit:contain;background:#fff}
 @media (max-width:760px){.grid3{grid-template-columns:1fr 1fr}.grid3>:nth-child(3){grid-column:1/-1}.btn.sq{min-width:46px}.stepper input{font-size:1.1rem}.extra input.amt{width:100px}.swatch{padding-right:.6rem}}
 /* obscure glass */
 .og-lead{margin:-.2rem 0 .2rem}.og-sec{display:flex;flex-direction:column;gap:.45rem}.og-sec h2{margin:.4rem 0 0}.og-list{display:flex;flex-direction:column;gap:.7rem}.og-text.on{border-color:var(--orange);box-shadow:inset 0 0 0 1px var(--orange)}.og-limit{margin:.1rem 0;font-weight:700;color:var(--orange-d)}.process{margin:.2rem 0 0;padding-left:1.2rem}.process li{margin:.35rem 0}
