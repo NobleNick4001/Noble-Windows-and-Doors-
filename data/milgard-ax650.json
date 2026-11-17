@@ -1,5 +1,5 @@
 {
-  "_readme": "Milgard AX650 multi-slide (stacking) and bifold doors from Milgard OneLink quote MQPASG000219-1. Every dollar amount in this file is a FINAL CUSTOMER PRICE. The 45% margin (marginAlreadyIncluded) is already in those amounts. applyMargin is false and pricesAre is customer, so the app must use the numbers as-is. Do not run them through marginFactor(), and do not divide by 0.55. There is no cost column. Height bands are net frame height: band 1 up to 80 inches, band 2 over 80 up to 96, band 3 over 96 up to 119.5. Valid height for every model is 79.5 to 119.5. Pocket is offered on the 4-panel stacking model only, and that adder is also a customer price. There is no 2-panel stacking model and no 5-panel bifold. Glass is fixed Tempered SunCoatMAX. No screens. installLabor is null: there is no AX650 install price yet, so the estimate shows TBD and does not add $0.",
+  "_readme": "Milgard AX650 stacking, pocket, and bifold doors. This table REPLACES the earlier AX650 prices. Every dollar amount is a FINAL CUSTOMER PRICE from the revised OneLink table. The 45% margin (marginAlreadyIncluded) is already in those amounts. applyMargin is false and pricesAre is customer, so the app must use the numbers as-is. Do not run them through marginFactor() and do not divide by 0.55. There is no cost column and no pocket adder. Pocket is its own configuration. Each band is one flat customer price for any allowed width (the price is the config's max-width price). Height bands are net frame height: band 1 up to and including 80 inches, band 2 over 80 up to and including 96, band 3 over 96 up to 119.5. Valid height for every model is 79.5 to 119.5. Glass is Tempered SunCoatMAX. No screens. installLabor is null, so the estimate shows TBD and does not add $0.",
   "sourceQuote": "MQPASG000219-1",
   "marginAlreadyIncluded": 0.45,
   "applyMargin": false,
@@ -24,28 +24,54 @@
     { "id": "bronze-anodized", "name": "Bronze Anodized" },
     { "id": "satin-anodized", "name": "Satin Anodized" }
   ],
-  "pocket": {
-    "models": ["stack4"],
-    "customerPrice": 1428.14,
-    "label": "Pocket"
-  },
   "models": [
+    {
+      "id": "stack2",
+      "name": "2-panel stacking",
+      "kind": "stacking",
+      "panels": 2,
+      "width": { "min": 71.5, "max": 119.5, "label": "71 1/2\" to 119 1/2\"" },
+      "customerPrice": [11492.22, 12643.57, 14636.36]
+    },
     {
       "id": "stack3",
       "name": "3-panel stacking",
       "kind": "stacking",
       "panels": 3,
       "width": { "min": 107.5, "max": 179.5, "label": "107 1/2\" to 179 1/2\"" },
-      "customerPrice": [13995.43, 15392.38, 19541.43]
+      "customerPrice": [16637.12, 17611.28, 20988.34]
     },
     {
       "id": "stack4",
       "name": "4-panel stacking",
       "kind": "stacking",
       "panels": 4,
-      "pocketOffered": true,
       "width": { "min": 141.9375, "max": 237.9375, "label": "141 15/16\" to 237 15/16\"" },
-      "customerPrice": [20482.47, 21710.20, 27708.14]
+      "customerPrice": [22381.90, 23689.86, 28206.98]
+    },
+    {
+      "id": "pocket2",
+      "name": "2-panel pocket",
+      "kind": "pocket",
+      "panels": 2,
+      "width": { "min": 70.25, "max": 120.4375, "label": "70 1/4\" to 120 7/16\"", "daylight": true },
+      "customerPrice": [12098.76, 12667.46, 15251.52]
+    },
+    {
+      "id": "pocket3",
+      "name": "3-panel pocket",
+      "kind": "pocket",
+      "panels": 3,
+      "width": { "min": 104.625, "max": 176.625, "label": "104 5/8\" to 176 5/8\"", "daylight": true },
+      "customerPrice": [17726.08, 18645.83, 20174.10]
+    },
+    {
+      "id": "pocket4",
+      "name": "4-panel pocket",
+      "kind": "pocket",
+      "panels": 4,
+      "width": { "min": 139.0625, "max": 235.0625, "label": "139 1/16\" to 235 1/16\"", "daylight": true },
+      "customerPrice": [22565.72, 23774.13, 28591.87]
     },
     {
       "id": "bifold3",
@@ -53,7 +79,7 @@
       "kind": "bifold",
       "panels": 3,
       "width": { "min": 106.0625, "max": 117.5, "label": "106 1/16\" to 117 1/2\"" },
-      "customerPrice": [16495.21, 19714.15, 22250.91]
+      "customerPrice": [17320.23, 19715.01, 22251.89]
     },
     {
       "id": "bifold4",
@@ -61,7 +87,15 @@
       "kind": "bifold",
       "panels": 4,
       "width": { "min": 117.5, "max": 141.5, "label": "117 1/2\" to 141 1/2\"" },
-      "customerPrice": [22375.55, 25255.48, 27877.83]
+      "customerPrice": [23136.01, 25256.59, 27879.05]
+    },
+    {
+      "id": "bifold5",
+      "name": "5-panel bifold",
+      "kind": "bifold",
+      "panels": 5,
+      "width": { "min": 176.25, "max": 198, "label": "176 1/4\" to 198\"" },
+      "customerPrice": [30047.82, 35436.50, 40298.36]
     }
   ]
 }

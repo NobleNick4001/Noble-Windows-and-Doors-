@@ -2,7 +2,8 @@
 import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine, rowAmountText } from './core.js';
 import { currentProfile } from './cloud.js';
 import { windowDrawingSVG } from './drawings.js';
-import { isPrehungLine, prehungImage } from './prehung.js';
+import { isPrehungLine, migratePrehungEstimate } from './prehung.js';
+import { renderPrehungPng } from './door-figure.js';
 
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -451,14 +452,8 @@ function svgToPng(svg, w, h) {
 // The emailed PDF keeps the line drawing it already had if the SVG will not rasterize.
 async function lineDrawingImage(line) {
   if (isPrehungLine(line)) {
-    const src = prehungImage(data.prehung, line.prehung || line);
-    if (!src) return null;
-    try {
-      const img = await loadImage(src);
-      return img?.data ? { url: img.data, w: img.w, h: img.h, fmt: img.fmt || 'JPEG' } : null;
-    } catch {
-      return null;
-    }
+    try { return await renderPrehungPng(line, data.prehung); }
+    catch { return null; }
   }
   try {
     const drawn = windowDrawingSVG(line, { boxW: 280, boxH: 230 });
@@ -519,6 +514,7 @@ function customerLines(e) {
 }
 
 export async function makeEstimatePdf(e, opts = {}) {
+  if (migratePrehungEstimate(data.prehung, e)) { /* prices on the lines are current */ }
   const doc = jsPDF();
   const margin = 36;
   const pageW = doc.internal.pageSize.getWidth();

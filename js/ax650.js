@@ -91,17 +91,30 @@ export function ax650BandIndex(cat, h) {
   return -1;
 }
 
+const KIND_LABEL = { stacking: 'Stacking', pocket: 'Pocket', bifold: 'Bifold' };
+
+export function ax650Groups(cat) {
+  const groups = [];
+  for (const model of ax650Catalog(cat)?.models || []) {
+    let group = groups.find((g) => g.kind === model.kind);
+    if (!group) {
+      group = { kind: model.kind, name: KIND_LABEL[model.kind] || model.kind, models: [] };
+      groups.push(group);
+    }
+    group.models.push(model);
+  }
+  return groups;
+}
+
 export function ax650Description(cat, line) {
   const model = ax650Model(cat, line?.type);
-  const pocket = !!(line?.pocket && model?.pocketOffered);
-  const style = model ? (pocket ? `${model.name}, pocket` : model.name) : String(line?.type || 'AX650');
   const w = parseInches(line?.w);
   const h = parseInches(line?.h);
   return {
-    style,
+    style: model?.name || String(line?.type || 'AX650'),
     color: ax650ColorName(cat, line?.color) || 'White',
     glass: ax650Catalog(cat)?.glass || 'Tempered SunCoatMAX',
-    pocket,
+    daylight: !!model?.width?.daylight,
     size: `${formatInchLabel(w)} × ${formatInchLabel(h)}`,
   };
 }
@@ -109,7 +122,7 @@ export function ax650Description(cat, line) {
 // Customer price for one door. No margin is applied when applyMargin is false.
 export function ax650Quote(cat, line) {
   const book = ax650Catalog(cat);
-  const empty = { errors: [], notes: [], material: 0, band: null, pocket: false, unsized: true, pricePending: false, unavailable: false, limits: null };
+  const empty = { errors: [], notes: [], material: 0, band: null, unsized: true, pricePending: false, unavailable: false, limits: null };
   if (!book) return { ...empty, unsized: false, errors: ['AX650 prices did not load.'] };
   if (book.applyMargin !== false || book.pricesAre !== 'customer') {
     return { ...empty, unsized: false, errors: ['AX650 prices are customer prices and cannot be marked up again.'] };
@@ -135,16 +148,10 @@ export function ax650Quote(cat, line) {
   if (!errors.length && (band < 0 || book.models.find((m) => m.id === model.id).customerPrice[band] == null)) {
     errors.push(`Height must be ${height.label}`);
   }
-  const pocket = !!(line?.pocket && model.pocketOffered);
-  if (errors.length) return { ...empty, unsized: false, errors, limits, pocket };
-  let material = cents(model.customerPrice[band]);
-  if (pocket) material = cents(material + (Number(book.pocket?.customerPrice) || 0));
-  const notes = [];
-  if (book.glass) notes.push(book.glass);
-  if (book.screens === false) notes.push('No screen');
-  if (pocket) notes.push(book.pocket?.label || 'Pocket');
+  if (errors.length) return { ...empty, unsized: false, errors, limits };
+  const material = cents(model.customerPrice[band]);
   return {
-    errors: [], notes, material, band: band + 1, pocket, unsized: false,
+    errors: [], notes: [], material, band: band + 1, unsized: false,
     pricePending: false, unavailable: false, limits,
   };
 }

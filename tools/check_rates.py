@@ -97,7 +97,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v62-ax650'" in sw, 'service worker cache should be nwd-sales-v62-ax650')
+check("const CACHE = 'nwd-sales-v64-ax650'" in sw, 'service worker cache should be nwd-sales-v64-ax650')
 check('js/ax650.js' in sw and 'data/milgard-ax650.json' in sw, 'AX650 price file and engine should be precached')
 check('js/drawings.js' in sw, 'window drawings should be precached')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
@@ -105,6 +105,7 @@ check('data/promos.json' in sw, 'promo config should be precached')
 check('data/purchase-agreement.json' in sw, 'purchase agreement should be precached')
 check('js/pages/contract.js' in sw and 'js/pdf.js' in sw and 'js/sign.js' in sw and 'js/vendor/jspdf.umd.min.js' in sw, 'contract scripts should be precached')
 check('js/cloud.js' in sw and 'js/pages/auth.js' in sw and 'js/pages/admin.js' in sw and 'js/pages/accounts.js' in sw and 'supabase/functions/account-passwords/password.js' in sw, 'account scripts should be precached')
+check('js/door-figure.js' in sw and 'js/pages/prehung-ui.js' in sw, 'prehung door scripts should be precached')
 check(settings.get('salesperson') == '', 'salesperson name defaults blank')
 agreement = json.load(open('data/purchase-agreement.json'))
 check(agreement.get('depositPct') == 60, 'deposit percent is 60')
@@ -196,16 +197,22 @@ check(ax.get('installLabor') is None and ax.get('glass') == 'Tempered SunCoatMAX
 check([b['upTo'] for b in ax['height']['bands']] == [80, 96, 119.5], 'AX650 height bands')
 check(ax['height']['min'] == 79.5 and ax['height']['max'] == 119.5, 'AX650 height range')
 expected_ax = {
-    'stack3': [13995.43, 15392.38, 19541.43],
-    'stack4': [20482.47, 21710.20, 27708.14],
-    'bifold3': [16495.21, 19714.15, 22250.91],
-    'bifold4': [22375.55, 25255.48, 27877.83],
+    'stack2': [11492.22, 12643.57, 14636.36],
+    'stack3': [16637.12, 17611.28, 20988.34],
+    'stack4': [22381.90, 23689.86, 28206.98],
+    'pocket2': [12098.76, 12667.46, 15251.52],
+    'pocket3': [17726.08, 18645.83, 20174.10],
+    'pocket4': [22565.72, 23774.13, 28591.87],
+    'bifold3': [17320.23, 19715.01, 22251.89],
+    'bifold4': [23136.01, 25256.59, 27879.05],
+    'bifold5': [30047.82, 35436.50, 40298.36],
 }
 ids = [m['id'] for m in ax['models']]
-check(ids == ['stack3', 'stack4', 'bifold3', 'bifold4'], 'AX650 models, no 2-panel stacking or 5-panel bifold: ' + str(ids))
+check(ids == list(expected_ax), 'AX650 models ' + str(ids))
+check('pocket' not in ax, 'pocket is its own model, not an adder')
 for model in ax['models']:
     check(model['customerPrice'] == expected_ax[model['id']], model['id'] + ' customer prices')
-check(ax['pocket']['customerPrice'] == 1428.14 and ax['pocket']['models'] == ['stack4'], 'pocket adder is a customer price on 4-panel stacking only')
+    check(model['kind'] in ('stacking', 'pocket', 'bifold'), model['id'] + ' kind')
 check([c['name'] for c in ax['colors']] == ['White', 'Warmtone', 'Bronze Anodized', 'Satin Anodized'], 'AX650 colors')
 import subprocess
 ax_run = subprocess.run(['node', 'tools/check_ax650.mjs'], capture_output=True, text=True)

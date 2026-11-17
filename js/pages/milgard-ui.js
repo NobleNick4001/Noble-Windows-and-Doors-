@@ -1,6 +1,6 @@
 import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, rowAmountText, isAx650Line } from '../core.js';
 import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions, styleLimits } from '../milgard.js';
-import { ax650Quote, ax650Description, parseInches, inchField, INSTALL_TBD, AX650_SERIES } from '../ax650.js';
+import { ax650Quote, ax650Description, ax650Groups, ax650Model, parseInches, inchField, INSTALL_TBD, AX650_SERIES } from '../ax650.js';
 import { drawingEl } from '../drawings.js';
 import { icon } from '../icons.js';
 
@@ -59,7 +59,7 @@ function ensure(calc) {
     if (!styles.includes(calc.type)) calc.type = styles[0] || 'stack3';
     const colors = ax650Colors();
     if (!colors.some((c) => c[0] === calc.color)) calc.color = colors[0]?.[0] || 'ww';
-    if (calc.type !== 'stack4') calc.pocket = false;
+    calc.pocket = false;
     calc.pureview = false;
     calc.grids = 'none';
     calc.obscure = 'none';
@@ -113,7 +113,7 @@ function draftLine(calc) {
     w, h, qty: Math.max(1, parseInt(calc.qty, 10) || 1),
     unitsPerLine: 1, grids: door ? 'none' : calc.grids, obscure: door ? 'none' : calc.obscure,
     tempered: door ? false : !!calc.tempered, pureview: ax ? false : !!calc.pureview,
-    pocket: ax && calc.type === 'stack4' && !!calc.pocket,
+    pocket: false,
     frame: door ? '' : calc.frame, install: installFromCalc(calc),
     shape: (!door && (calc.type === 'arch_xo' || calc.type === 'arch_xox') && calc.shape === 'eyebrow') ? 'eyebrow' : '',
   };
@@ -251,23 +251,34 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   const ax = ax650On(calc);
   const left = h('div', { class: 'card' });
   left.append(h('h3', {}, '1 · Product'));
+  const axDaylight = ax && ax650Model(data.ax650, calc.type)?.width?.daylight;
   left.append(h('p', { class: 'fine' }, ax
-    ? 'AX650 sizes are the net frame. Glass is Tempered SunCoatMAX. No screen.'
+    ? (axDaylight
+      ? 'Pocket width is the opening (daylight). Height is the net frame. Glass is Tempered SunCoatMAX. No screen.'
+      : 'AX650 sizes are the net frame. Glass is Tempered SunCoatMAX. No screen.')
     : 'SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen. Door sizes are the net frame, not the rough opening.'));
   left.append(seg('Product', [['window', 'Window'], ['door', 'Patio door']], calc.product, setKind));
   left.append(seg('Series', calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES, calc.series, (id) => { calc.series = id; persist(); rerender(); }));
   if (ax) {
-    left.append(h('div', { class: 'lbl' }, 'Style'));
-    left.append(h('div', { class: 'labor-boxes', id: 'ax650-models' }, ax650Styles().map(([id, name]) => h('button', {
-      type: 'button', class: 'labor-box' + (id === calc.type ? ' on' : ''), id: 'model-' + id,
-      onclick: () => { calc.type = id; if (id !== 'stack4') calc.pocket = false; persist(); rerender(); },
-    }, name))));
-    if (calc.type === 'stack4') {
-      left.append(h('div', { class: 'labor-boxes' }, h('button', {
-        type: 'button', class: 'labor-box' + (calc.pocket ? ' on' : ''), id: 'opt-pocket',
-        onclick: () => { calc.pocket = !calc.pocket; persist(); rerender(); },
-      }, 'Pocket')));
-    }
+    const groups = ax650Groups(data.ax650);
+    const current = ax650Model(data.ax650, calc.type);
+    const kind = current?.kind || groups[0]?.kind;
+    const panels = groups.find((g) => g.kind === kind)?.models || [];
+    left.append(h('div', { class: 'lbl' }, 'Type'));
+    left.append(h('div', { class: 'labor-boxes', id: 'ax650-types' }, groups.map((g) => h('button', {
+      type: 'button', class: 'labor-box' + (g.kind === kind ? ' on' : ''), id: 'type-' + g.kind,
+      onclick: () => {
+        const next = g.models.find((m) => m.panels === current?.panels) || g.models[0];
+        calc.type = next.id;
+        calc.pocket = false;
+        persist(); rerender();
+      },
+    }, g.name))));
+    left.append(h('div', { class: 'lbl' }, 'Panels'));
+    left.append(h('div', { class: 'labor-boxes', id: 'ax650-models' }, panels.map((m) => h('button', {
+      type: 'button', class: 'labor-box' + (m.id === calc.type ? ' on' : ''), id: 'model-' + m.id,
+      onclick: () => { calc.type = m.id; calc.pocket = false; persist(); rerender(); },
+    }, String(m.panels)))));
   } else left.append(seg('Style', stylesFor(calc), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
   if (calc.product === 'window' && (calc.type === 'arch_xo' || calc.type === 'arch_xox')) {
     left.append(seg('Head', [['arch', 'Arch'], ['eyebrow', 'Eyebrow']], calc.shape === 'eyebrow' ? 'eyebrow' : 'arch', (id) => { calc.shape = id; persist(); rerender(); }));
@@ -296,12 +307,13 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   };
   const wInput = h('input', { ...sizeAttrs, id: 'in-w', value: calc.w ?? '', oninput: onSize((v) => { calc.w = v; }) });
   const hInput = h('input', { ...sizeAttrs, id: 'in-h', value: calc.h ?? '', oninput: onSize((v) => { calc.h = v; }) });
-  const sizeLabel = calc.product === 'door' ? 'net frame' : '';
+  const daylight = axDaylight;
+  const widthName = daylight ? 'Opening (daylight) width (in)' : (calc.product === 'door' ? 'Net frame width (in)' : 'Width (in)');
   left.append(h('div', { class: 'room-size' },
     roomField,
     h('div', { class: 'grid2' },
-      h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame width (in)' : 'Width (in)'), wInput, wHint),
-      h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame height (in)' : 'Height (in)'), hInput, hHint))));
+      h('label', { class: 'field' }, h('span', { class: 'lbl', id: 'width-label' }, widthName), wInput, wHint),
+      h('label', { class: 'field' }, h('span', { class: 'lbl' }, calc.product === 'door' ? 'Net frame height (in)' : 'Height (in)'), hInput, hHint))));
   left.append(errEl);
 
   if (ax) {
@@ -458,7 +470,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       w: line.w, h: line.h, qty: line.qty, unitsPerLine: 1,
       options: ax ? [] : optionIds(calc), addons: ax ? [] : addonIds(calc),
       grids: line.grids, obscure: line.obscure, tempered: line.tempered, pureview: line.pureview,
-      pocket: !!line.pocket, frame: line.frame,
+        pocket: false, frame: line.frame,
       shape: line.shape || '',
       supplierPrice: null, customDescription: '',
       unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: p.rate, rateSet: settings.rateSet,
@@ -567,25 +579,33 @@ function syncFlags(line) {
 }
 
 export function ax650LineEditor(line, onChange, idp = 'ax-') {
-  const models = data.ax650?.models || [];
+  const groups = ax650Groups(data.ax650);
+  const current = ax650Model(data.ax650, line.type);
+  const kind = current?.kind || groups[0]?.kind;
+  const panels = groups.find((g) => g.kind === kind)?.models || [];
   const colors = data.ax650?.colors || [];
+  line.pocket = false;
   return h('div', {},
-    h('div', { class: 'labor-boxes', id: idp + 'models' }, models.map((m) => h('button', {
-      type: 'button', class: 'labor-box' + (line.type === m.id ? ' on' : ''), id: idp + 'model-' + m.id,
+    h('div', { class: 'lbl' }, 'Type'),
+    h('div', { class: 'labor-boxes', id: idp + 'types' }, groups.map((g) => h('button', {
+      type: 'button', class: 'labor-box' + (g.kind === kind ? ' on' : ''), id: idp + 'type-' + g.kind,
       onclick: () => {
-        line.type = m.id;
-        if (m.id !== 'stack4') line.pocket = false;
+        const next = g.models.find((m) => m.panels === current?.panels) || g.models[0];
+        line.type = next.id;
+        line.pocket = false;
         onChange();
       },
-    }, m.name))),
-    line.type === 'stack4' ? h('div', { class: 'labor-boxes' }, h('button', {
-      type: 'button', class: 'labor-box' + (line.pocket ? ' on' : ''), id: idp + 'pocket',
-      onclick: () => { line.pocket = !line.pocket; onChange(); },
-    }, 'Pocket')) : null,
+    }, g.name))),
+    h('div', { class: 'lbl' }, 'Panels'),
+    h('div', { class: 'labor-boxes', id: idp + 'models' }, panels.map((m) => h('button', {
+      type: 'button', class: 'labor-box' + (line.type === m.id ? ' on' : ''), id: idp + 'model-' + m.id,
+      onclick: () => { line.type = m.id; line.pocket = false; onChange(); },
+    }, String(m.panels)))),
     h('div', { class: 'chips', id: idp + 'colors' }, colors.map((c) => h('button', {
       type: 'button', class: 'chip pick' + (line.color === c.id ? ' on' : ''), id: idp + 'color-' + c.id,
       onclick: () => { line.color = c.id; onChange(); },
     }, c.name))),
+    current?.width?.daylight ? h('p', { class: 'fine', id: idp + 'daylight' }, 'Width is the opening (daylight) width.') : null,
     h('p', { class: 'fine', id: idp + 'glass' }, 'Glass: Tempered SunCoatMAX. No screen.'));
 }
 

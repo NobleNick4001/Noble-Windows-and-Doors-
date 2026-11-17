@@ -102,6 +102,10 @@
    "name": "4-Panel Sliding Door (OXXO)"
   },
   {
+   "id": "stack2",
+   "name": "2-panel stacking"
+  },
+  {
    "id": "stack3",
    "name": "3-panel stacking"
   },
@@ -110,12 +114,28 @@
    "name": "4-panel stacking"
   },
   {
+   "id": "pocket2",
+   "name": "2-panel pocket"
+  },
+  {
+   "id": "pocket3",
+   "name": "3-panel pocket"
+  },
+  {
+   "id": "pocket4",
+   "name": "4-panel pocket"
+  },
+  {
    "id": "bifold3",
    "name": "3-panel bifold"
   },
   {
    "id": "bifold4",
    "name": "4-panel bifold"
+  },
+  {
+   "id": "bifold5",
+   "name": "5-panel bifold"
   },
   {
    "id": "custom_supplier",

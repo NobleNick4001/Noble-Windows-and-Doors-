@@ -1,4 +1,5 @@
 import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine, isAx650Line, rowAmountText } from '../core.js';
+import { migratePrehungEstimate } from '../prehung.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
 import { recordSigned } from '../cloud.js';
@@ -121,6 +122,7 @@ function downloadBlob(blob, name) {
 
 export function render(root) {
   const e = estimates.current();
+  if (migratePrehungEstimate(data.prehung, e)) estimates.save(e);
   const c = contractOf(e);
   const a = data.agreement;
   const pay = () => contractPay(totals(e).total, a.depositPct);

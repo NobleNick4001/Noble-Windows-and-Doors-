@@ -1,9 +1,9 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText, INSTALL_TBD } from '../core.js';
 import { prehungEstimateRow } from './prehung-ui.js';
-import { prehungSizeText, prehungSummary } from '../prehung.js';
+import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor, ax650LineEditor } from './milgard-ui.js';
-import { ax650Description } from '../ax650.js';
+import { ax650Description, ax650Model } from '../ax650.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
 import { icon } from '../icons.js';
@@ -228,6 +228,7 @@ export function render(root) {
   sendUi.confirm = '';
   const view = captureView();
   const e = estimates.current();
+  if (migratePrehungEstimate(data.prehung, e)) estimates.persist();
   e.extras ||= [];
   e.stuccoRepair ||= { on: false, qty: null };
   e.promoCode ??= '';
@@ -302,7 +303,7 @@ export function render(root) {
               save();
             },
           })),
-          h('div', { class: 'grid3' }, stepper(isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame width' : 'Width', l.w, (v) => { l.w = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: isAx650Line(l) ? null : '[0-9]*[.]?[0-9]*', inches: isAx650Line(l) }), stepper(isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: isAx650Line(l) ? null : '[0-9]*[.]?[0-9]*', inches: isAx650Line(l) }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
+          h('div', { class: 'grid3' }, stepper(isAx650Line(l) && ax650Model(data.ax650, l.type)?.width?.daylight ? 'Opening (daylight) width' : (isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame width' : 'Width'), l.w, (v) => { l.w = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: isAx650Line(l) ? null : '[0-9]*[.]?[0-9]*', inches: isAx650Line(l) }), stepper(isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: isAx650Line(l) ? null : '[0-9]*[.]?[0-9]*', inches: isAx650Line(l) }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
         sizeLimitText(l) ? h('p', { class: 'fine' }, sizeLimitText(l)) : null,
         h('p', { class: 'warn size-err', id: 'size-err-edit-' + l.id, hidden: l.sizeError ? null : true }, l.sizeError || ''),
         isIntegralType(l)

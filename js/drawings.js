@@ -8,7 +8,8 @@
 //   an entered leg height or bottom-window height wins over those defaults
 import { h, formatInches, data } from './core.js';
 import { DOOR_CONFIG } from './milgard.js';
-import { isPrehungLine, prehungImage, prehungSummary } from './prehung.js';
+import { isPrehungLine } from './prehung.js';
+import { prehungFigureEl } from './door-figure.js';
 import { formatInchLabel, isAx650Line } from './ax650.js';
 
 export const ASPECT_CAP = 4;
@@ -216,10 +217,10 @@ export function drawingModel(line) {
       const split = splitPanes(gx, gy, gw, gh, pattern, railT);
       panes.push(...split.panes);
       for (const bar of split.rails) rails.push({ ...bar, y: arch ? spring : 0, h: arch ? h - spring : h });
-    } else if (kind === 'stack3' || kind === 'stack4' || kind === 'bifold3' || kind === 'bifold4') {
-      const n = kind.endsWith('4') ? 4 : 3;
+    } else if (/^(stack|pocket|bifold)[2-5]$/.test(kind)) {
+      const n = Number(kind.slice(-1));
       const bifold = kind.startsWith('bifold');
-      const pocket = kind === 'stack4' && !!(line?.pocket);
+      const pocket = kind.startsWith('pocket');
       const pocketIn = pocket ? Math.min(Math.max(w * 0.07, 3.5), 9) : 0;
       const split = splitPanes(gx, gy, Math.max(0.8, gw - pocketIn), gh, 'X'.repeat(n), railT);
       split.panes.forEach((p, i) => { p.op = bifold ? (i % 2 ? 'casement-right' : 'casement') : 'slide-left'; });
@@ -424,9 +425,7 @@ export function windowDrawingSVG(line, opts = {}) {
 
 export function drawingEl(line, className, box) {
   if (isPrehungLine(line)) {
-    const src = prehungImage(data.prehung, line.prehung || line);
-    const alt = prehungSummary(data.prehung, line).title || 'Prehung door';
-    return h('div', { class: className + ' door-photo' }, src ? h('img', { src, alt }) : null);
+    return h('div', { class: className + ' door-photo' }, prehungFigureEl(line, data.prehung));
   }
   const drawn = windowDrawingSVG(line, box);
   return h('div', { class: className, html: drawn.svg });
@@ -437,7 +436,7 @@ export const DRAWING_TYPES = [
   'picture', 'vslider', 'dshung', 'twin_vslider', 'hslider', 'xox',
   'casement', 'dcasement', 'twin_casement', 'awning', 'hvb',
   '2panel', '3panel', '4panel', 'patio_door_2p',
-  'stack3', 'stack4', 'bifold3', 'bifold4',
+  'stack2', 'stack3', 'stack4', 'pocket2', 'pocket3', 'pocket4', 'bifold3', 'bifold4', 'bifold5',
   'archtop', 'arch', 'halfround', 'arch_sh', 'arch_hr', 'specialty_arch',
   'arch_xo', 'arch_xox', 'eyebrow', 'eyebrow_xo', 'eyebrow_xox',
   'arch_over_xo', 'arch_over_xox',
