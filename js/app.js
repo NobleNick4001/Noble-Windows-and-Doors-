@@ -14,6 +14,7 @@ import { stop as stopFrameTypes } from './pages/frame-types.js';
 import * as overlay from './pages/overlay.js';
 import * as settings from './pages/settings.js';
 import * as admin from './pages/admin.js';
+import * as accounts from './pages/accounts.js';
 
 const ROUTES = [
   ['calculator', 'Calculator', 'calculator', (r) => calculator.render(r)],
@@ -29,7 +30,10 @@ const ROUTES = [
 
 function allRoutes() {
   const list = [...ROUTES];
-  if (isAdmin()) list.splice(3, 0, ['admin', 'Admin', 'user', (r) => admin.render(r)]);
+  const inserts = [];
+  if (isAdmin()) inserts.push(['admin', 'Admin', 'user', (r) => admin.render(r)]);
+  inserts.push(['accounts', 'Accounts', 'shield', (r) => accounts.render(r), !isAdmin()]);
+  list.splice(3, 0, ...inserts);
   return list;
 }
 
@@ -47,7 +51,7 @@ function route() {
   const [, name = 'calculator', sub] = location.hash.split('/');
   const routes = allRoutes();
   const r = routes.find((x) => x[0] === name) || routes[0];
-  const nav = routes.filter((x) => x[0] !== 'settings');
+  const nav = routes.filter((x) => x[0] !== 'settings' && !x[4]);
   gallery.stop();
   brochures.stop();
   obscure.stop();
@@ -88,6 +92,7 @@ function boot() {
 }
 
 (async () => {
+  window.addEventListener('nwd-lock', () => lockShell());
   lockShell();
   await startAuth({
     onReady: async () => {

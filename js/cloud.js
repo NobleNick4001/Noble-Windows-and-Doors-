@@ -1,6 +1,7 @@
 // Accounts and durable sync. supabase-js is loaded from the CDN on demand so a
 // missing network does not stop the rest of the app. The publishable key is a client key.
 import { h, store, estimates, totals, summaryLines, toast, browserOffline, OFFLINE_MESSAGE } from './core.js';
+import { passwordError, publicPasswordFailure, recoveryFromHash, toPublicAccount } from '../supabase/functions/account-passwords/password.js';
 
 export const SUPABASE_URL = 'https://nmyatpcjqfokmfbssimc.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_SnKqbI5z7tlZzQmntcxumQ_AqB1pNJ9';
@@ -61,6 +62,9 @@ let lastConfirm = 0;
 let pendingMessage = '';
 let signingOut = false;
 let watchingAccess = false;
+let passwordGate = false;
+
+const RECOVERY_PENDING = 'nwd.recoveryPending';
 
 export function userId() { return me; }
 export function currentProfile() { return profile; }
@@ -268,6 +272,14 @@ async function doFlush() {
   const { data: sessionData } = await sb.auth.getSession();
   const session = sessionData?.session;
   if (!session) { setSyncState('wait'); return hubReport; }
+  if (passwordGate || session.user?.app_metadata?.must_change_password === true) {
+    if (session.user?.app_metadata?.must_change_password === true) {
+      window.dispatchEvent(new Event('nwd-lock'));
+      await showPasswordChange('temporary');
+    }
+    setSyncState('wait');
+    return hubReport;
+  }
   const gate = await confirmAccess(sb, session, { maxAge: 8000 });
   if (!gate.ok) {
     if (gate.reason === 'denied') await forceSignOut('This account no longer has access.');
@@ -594,6 +606,21 @@ function applyProfile(session, access) {
   };
 }
 
+function recoveryPending() {
+  try { return sessionStorage.getItem(RECOVERY_PENDING) === '1'; } catch { return false; }
+}
+
+function setRecoveryPending(on) {
+  try {
+    if (on) sessionStorage.setItem(RECOVERY_PENDING, '1');
+    else sessionStorage.removeItem(RECOVERY_PENDING);
+  } catch { /* storage blocked */ }
+}
+
+function needsPasswordChange(session) {
+  return session?.user?.app_metadata?.must_change_password === true;
+}
+
 function bootFromCache(session, access) {
   applyProfile(session, {
     email: access.email,
@@ -601,6 +628,10 @@ function bootFromCache(session, access) {
     fullName: access.fullName || access.full_name || nameForEmail(session.user.email),
     seeAll: access.seeAll === true || access.see_all === true,
   });
+  if (access.mustChangePassword === true || recoveryPending()) {
+    showPasswordChange(access.mustChangePassword === true ? 'temporary' : 'recovery');
+    return;
+  }
   readyHook?.();
   mountAccount(document.getElementById('account'));
 }
@@ -634,6 +665,7 @@ async function confirmAccess(sb, session, opts = {}) {
     role: row.role === 'admin' ? 'admin' : 'sales',
     fullName: row.full_name || nameForEmail(email) || email,
     seeAll: row.role === 'admin' || row.see_all === true,
+    mustChangePassword: session?.user?.app_metadata?.must_change_password === true,
     checkedAt: Date.now(),
   };
   writeCachedAccess(access);
@@ -652,6 +684,8 @@ async function afterLogin(session, access) {
 async function forceSignOut(message) {
   if (signingOut) return;
   signingOut = true;
+  passwordGate = false;
+  setRecoveryPending(false);
   pendingMessage = message || '';
   const email = profile?.email || readCachedAccess()?.email || '';
   writeCachedAccess({ email, allowed: false, role: null, fullName: '', checkedAt: Date.now() });
@@ -672,11 +706,17 @@ async function forceSignOut(message) {
 }
 
 async function recheckAccess(andFlush) {
-  if (!me || signingOut || browserOffline() || !navigator.onLine) return;
+  if (passwordGate || !me || signingOut || browserOffline() || !navigator.onLine) return;
   const sb = await getSupabase();
   if (!sb) return;
   const { data } = await sb.auth.getSession();
   if (!data?.session) return;
+  const { data: fresh, error: freshErr } = await sb.auth.getUser();
+  if (!freshErr && fresh?.user?.app_metadata?.must_change_password === true) {
+    window.dispatchEvent(new Event('nwd-lock'));
+    await showPasswordChange('temporary');
+    return;
+  }
   const gate = await confirmAccess(sb, data.session);
   if (!gate.ok) {
     if (gate.reason === 'denied') await forceSignOut('This account no longer has access.');
@@ -734,6 +774,11 @@ export async function signIn(email, password) {
     if (gate.reason === 'denied') return { error: 'This email is not allowed to sign in.' };
     return { error: gate.error || 'Could not confirm this account is allowed.' };
   }
+  if (needsPasswordChange(data.session)) {
+    writeCachedAccess({ ...gate.access, mustChangePassword: true });
+    await showPasswordChange('temporary');
+    return { ok: true, mustChange: true };
+  }
   await afterLogin(data.session, gate.access);
   return { ok: true };
 }
@@ -779,10 +824,16 @@ export async function startAuth({ onReady, onSignedOut } = {}) {
     await showLogin('Sign-in needs a connection the first time. Estimates already on this device stay here.');
     return;
   }
+  const recovery = await adoptRecovery(sb);
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' && !signingOut && me) forceSignOut('This account no longer has access.');
-    if (event === 'TOKEN_REFRESHED' && session) recheckAccess(false);
+    if (event === 'TOKEN_REFRESHED' && session && !passwordGate) recheckAccess(false);
   });
+  if (recovery?.error) { await showLogin(recovery.error); return; }
+  if (recovery?.ok) {
+    await showPasswordChange(needsPasswordChange(recovery.session) ? 'temporary' : 'recovery');
+    return;
+  }
   const { data } = await sb.auth.getSession();
   if (!data.session) { await showLogin(''); return; }
   const gate = await confirmAccess(sb, data.session);
@@ -808,7 +859,92 @@ export async function startAuth({ onReady, onSignedOut } = {}) {
     await showLogin(gate.error || 'Could not confirm this account is allowed.');
     return;
   }
+  if (needsPasswordChange(data.session) || recoveryPending()) {
+    writeCachedAccess({ ...gate.access, mustChangePassword: needsPasswordChange(data.session) });
+    await showPasswordChange(needsPasswordChange(data.session) ? 'temporary' : 'recovery');
+    return;
+  }
   await afterLogin(data.session, gate.access);
+}
+
+function shownPasswordError(message, password) {
+  const msg = String(message || 'Could not update the password.');
+  if (password && msg.includes(password)) return 'Could not update the password.';
+  return msg;
+}
+
+async function adoptRecovery(sb) {
+  const tokens = recoveryFromHash(location.hash);
+  if (tokens) {
+    const { data, error } = await sb.auth.setSession(tokens);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch { /* ignore */ }
+    if (error || !data.session) return { error: 'That reset link has expired. Ask an admin to send a new one.' };
+    setRecoveryPending(true);
+    return { ok: true, session: data.session };
+  }
+  const code = new URLSearchParams(location.search).get('code');
+  if (!code) return null;
+  const { data, error } = await sb.auth.exchangeCodeForSession(code);
+  try {
+    const clean = new URL(location.href);
+    clean.searchParams.delete('code');
+    history.replaceState(null, '', clean.pathname + clean.search + clean.hash);
+  } catch { /* ignore */ }
+  if (error || !data.session) return { error: 'That reset link has expired. Ask an admin to send a new one.' };
+  setRecoveryPending(true);
+  return { ok: true, session: data.session };
+}
+
+async function showPasswordChange(mode) {
+  passwordGate = true;
+  const { renderSetPassword } = await import('./pages/auth.js');
+  const root = document.getElementById('app');
+  const draw = (message) => {
+    renderSetPassword(root, {
+      mode,
+      message,
+      onSubmit: (password) => finishPasswordChange(mode, password, draw),
+    });
+  };
+  draw('');
+}
+
+async function finishPasswordChange(mode, password, draw) {
+  const problem = passwordError(password);
+  if (problem) { draw(problem); return; }
+  if (browserOffline()) { draw(OFFLINE_MESSAGE); return; }
+  const sb = await getSupabase();
+  if (!sb) { draw('This needs a connection.'); return; }
+  const { data: before } = await sb.auth.getSession();
+  const flagged = mode === 'temporary' || needsPasswordChange(before?.session);
+  if (!flagged) {
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) {
+      const via = await invokeAccounts({ action: 'complete_change', password });
+      if (via.error) { draw(shownPasswordError(publicPasswordFailure(error.message, password), password)); return; }
+    }
+  } else {
+    const via = await invokeAccounts({ action: 'complete_change', password });
+    if (via.error) {
+      if (mode !== 'recovery') { draw(shownPasswordError(via.error, password)); return; }
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) { draw(shownPasswordError(via.error, password)); return; }
+    }
+  }
+  setRecoveryPending(false);
+  const { data: refreshed, error: refreshErr } = await sb.auth.refreshSession();
+  const session = refreshed?.session;
+  if (refreshErr || !session || needsPasswordChange(session)) {
+    await forceSignOut('Password saved. Sign in with your new password.');
+    return;
+  }
+  const gate = await confirmAccess(sb, session);
+  if (!gate.ok) {
+    await forceSignOut(gate.reason === 'denied' ? 'This email is not allowed to sign in.' : 'Password saved. Sign in with your new password.');
+    return;
+  }
+  passwordGate = false;
+  await afterLogin(session, { ...gate.access, mustChangePassword: false });
 }
 
 async function showLogin(message) {
@@ -928,6 +1064,53 @@ export async function loadAdmin() {
   if (people.error) return { error: people.error.message };
   if (rows.error) return { error: rows.error.message };
   return { people: people.data || [], estimates: rows.data || [] };
+}
+
+async function invokeAccounts(body) {
+  const offline = needsConnection();
+  if (offline) return { error: offline, status: 0 };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.', status: 0 };
+  const { data, error } = await sb.functions.invoke('account-passwords', { body });
+  if (!error) {
+    if (body.action === 'list') return { people: (Array.isArray(data?.people) ? data.people : []).map((row) => toPublicAccount(row)), status: 200 };
+    if (body.action === 'set_temp') {
+      const temporaryPassword = typeof data?.temporaryPassword === 'string' ? data.temporaryPassword : '';
+      if (!temporaryPassword) return { error: 'The password was set but was not returned. Set a new temporary password and give that one to the rep.', status: 502 };
+      return { ok: true, temporaryPassword, signedOut: data?.signedOut !== false, status: 200 };
+    }
+    return { ok: true, status: 200 };
+  }
+  let status = Number(error.context?.status) || 0;
+  let message = 'Request failed.';
+  try {
+    if (error.context && typeof error.context.clone === 'function') {
+      const payload = await error.context.clone().json();
+      if (payload?.error) message = String(payload.error);
+    }
+  } catch { /* keep the generic message */ }
+  if (body.password && message.includes(body.password)) message = 'Could not update the password.';
+  return { error: message, status };
+}
+
+export async function listAccounts() {
+  return invokeAccounts({ action: 'list' });
+}
+
+export async function sendPasswordReset(email) {
+  return invokeAccounts({
+    action: 'send_reset',
+    email: String(email || '').trim().toLowerCase(),
+    redirectTo: location.origin + location.pathname,
+  });
+}
+
+export async function setTemporaryPassword(email, password) {
+  return invokeAccounts({
+    action: 'set_temp',
+    email: String(email || '').trim().toLowerCase(),
+    password,
+  });
 }
 
 export async function loadSignatures(contractId) {

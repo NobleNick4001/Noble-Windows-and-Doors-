@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Accounts preview</title>
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<p class="fine" style="margin:.4rem 1rem">Sample layout only. These names are not real accounts, and the buttons on this page do not email anyone or change a password.</p>
+<header class="top">
+  <a class="brand" href="#/calculator"><img src="../assets/noble-logo-trim.png" alt="Noble Windows & Doors LLC"></a>
+  <nav id="nav"></nav>
+  <div id="account"></div>
+</header>
+<main id="app"></main>
+<script type="module">
+import { h } from '../js/core.js';
+import { icon } from '../js/icons.js';
+import { mountAccounts, render } from '../js/pages/accounts.js';
+import { renderSetPassword } from '../js/pages/auth.js';
+
+const PEOPLE = [
+  { email: 'nick@example.com', full_name: 'Nick Admin', role: 'admin', created_at: '2026-01-04T16:10:00Z', last_sign_in_at: '2026-11-16T18:40:00Z', signed_up: true, revoked: false, must_change_password: false, on_list: true },
+  { email: 'alex.rivera@example.com', full_name: 'Alex Rivera', role: 'sales', created_at: '2026-03-12T15:10:00Z', last_sign_in_at: '2026-11-15T21:04:00Z', signed_up: true, revoked: false, must_change_password: false, on_list: true },
+  { email: 'sam.lee@example.com', full_name: 'Sam Lee', role: 'sales', created_at: '2026-06-02T17:00:00Z', last_sign_in_at: '2026-11-02T13:12:00Z', signed_up: true, revoked: false, must_change_password: true, on_list: true },
+  { email: 'jordan.cole@example.com', full_name: 'Jordan Cole', role: 'sales', created_at: '2026-10-01T15:00:00Z', last_sign_in_at: null, signed_up: false, revoked: false, must_change_password: false, on_list: true },
+];
+
+const shot = new URLSearchParams(location.search).get('shot') || 'list';
+const nav = document.getElementById('nav');
+const sales = [['calculator', 'Calculator', 'calculator'], ['doors', 'Doors', 'door'], ['estimate', 'Estimate', 'estimate'], ['saved', 'Mine', 'folder']];
+const admin = shot === 'denied'
+  ? sales
+  : [['calculator', 'Calculator', 'calculator'], ['doors', 'Doors', 'door'], ['estimate', 'Estimate', 'estimate'], ['admin', 'Admin', 'user'], ['accounts', 'Accounts', 'shield'], ['saved', 'Mine', 'folder']];
+nav.replaceChildren(...admin.map(([id, label, ico]) => h('a', { href: '#/' + id, class: (shot !== 'denied' && id === 'accounts') ? 'on' : '' }, icon(ico, 'ico'), h('span', { class: 'nl' }, label))));
+document.getElementById('account').replaceChildren(h('span', { class: 'who' }, shot === 'denied' ? 'Alex Rivera' : 'Nick Admin'));
+
+const app = document.getElementById('app');
+if (shot === 'denied') {
+  await render(app);
+} else if (shot === 'change') {
+  document.body.classList.add('auth-locked');
+  renderSetPassword(app, { mode: 'temporary', message: '', onSubmit() {} });
+} else {
+  const alex = PEOPLE[1];
+  const initial = { people: PEOPLE };
+  if (shot === 'confirm') initial.confirm = { kind: 'reset', person: alex, error: '' };
+  if (shot === 'once') initial.revealed = { person: alex, password: 'River-Temp-48!', signedOut: true };
+  mountAccounts(app, {
+    selfEmail: 'nick@example.com',
+    initial,
+    load: async () => ({ people: PEOPLE }),
+    sendReset: async () => ({ ok: true }),
+    setTemp: async (_email, password) => ({ ok: true, temporaryPassword: password, signedOut: true }),
+  });
+}
+</script>
+</body>
+</html>
