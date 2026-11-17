@@ -9,6 +9,7 @@
 import { h, formatInches, data } from './core.js';
 import { DOOR_CONFIG } from './milgard.js';
 import { isPrehungLine, prehungImage, prehungSummary } from './prehung.js';
+import { formatInchLabel, isAx650Line } from './ax650.js';
 
 export const ASPECT_CAP = 4;
 
@@ -215,6 +216,16 @@ export function drawingModel(line) {
       const split = splitPanes(gx, gy, gw, gh, pattern, railT);
       panes.push(...split.panes);
       for (const bar of split.rails) rails.push({ ...bar, y: arch ? spring : 0, h: arch ? h - spring : h });
+    } else if (kind === 'stack3' || kind === 'stack4' || kind === 'bifold3' || kind === 'bifold4') {
+      const n = kind.endsWith('4') ? 4 : 3;
+      const bifold = kind.startsWith('bifold');
+      const pocket = kind === 'stack4' && !!(line?.pocket);
+      const pocketIn = pocket ? Math.min(Math.max(w * 0.07, 3.5), 9) : 0;
+      const split = splitPanes(gx, gy, Math.max(0.8, gw - pocketIn), gh, 'X'.repeat(n), railT);
+      split.panes.forEach((p, i) => { p.op = bifold ? (i % 2 ? 'casement-right' : 'casement') : 'slide-left'; });
+      panes.push(...split.panes);
+      rails.push(...split.rails.map((bar) => ({ ...bar, y: 0, h })));
+      if (pocket) rails.push({ x: w - face - pocketIn, y: 0, w: pocketIn + face * 0.35, h });
     } else if (kind === 'casement' || kind === 'swing') {
       const op = casementHand === 'OX' ? 'casement-right' : 'casement';
       panes.push({ x: gx, y: gy, w: gw, h: gh, op });
@@ -384,8 +395,9 @@ export function windowDrawingSVG(line, opts = {}) {
     }
   }
 
-  const wLabel = formatInches(model.w);
-  const hLabel = formatInches(model.h);
+  const inchLabel = isAx650Line(line) ? formatInchLabel : formatInches;
+  const wLabel = inchLabel(model.w);
+  const hLabel = inchLabel(model.h);
   const font = Math.max(compact ? 7 : 9, Math.min(compact ? 10 : 13, fit.dw * 0.16, fit.dh * 0.16));
   const dimY = oy + fit.dh + (compact ? 12 : 16);
   const tick = compact ? 3 : 4.5;
@@ -425,6 +437,7 @@ export const DRAWING_TYPES = [
   'picture', 'vslider', 'dshung', 'twin_vslider', 'hslider', 'xox',
   'casement', 'dcasement', 'twin_casement', 'awning', 'hvb',
   '2panel', '3panel', '4panel', 'patio_door_2p',
+  'stack3', 'stack4', 'bifold3', 'bifold4',
   'archtop', 'arch', 'halfround', 'arch_sh', 'arch_hr', 'specialty_arch',
   'arch_xo', 'arch_xox', 'eyebrow', 'eyebrow_xo', 'eyebrow_xox',
   'arch_over_xo', 'arch_over_xox',

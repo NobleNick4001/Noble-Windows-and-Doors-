@@ -1,10 +1,11 @@
-import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL } from '../core.js';
+import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, rowAmountText, isAx650Line } from '../core.js';
 import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions, styleLimits } from '../milgard.js';
+import { ax650Quote, ax650Description, parseInches, inchField, INSTALL_TBD, AX650_SERIES } from '../ax650.js';
 import { drawingEl } from '../drawings.js';
 import { icon } from '../icons.js';
 
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
-const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
+const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum'], [AX650_SERIES, 'AX650']];
 const STYLES = {
   window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['dshung', 'Double Single Hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['dcasement', 'Double casement'], ['awning', 'Awning'], ['arch_xo', 'Arch / eyebrow XO'], ['arch_xox', 'Arch / eyebrow XOX'], ['arch_sh', 'Arch single hung'], ['arch_hr', 'Half-round single hung']],
   door: [['2panel', '2-panel XO'], ['3panel', '3-panel'], ['4panel', '4-panel OXXO']],
@@ -18,7 +19,10 @@ const A250_NOTE = 'A250 aluminum: Clear Anodized and Bronze Anodized are the sam
 // Window styles and colors for a series (A250 windows have their own short lists).
 const windowStyles = (series) => series === 'A250' ? STYLES.window.filter(([id]) => A250_WINDOW_STYLES.includes(id)) : STYLES.window;
 const windowColors = (series) => series === 'A250' ? A250_WINDOW_COLORS : COLORS;
-const stylesFor = (calc) => calc.product === 'door' ? STYLES.door : windowStyles(calc.series);
+const ax650On = (calc) => calc.product === 'door' && calc.series === AX650_SERIES;
+const ax650Styles = () => (data.ax650?.models || []).map((m) => [m.id, m.name]);
+const ax650Colors = () => (data.ax650?.colors || []).map((c) => [c.id, c.name]);
+const stylesFor = (calc) => calc.product === 'door' ? (ax650On(calc) ? ax650Styles() : STYLES.door) : windowStyles(calc.series);
 // Clear upgrades an A250 window style has no price for.
 function trimA250(obj) {
   if (obj.series !== 'A250' || DOOR_CONFIG[obj.type]) return;
@@ -50,9 +54,20 @@ function ensure(calc) {
   if (!series.includes(calc.series)) calc.series = series[0];
   const styles = stylesFor(calc).map((x) => x[0]);
   if (!styles.includes(calc.type)) calc.type = styles[0];
-  if (calc.product === 'door') {
+  if (ax650On(calc)) {
+    const styles = ax650Styles().map((x) => x[0]);
+    if (!styles.includes(calc.type)) calc.type = styles[0] || 'stack3';
+    const colors = ax650Colors();
+    if (!colors.some((c) => c[0] === calc.color)) calc.color = colors[0]?.[0] || 'ww';
+    if (calc.type !== 'stack4') calc.pocket = false;
+    calc.pureview = false;
+    calc.grids = 'none';
+    calc.obscure = 'none';
+    calc.tempered = false;
+  } else if (calc.product === 'door') {
     const choices = doorColorChoices(calc.series);
     if (!choices.some((c) => c[0] === calc.color)) calc.color = choices[0][0];
+    calc.pocket = false;
   } else {
     const choices = windowColors(calc.series);
     if (!choices.some((c) => c[0] === calc.color)) calc.color = choices[0][0];
@@ -68,6 +83,9 @@ function ensure(calc) {
 }
 
 export function installFromCalc(calc) {
+  if (ax650On(calc)) {
+    return { type: 'ax650', pending: true, surcharges: [], headerFeet: '', writeIn: null, override: null, custom: null, frameType: null };
+  }
   if (calc.product === 'door') {
     return {
       type: 'door', surcharges: [...calc.doorAddons], headerFeet: calc.headerFeet,
@@ -87,11 +105,15 @@ export function installFromCalc(calc) {
 
 function draftLine(calc) {
   const door = calc.product === 'door';
+  const ax = ax650On(calc);
+  const w = ax ? parseInches(calc.w) : parseFloat(calc.w);
+  const h = ax ? parseInches(calc.h) : parseFloat(calc.h);
   return {
     brand: 'milgard', series: calc.series, type: calc.type, color: door ? (calc.color || 'ww') : calc.color,
-    w: parseFloat(calc.w), h: parseFloat(calc.h), qty: Math.max(1, parseInt(calc.qty, 10) || 1),
+    w, h, qty: Math.max(1, parseInt(calc.qty, 10) || 1),
     unitsPerLine: 1, grids: door ? 'none' : calc.grids, obscure: door ? 'none' : calc.obscure,
-    tempered: door ? false : !!calc.tempered, pureview: !!calc.pureview,
+    tempered: door ? false : !!calc.tempered, pureview: ax ? false : !!calc.pureview,
+    pocket: ax && calc.type === 'stack4' && !!calc.pocket,
     frame: door ? '' : calc.frame, install: installFromCalc(calc),
     shape: (!door && (calc.type === 'arch_xo' || calc.type === 'arch_xox') && calc.shape === 'eyebrow') ? 'eyebrow' : '',
   };
@@ -129,6 +151,10 @@ function seg(label, items, current, onPick) {
 function quoteText(l) {
   const qty = Number(l.qty) || 1;
   if (l.brand !== 'milgard') return `${qty}× ${l.series || ''} ${typeName(l.type)} ${l.w}×${l.h}`;
+  if (isAx650Line(l)) {
+    const d = ax650Description(data.ax650, l);
+    return `${qty}× AX650 ${d.style} ${d.size} · ${d.color} · ${d.glass}`;
+  }
   const door = isMilgardDoorLine(l);
   const style = door
     ? ({ '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel OXXO' }[l.type] + ' patio door')
@@ -222,12 +248,27 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     persist(); rerender();
   };
 
+  const ax = ax650On(calc);
   const left = h('div', { class: 'card' });
   left.append(h('h3', {}, '1 · Product'));
-  left.append(h('p', { class: 'fine' }, 'SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen. Door sizes are the net frame, not the rough opening.'));
+  left.append(h('p', { class: 'fine' }, ax
+    ? 'AX650 sizes are the net frame. Glass is Tempered SunCoatMAX. No screen.'
+    : 'SunCoatMAX, high heat bead where available, and Full Lifetime where available are included. Windows include a standard fiberglass screen. Doors include an upgraded fiberglass screen. Door sizes are the net frame, not the rough opening.'));
   left.append(seg('Product', [['window', 'Window'], ['door', 'Patio door']], calc.product, setKind));
   left.append(seg('Series', calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES, calc.series, (id) => { calc.series = id; persist(); rerender(); }));
-  left.append(seg('Style', stylesFor(calc), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
+  if (ax) {
+    left.append(h('div', { class: 'lbl' }, 'Style'));
+    left.append(h('div', { class: 'labor-boxes', id: 'ax650-models' }, ax650Styles().map(([id, name]) => h('button', {
+      type: 'button', class: 'labor-box' + (id === calc.type ? ' on' : ''), id: 'model-' + id,
+      onclick: () => { calc.type = id; if (id !== 'stack4') calc.pocket = false; persist(); rerender(); },
+    }, name))));
+    if (calc.type === 'stack4') {
+      left.append(h('div', { class: 'labor-boxes' }, h('button', {
+        type: 'button', class: 'labor-box' + (calc.pocket ? ' on' : ''), id: 'opt-pocket',
+        onclick: () => { calc.pocket = !calc.pocket; persist(); rerender(); },
+      }, 'Pocket')));
+    }
+  } else left.append(seg('Style', stylesFor(calc), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
   if (calc.product === 'window' && (calc.type === 'arch_xo' || calc.type === 'arch_xox')) {
     left.append(seg('Head', [['arch', 'Arch'], ['eyebrow', 'Eyebrow']], calc.shape === 'eyebrow' ? 'eyebrow' : 'arch', (id) => { calc.shape = id; persist(); rerender(); }));
     left.append(h('p', { class: 'fine', id: 'arch-head-note' }, 'Arch and eyebrow are the same price. Arch uses a semicircle: the leg, and the bottom window, are the height minus half the width. An eyebrow rise is one eighth of the width.'));
@@ -243,9 +284,11 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     ...roomLabelProps(() => calc.label || '', setRoom),
   }), roomMsg);
 
-  const sizeAttrs = { type: 'text', inputmode: 'decimal', pattern: '[0-9]*[.]?[0-9]*', placeholder: '0' };
+  const sizeAttrs = ax
+    ? { type: 'text', inputmode: 'text', placeholder: '0', autocomplete: 'off' }
+    : { type: 'text', inputmode: 'decimal', pattern: '[0-9]*[.]?[0-9]*', placeholder: '0' };
   const onSize = (assign) => (e) => {
-    const cleaned = decimal(e.target.value);
+    const cleaned = ax ? inchField(e.target.value) : decimal(e.target.value);
     if (e.target.value !== cleaned) e.target.value = cleaned;
     assign(cleaned);
     persist();
@@ -261,7 +304,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       h('label', { class: 'field' }, h('span', { class: 'lbl' }, sizeLabel ? 'Net frame height (in)' : 'Height (in)'), hInput, hHint))));
   left.append(errEl);
 
-  if (calc.product === 'door') {
+  if (ax) {
+    left.append(seg('Color', ax650Colors(), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
+    left.append(h('p', { class: 'fine', id: 'ax650-glass' }, 'Glass: Tempered SunCoatMAX. No screen.'));
+  } else if (calc.product === 'door') {
     left.append(seg('Color', doorColorChoices(calc.series), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
   }
   if (calc.product === 'window') {
@@ -283,7 +329,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       onchange: (e) => { calc.tempered = e.target.checked; persist(); update(); },
     }), h('span', {}, 'Tempered glass')));
   }
-  const showPV = !(calc.product === 'window' && calc.type === 'picture') && calc.series !== 'A250';
+  const showPV = !ax && !(calc.product === 'window' && calc.type === 'picture') && calc.series !== 'A250';
   if (showPV) {
     toggles.append(h('label', { class: 'check' }, h('input', {
       type: 'checkbox', id: 'opt-pureview', checked: calc.pureview ? 'checked' : null,
@@ -297,7 +343,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   })));
 
   left.append(h('h3', {}, 'Installation'));
-  if (calc.product === 'window') left.append(windowLabor(calc, persist, rerender, update));
+  if (ax) {
+    left.append(h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax650-install' }, 'Installation', h('small', {}, INSTALL_TBD))));
+  } else if (calc.product === 'window') left.append(windowLabor(calc, persist, rerender, update));
   else left.append(doorLabor(calc, persist, rerender, update, doorLaborEl));
 
   const drawHost = h('div', { id: 'calc-drawing' });
@@ -312,6 +360,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   restoreView(view);
 
   function limitsNow() {
+    if (ax) return ax650Quote(data.ax650, { type: calc.type }).limits;
     const D = data.milgardOnelink;
     if (!D) return null;
     if (calc.product === 'door') return D.doorLimits[calc.series + '_' + DOOR_CONFIG[calc.type]] || null;
@@ -324,7 +373,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     wHint.textContent = bounded ? (L.hintW || (L.wmin != null ? `Allowed ${L.wmin}–${L.wmax}"` : '')) : '';
     hHint.textContent = bounded ? (L.hintH || (L.hmin != null ? `Allowed ${L.hmin}–${L.hmax}"${L.curve ? ' (max shrinks on wide units)' : ''}` : '')) : '';
     const line = draftLine(calc);
-    const q = milgardQuote(data.milgardOnelink, line);
+    const q = ax ? ax650Quote(data.ax650, line) : milgardQuote(data.milgardOnelink, line);
     const sized = line.w > 0 && line.h > 0;
     const unavailable = !!q?.unavailable;
     const errors = !unavailable && sized && q ? q.errors : [];
@@ -353,13 +402,13 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     }
     const noteNodes = [];
     if (q?.provisional && sized && !errors.length && !unavailable) noteNodes.push(h('div', { class: 'provisional-flag', id: 'provisional-flag' }, 'Provisional price'));
-    for (const n of q?.notes || []) {
+    for (const n of (ax ? [] : q?.notes) || []) {
       if (unavailable && n === 'Not available') continue;
       noteNodes.push(h('div', { class: 'note' }, n));
     }
     notesEl.replaceChildren(...noteNodes);
     drawHost.replaceChildren(...(sized ? [drawingEl(line, 'calc-drawing', { boxW: 240, boxH: 200 })] : []));
-    if (calc.product === 'door') {
+    if (calc.product === 'door' && !ax) {
       const base = data.install.doors.panels[calc.type] || 0;
       const tall = line.h > data.install.doors.tallOverInches;
       const who = calc.type === '2panel' ? '2-panel' : calc.type === '3panel' ? '3-panel' : '4-panel';
@@ -387,7 +436,8 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       quoteEl.append(h('div', {
         class: 'line' + (row.strong ? ' strong' : '') + (row.discount ? ' discount' : ''),
         id: row.id === 'materialsSub' ? 'materials-subtotal' : row.id === 'install' ? 'quote-install' : row.id === 'tax' ? 'quote-tax' : row.id === 'shipping' ? 'quote-shipping' : null,
-      }, h('span', {}, row.label), h('b', {}, fmt(row.amount))));
+      }, h('span', {}, row.label), h('b', { id: row.id === 'install' ? 'quote-install-amt' : null }, rowAmountText(row))));
+      if (row.note) quoteEl.append(h('p', { class: 'fine', id: 'install-tbd-note' }, row.note));
     }
     quoteEl.append(h('div', { class: 'line strong' }, h('span', {}, 'Total'), h('b', { id: 'quote-total' }, fmt(t.total))));
     quoteEl.append(h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate'));
@@ -396,7 +446,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   function addLine() {
     const location = String(calc.label || '').trim();
     const line = draftLine(calc);
-    const q = milgardQuote(data.milgardOnelink, line);
+    const q = ax ? ax650Quote(data.ax650, line) : milgardQuote(data.milgardOnelink, line);
     if (!location || !q || q.unavailable || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
     const p = priceWindow(line);
     if (!p || p.blocked || p.unit == null) return;
@@ -406,13 +456,14 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       id: uid(), label: location,
       brand: 'milgard', series: calc.series, type: calc.type, color: line.color,
       w: line.w, h: line.h, qty: line.qty, unitsPerLine: 1,
-      options: optionIds(calc), addons: addonIds(calc),
-      grids: line.grids, obscure: line.obscure, tempered: line.tempered, pureview: line.pureview, frame: line.frame,
+      options: ax ? [] : optionIds(calc), addons: ax ? [] : addonIds(calc),
+      grids: line.grids, obscure: line.obscure, tempered: line.tempered, pureview: line.pureview,
+      pocket: !!line.pocket, frame: line.frame,
       shape: line.shape || '',
       supplierPrice: null, customDescription: '',
       unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: p.rate, rateSet: settings.rateSet,
-      estimated: false, pricingMode: 'onelink', pricePending: !!p.pricePending, provisional: !!p.provisional, unavailable: false,
-      install: inst, installUnit: installUnit(inst, line),
+      estimated: false, pricingMode: ax ? 'ax650' : 'onelink', pricePending: !!p.pricePending, provisional: !!p.provisional, unavailable: false,
+      install: inst, installUnit: ax ? null : installUnit(inst, line),
     });
     estimates.persist();
     calc.w = '';
@@ -513,6 +564,29 @@ function syncFlags(line) {
   if (line.obscure === 'satin') { line.addons.push('obscure'); line.options.push('obscure', 'milgard-satin'); }
   if (line.grids === 'flat') { line.addons.push('grids'); line.options.push('grids-colonial'); }
   if (line.pureview) { line.addons.push('pureview'); line.options.push('pureview'); }
+}
+
+export function ax650LineEditor(line, onChange, idp = 'ax-') {
+  const models = data.ax650?.models || [];
+  const colors = data.ax650?.colors || [];
+  return h('div', {},
+    h('div', { class: 'labor-boxes', id: idp + 'models' }, models.map((m) => h('button', {
+      type: 'button', class: 'labor-box' + (line.type === m.id ? ' on' : ''), id: idp + 'model-' + m.id,
+      onclick: () => {
+        line.type = m.id;
+        if (m.id !== 'stack4') line.pocket = false;
+        onChange();
+      },
+    }, m.name))),
+    line.type === 'stack4' ? h('div', { class: 'labor-boxes' }, h('button', {
+      type: 'button', class: 'labor-box' + (line.pocket ? ' on' : ''), id: idp + 'pocket',
+      onclick: () => { line.pocket = !line.pocket; onChange(); },
+    }, 'Pocket')) : null,
+    h('div', { class: 'chips', id: idp + 'colors' }, colors.map((c) => h('button', {
+      type: 'button', class: 'chip pick' + (line.color === c.id ? ' on' : ''), id: idp + 'color-' + c.id,
+      onclick: () => { line.color = c.id; onChange(); },
+    }, c.name))),
+    h('p', { class: 'fine', id: idp + 'glass' }, 'Glass: Tempered SunCoatMAX. No screen.'));
 }
 
 export function milgardLineEditor(line, onChange, idp = 'mg-') {

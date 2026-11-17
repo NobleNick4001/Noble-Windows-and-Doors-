@@ -97,7 +97,8 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v61-accounts'" in sw, 'service worker cache should be nwd-sales-v61-accounts')
+check("const CACHE = 'nwd-sales-v62-ax650'" in sw, 'service worker cache should be nwd-sales-v62-ax650')
+check('js/ax650.js' in sw and 'data/milgard-ax650.json' in sw, 'AX650 price file and engine should be precached')
 check('js/drawings.js' in sw, 'window drawings should be precached')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
@@ -186,6 +187,29 @@ check(by_code['NOBLE5']['type'] == 'percent' and by_code['NOBLE5']['percent'] ==
 check(by_code['NOBLE10']['type'] == 'percent' and by_code['NOBLE10']['percent'] == 10 and by_code['NOBLE10']['appliesToLabor'] is False, 'NOBLE10')
 check(by_code['NOBLEBOGO']['type'] == 'bogo' and by_code['NOBLEBOGO']['buy'] == 4 and by_code['NOBLEBOGO']['get'] == 1 and by_code['NOBLEBOGO']['appliesToLabor'] is False, 'NOBLEBOGO one free per 5')
 check('grossMargin' in open('js/core.js').read() and 'appliesToLabor' in open('js/core.js').read(), 'pricing uses the margin constant and the per-code labor flag')
+
+ax = json.load(open('data/milgard-ax650.json'))
+check(ax.get('sourceQuote') == 'MQPASG000219-1', 'AX650 source quote')
+check(ax.get('applyMargin') is False and ax.get('pricesAre') == 'customer', 'AX650 prices are customer prices and are not marked up again')
+check(ax.get('marginAlreadyIncluded') == 0.45, 'AX650 45% margin is already included')
+check(ax.get('installLabor') is None and ax.get('glass') == 'Tempered SunCoatMAX' and ax.get('screens') is False, 'AX650 glass is fixed and install labor is not priced')
+check([b['upTo'] for b in ax['height']['bands']] == [80, 96, 119.5], 'AX650 height bands')
+check(ax['height']['min'] == 79.5 and ax['height']['max'] == 119.5, 'AX650 height range')
+expected_ax = {
+    'stack3': [13995.43, 15392.38, 19541.43],
+    'stack4': [20482.47, 21710.20, 27708.14],
+    'bifold3': [16495.21, 19714.15, 22250.91],
+    'bifold4': [22375.55, 25255.48, 27877.83],
+}
+ids = [m['id'] for m in ax['models']]
+check(ids == ['stack3', 'stack4', 'bifold3', 'bifold4'], 'AX650 models, no 2-panel stacking or 5-panel bifold: ' + str(ids))
+for model in ax['models']:
+    check(model['customerPrice'] == expected_ax[model['id']], model['id'] + ' customer prices')
+check(ax['pocket']['customerPrice'] == 1428.14 and ax['pocket']['models'] == ['stack4'], 'pocket adder is a customer price on 4-panel stacking only')
+check([c['name'] for c in ax['colors']] == ['White', 'Warmtone', 'Bronze Anodized', 'Satin Anodized'], 'AX650 colors')
+import subprocess
+ax_run = subprocess.run(['node', 'tools/check_ax650.mjs'], capture_output=True, text=True)
+check(ax_run.returncode == 0, 'AX650 engine\\n' + ax_run.stdout + ax_run.stderr)
 
 if errs:
     print('FAILED')

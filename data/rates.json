@@ -102,6 +102,22 @@
    "name": "4-Panel Sliding Door (OXXO)"
   },
   {
+   "id": "stack3",
+   "name": "3-panel stacking"
+  },
+  {
+   "id": "stack4",
+   "name": "4-panel stacking"
+  },
+  {
+   "id": "bifold3",
+   "name": "3-panel bifold"
+  },
+  {
+   "id": "bifold4",
+   "name": "4-panel bifold"
+  },
+  {
    "id": "custom_supplier",
    "name": "Custom unit (enter supplier price)"
   }
@@ -190,6 +206,18 @@
    "name": "Classic Brown / Espresso / Bronze",
    "swatch": "#4a3728",
    "frame": "dkbronze"
+  },
+  {
+   "id": "warmtone",
+   "name": "Warmtone",
+   "swatch": "#c4a574",
+   "frame": "adobe"
+  },
+  {
+   "id": "satin-anodized",
+   "name": "Satin Anodized",
+   "swatch": "#c5c8ce",
+   "frame": "white"
   }
  ],
  "brands": [
