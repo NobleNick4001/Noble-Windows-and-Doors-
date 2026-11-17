@@ -218,9 +218,6 @@ body[data-route="estimate-present"] main{max-width:none;padding:0 .35rem calc(96
 .slab-wrap{position:relative;flex:1 1 0;min-width:0;background:#f4f7fb;border-radius:8px}
 .slab-wrap img{width:100%;height:auto;display:block;object-fit:contain;background:#f4f7fb;border-radius:8px}
 .slab-wrap img.mirror{transform:scaleX(-1)}
-.swing-overlay{position:absolute;inset:0;pointer-events:none}
-.swing-overlay svg{width:100%;height:100%;display:block}
-.hand-tag{margin-top:.2rem;font-size:.68rem;font-weight:800;letter-spacing:.01em;text-align:center;color:var(--navy);line-height:1.15}
 .line-drawing .door-figure{width:108px}
 .line-drawing .door-figure.pair{width:168px}
 .win-drawing .door-figure,.sheet-drawing .door-figure,.qdraw-art .door-figure{width:100%}
