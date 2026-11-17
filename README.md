@@ -111,6 +111,30 @@ Do this once, on the Supabase project the app already uses, before anyone relies
 
 After that, Nick does not need the SQL editor to add or remove a rep. Admin → Add rep, or Revoke / Restore.
 
+## Accounts and passwords
+
+Nick cannot view a rep’s password. Supabase stores a one-way hash. The Accounts tab (admin only) lists each account’s name, email, role, created date, and last sign-in. From there Nick can:
+
+- **Send password reset email.** Supabase emails that person a link. The link opens this app so they can choose a new password. The email does not contain a password.
+- **Set temporary password.** Nick types or generates one. It is shown once on his screen so he can give it to the rep. It is not emailed and it is not saved in the app. The rep must choose a new password the next time they sign in.
+
+A salesperson does not see the Accounts tab. Opening `#/accounts` shows that the page is only for an admin. The password actions run in the `account-passwords` edge function, which checks the allowlist itself. A non-admin who calls it gets 403.
+
+Merging the site only updates GitHub Pages. After merge, run these steps once. Do not put the service role key in the website, in git, or in an email. Supabase injects `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` into the function. There is no new secret.
+
+1. SQL Editor → paste and run `supabase/migrations/004_admin_auth_audit.sql`. This is the audit log (who, target, action, time). It stores no passwords. The function still works without it, and still rate-limits, but the hourly limit is only durable after this file is run. Running it again is safe.
+2. Deploy the function from this folder:
+
+`supabase functions deploy account-passwords --project-ref nmyatpcjqfokmfbssimc`
+
+Do not pass `--no-verify-jwt`. `verify_jwt` stays true.
+
+3. Authentication → URL Configuration. The reset link has to land back on this app. Add this redirect URL if it is not already allowed:
+
+`https://noblenick4001.github.io/Noble-Windows-and-Doors-/`
+
+A wildcard such as `https://noblenick4001.github.io/Noble-Windows-and-Doors-/**` also covers it. Set the Site URL to that same GitHub Pages address if it is still `localhost`. No other Auth setting has to change. The built-in Supabase mailer is capped (about two emails an hour). If a reset email does not arrive, the project needs the custom SMTP it may already use for other mail. Temporary passwords are never sent by email.
+
 ## Email brochures to a client
 
 Brochures → **Email to client** sends links to the hosted PDFs. The PDFs are not attached. The message has no prices.

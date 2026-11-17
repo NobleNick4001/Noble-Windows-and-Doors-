@@ -12,3 +12,6 @@ verify_jwt = true
 
 [functions.revoke-sessions]
 verify_jwt = true
+
+[functions.account-passwords]
+verify_jwt = true
