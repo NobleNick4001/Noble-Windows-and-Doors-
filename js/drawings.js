@@ -8,7 +8,8 @@
 //   an entered leg height or bottom-window height wins over those defaults
 import { h, formatInches, data } from './core.js';
 import { DOOR_CONFIG } from './milgard.js';
-import { isPrehungLine, prehungImage, prehungSummary } from './prehung.js';
+import { isPrehungLine } from './prehung.js';
+import { prehungFigureEl } from './door-figure.js';
 
 export const ASPECT_CAP = 4;
 
@@ -412,9 +413,7 @@ export function windowDrawingSVG(line, opts = {}) {
 
 export function drawingEl(line, className, box) {
   if (isPrehungLine(line)) {
-    const src = prehungImage(data.prehung, line.prehung || line);
-    const alt = prehungSummary(data.prehung, line).title || 'Prehung door';
-    return h('div', { class: className + ' door-photo' }, src ? h('img', { src, alt }) : null);
+    return h('div', { class: className + ' door-photo' }, prehungFigureEl(line, data.prehung));
   }
   const drawn = windowDrawingSVG(line, box);
   return h('div', { class: className, html: drawn.svg });
