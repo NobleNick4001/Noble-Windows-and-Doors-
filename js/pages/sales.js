@@ -3,7 +3,7 @@ import {
   isAdmin, userId, loadFollowUps, loadSalesExtras, syncFromHubspot, completeFollowUp, snoozeFollowUp, logHubspotNote, loadAdminSales,
 } from '../cloud.js';
 import {
-  UNCONTACTED_RULE, currentMonth, dueBucket, formatCloseRate, formatMonth, formatPhoenix, formatSyncedAgo, isDueOrOverdue, isStalledDeal, momChange, monthFromKey, monthKey, monthMetrics, shiftMonth,
+  currentMonth, dueBucket, formatCloseRate, formatMonth, formatPhoenix, formatSyncedAgo, isDueOrOverdue, isStalledDeal, momChange, monthFromKey, monthKey, monthMetrics, shiftMonth,
 } from '../../supabase/functions/_shared/assistant.js';
 
 function card(label, value, note) {
@@ -21,7 +21,7 @@ function changeText(pair) {
 export function followHelp(help, actions = {}) {
   const section = h('div', { class: 'card', id: 'follow-up-help' },
     h('h3', {}, 'Follow-up help'),
-    h('p', { class: 'fine' }, UNCONTACTED_RULE));
+    h('p', { class: 'fine' }, 'Leads assigned to you in HubSpot with no call, email, note or meeting yet.'));
   const blocks = [
     ['Due and overdue', help.followUps || [], (row) => row.customerName],
     ['Stalled deals', help.stalled || [], (row) => row.customerName],
@@ -64,7 +64,8 @@ export function dashboardView(model, actions = {}) {
       h('button', { type: 'button', class: 'btn', id: 'sales-prev', onclick: actions.onPrev }, 'Previous month'),
       h('button', { type: 'button', class: 'btn', id: 'sales-next', disabled: model.atCurrent ? true : null, onclick: actions.onNext }, 'Next month'),
       h('button', { type: 'button', class: 'btn primary', id: 'sales-refresh', onclick: actions.onRefresh }, 'Refresh'))));
-  if (model.conflictCount) page.append(h('p', { class: 'warn', id: 'sales-conflicts' }, `${model.conflictCount} HubSpot conflict${model.conflictCount === 1 ? '' : 's'}. The app value was kept.`));
+  const conflicts = conflictLine(model.conflicts);
+  if (conflicts) page.append(conflicts);
   page.append(h('div', { class: 'metric-grid', id: 'sales-metrics' },
     card('Appointments set', String(m.appointmentsSet)),
     card('Appointments held', String(m.appointmentsHeld)),
@@ -73,13 +74,40 @@ export function dashboardView(model, actions = {}) {
     card('Lost', `${m.lostCount} · ${fmt(m.lostDollars)}`),
     card('Close rate', formatCloseRate(m.closeRate)),
     card('Open pipeline (current)', fmt(m.pipeline), 'Not limited to this month')));
-  page.append(h('div', { class: 'card' },
-    h('h3', {}, 'Won'),
-    ...(m.won.length ? m.won.map((row) => historyRow(row, 'won')) : [h('p', { class: 'fine' }, 'No wins this month.')])),
-    h('h3', {}, 'Lost'),
-    ...(m.lost.length ? m.lost.map((row) => historyRow(row, 'lost')) : [h('p', { class: 'fine' }, 'No losses this month.')]));
+  page.append(outcomeCard('sales-won', 'Won', m.won, 'won', 'No wins this month.'));
+  page.append(outcomeCard('sales-lost', 'Lost', m.lost, 'lost', 'No losses this month.'));
   page.append(followHelp(model.help || {}, actions));
   return page;
+}
+
+function plainField(field) {
+  const name = String(field || 'Detail').replace(/_/g, ' ');
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function conflictLine(conflicts) {
+  const rows = (conflicts || []).filter((row) => row);
+  if (!rows.length) return null;
+  const noun = rows.length === 1 ? 'deal' : 'deals';
+  const list = h('div', { id: 'sales-conflict-list', hidden: true });
+  rows.forEach((row) => {
+    list.append(h('p', { class: 'fine', id: 'sales-conflict-' + (row.id || row.customer) }, `${row.customer || 'Customer'} · ${plainField(row.field)}`));
+  });
+  const details = h('button', {
+    type: 'button',
+    class: 'link',
+    id: 'sales-conflict-details',
+    onclick: () => { list.hidden = !list.hidden; },
+  }, 'Details');
+  return h('div', { id: 'sales-conflicts' },
+    h('p', { class: 'fine' }, `${rows.length} ${noun} changed in both places; the app's version was kept. `, details),
+    list);
+}
+
+function outcomeCard(id, title, rows, kind, empty) {
+  return h('div', { class: 'card', id },
+    h('h3', {}, title),
+    ...(rows.length ? rows.map((row) => historyRow(row, kind)) : [h('p', { class: 'fine' }, empty)]));
 }
 
 function historyRow(row, kind) {
@@ -251,7 +279,7 @@ export async function renderRep(root, monthToken) {
     atCurrent: monthKey(month) === monthKey(current),
     metrics,
     synced: formatSyncedAgo(extras.syncedAt, now),
-    conflictCount: extras.conflicts || 0,
+    conflicts: extras.conflicts || [],
     help: helpFrom(dueRows, stalled, extras.leads || []),
   }, actions));
 }

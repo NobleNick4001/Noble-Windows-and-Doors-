@@ -678,18 +678,22 @@ export async function syncFromHubspot() {
 
 export async function loadSalesExtras() {
   const sb = await getSupabase();
-  if (!sb) return { appointments: [], leads: [], syncedAt: null, conflicts: 0 };
+  if (!sb) return { appointments: [], leads: [], syncedAt: null, conflicts: [] };
   const [appointments, leads, state, conflicts] = await Promise.all([
     sb.from('appointments').select('id, owner_id, estimate_id, set_at, source'),
     sb.from('hubspot_leads').select('id, owner_id, hubspot_object, hubspot_id, name, phone, email, uncontacted').eq('uncontacted', true),
     sb.from('hubspot_sync_state').select('last_synced_at').maybeSingle(),
-    sb.from('hubspot_conflicts').select('id', { count: 'exact', head: true }).is('resolved_at', null),
+    sb.from('hubspot_conflicts').select('id, field, estimates(customer_name)').is('resolved_at', null),
   ]);
   return {
     appointments: appointments.data || [],
     leads: leads.data || [],
     syncedAt: state.data?.last_synced_at || null,
-    conflicts: conflicts.count || 0,
+    conflicts: (conflicts.data || []).map((row) => ({
+      id: row.id,
+      field: row.field === 'status' ? 'Status' : row.field,
+      customer: row.estimates?.customer_name || 'Customer',
+    })),
   };
 }
 

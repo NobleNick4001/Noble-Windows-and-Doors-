@@ -89,7 +89,7 @@ document.getElementById('account').replaceChildren(h('span', { class: 'who' }, s
 
 const DASH_ESTIMATES = [
   { id: 'w1', owner_id: 'eric', customer_name: 'Ada Cole', status: 'won', total_amount: 12450, won_at: '2026-11-12T18:00:00.000Z', presented_at: '2026-11-04T18:00:00.000Z' },
-  { id: 'l1', owner_id: 'eric', customer_name: 'Bea Ortiz', status: 'lost', total_amount: 4200, lost_at: '2026-11-18T18:00:00.000Z', presented_at: '2026-11-06T18:00:00.000Z' },
+  { id: 'l1', owner_id: 'eric', customer_name: 'Bea Ortiz', status: 'lost', total_amount: 4200, lost_at: '2026-11-16T18:00:00.000Z', presented_at: '2026-11-06T18:00:00.000Z' },
   { id: 'p1', owner_id: 'eric', customer_name: 'Cam Nguyen', status: 'presented', total_amount: 8600, presented_at: '2026-11-01T18:00:00.000Z', updated_at: '2026-11-01T18:00:00.000Z' },
   { id: 'w0', owner_id: 'eric', customer_name: 'October Win', status: 'won', total_amount: 2100, won_at: '2026-10-20T18:00:00.000Z', presented_at: '2026-10-08T18:00:00.000Z' },
   { id: 'm1', owner_id: 'mike', customer_name: 'Dee Patel', status: 'won', total_amount: 5300, won_at: '2026-11-14T18:00:00.000Z', presented_at: '2026-11-09T18:00:00.000Z' },
@@ -119,7 +119,7 @@ function dashModel(month) {
     atCurrent: month.start.getTime() === currentMonth(NOW).start.getTime(),
     metrics: monthMetrics({ estimates: DASH_ESTIMATES, appointments: DASH_APPTS, ownerId: 'eric', month }),
     synced: formatSyncedAgo(new Date(NOW.getTime() - 3 * 60 * 1000).toISOString(), NOW),
-    conflictCount: 1,
+    conflicts: [{ id: 'c1', customer: 'Ada Cole', field: 'Status' }],
     help: HELP,
   };
 }
