@@ -1,0 +1,202 @@
+{
+  "_readme": "Facts for the estimate spec line, keyed by series id. A field is present only when a file in this repo states it for that series. Omitted features are gaps (see _gaps) and must not be printed. Do not fill argon, warranty, or high-heat glazing bead from general knowledge. lifetimeWarranty is the customer phrase when a lifetime warranty is stated. glass is the package that comes with the series. types.<id>.glass overrides glass for that window or door type only.",
+  "series": {
+    "V250": {
+      "name": "Milgard V250 Style Line",
+      "frame": "Vinyl",
+      "lifetimeWarranty": "Lifetime limited warranty",
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-v250-style-line.pdf",
+        "lifetimeWarranty": "brochures/milgard-v250-style-line.pdf"
+      }
+    },
+    "V300": {
+      "name": "Milgard V300 Trinsic",
+      "frame": "Vinyl",
+      "lifetimeWarranty": "Lifetime limited warranty",
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-v300-trinsic.pdf",
+        "lifetimeWarranty": "brochures/milgard-v300-trinsic.pdf"
+      }
+    },
+    "V400": {
+      "name": "Milgard V400 Tuscany",
+      "frame": "Vinyl",
+      "lifetimeWarranty": "Lifetime limited warranty",
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-v400-tuscany.pdf",
+        "lifetimeWarranty": "brochures/milgard-v400-tuscany.pdf"
+      }
+    },
+    "A250": {
+      "name": "Milgard A250 Aluminum",
+      "frame": "Thermally improved aluminum",
+      "lifetimeWarranty": "Lifetime limited warranty",
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-a250-aluminum.pdf",
+        "lifetimeWarranty": "brochures/milgard-a250-aluminum.pdf"
+      }
+    },
+    "AX650": {
+      "name": "Milgard AX650",
+      "frame": "Aluminum",
+      "glass": "Tempered SunCoatMAX",
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-ax650-bifold.pdf",
+        "glass": "data/milgard-ax650.json"
+      }
+    },
+    "ultra": {
+      "name": "Ultra Series fiberglass",
+      "frame": "Fiberglass",
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json"
+      }
+    },
+    "100": {
+      "name": "Andersen 100 Series",
+      "frame": "Fibrex",
+      "sources": {
+        "name": "data/rates.json",
+        "frame": "brochures/andersen-100-series.pdf"
+      },
+      "types": {
+        "patio_door_2p": {
+          "glass": "Tempered glass",
+          "sources": {
+            "glass": "data/variable-rates.json"
+          }
+        }
+      }
+    },
+    "200": {
+      "name": "Andersen 200 Series",
+      "frame": "Perma-Shield vinyl exterior",
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json"
+      }
+    },
+    "400": {
+      "name": "Andersen 400 Series",
+      "frame": "Wood core, Perma-Shield exterior",
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json"
+      }
+    },
+    "A": {
+      "name": "Andersen A-Series",
+      "frame": "Solid wood interior, Fibrex exterior",
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json"
+      }
+    },
+    "E": {
+      "name": "Andersen E-Series",
+      "frame": "Extruded aluminum exterior",
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json"
+      }
+    },
+    "8200": {
+      "name": "IWC 8200",
+      "sources": {
+        "name": "data/rates.json"
+      }
+    },
+    "8900": {
+      "name": "IWC 8900 Doors",
+      "glass": "Tempered glass",
+      "argon": true,
+      "sources": {
+        "name": "data/rates.json",
+        "glass": "data/variable-rates.json",
+        "argon": "data/variable-rates.json"
+      }
+    },
+    "8800": {
+      "name": "IWC 8800 Series Ambassador",
+      "frame": "Aluminum",
+      "glass": "Low-E",
+      "lifetimeWarranty": "Lifetime limited warranty",
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json",
+        "glass": "data/options.json",
+        "lifetimeWarranty": "data/options.json"
+      }
+    }
+  },
+  "_gaps": [
+    {"series": "V250", "feature": "argon", "why": "brochures/milgard-v250-style-line.pdf only says warm-edge spacers improve argon retention. tools/milgard_quote_lines.json lists Argon Gas Filled on some V250 quotes, not all. Not a standard feature."},
+    {"series": "V250", "feature": "highHeatBead", "why": "No brochure or data file states a high-heat glazing bead. js/pages/milgard-ui.js says high heat bead where available."},
+    {"series": "V250", "feature": "glass", "why": "Quotes mix SunCoat (Low-E) and Cardinal 340+. js/pages/milgard-ui.js says SunCoatMAX is included. Those disagree, so no package is printed."},
+    {"series": "V250", "feature": "fullLifetime", "why": "The V250 brochure states Lifetime Limited Warranty only. It does not state Full Lifetime."},
+    {"series": "V300", "feature": "argon", "why": "Same as V250. Argon Gas Filled is on some quotes in tools/milgard_quote_lines.json, not every V300 line. The brochure does not say the unit is argon-filled."},
+    {"series": "V300", "feature": "highHeatBead", "why": "Not stated for V300. js/pages/milgard-ui.js says where available."},
+    {"series": "V300", "feature": "glass", "why": "Quote glass is Cardinal 340+ (Low-E). The Milgard screen says SunCoatMAX. No single package is confirmed."},
+    {"series": "V300", "feature": "fullLifetime", "why": "brochures/milgard-v300-trinsic.pdf says Full Lifetime is an optional upgrade for a fee. data/variable-rates.json says Glass Breakage + Full Lifetime is included in the fitted V300 rates. The two conflict, so Full Lifetime is left off. Lifetime limited warranty stays, from the brochure."},
+    {"series": "V400", "feature": "argon", "why": "Same as V300. Not on every quote, and the Tuscany brochure does not say the glass is argon-filled."},
+    {"series": "V400", "feature": "highHeatBead", "why": "Not stated for V400."},
+    {"series": "V400", "feature": "glass", "why": "Quote glass is Cardinal 340+ (Low-E). SunCoatMAX is not confirmed for this series."},
+    {"series": "V400", "feature": "fullLifetime", "why": "brochures/milgard-v400-tuscany.pdf says Full Lifetime is an optional upgrade for a fee. Lifetime limited warranty is what the brochure says is included."},
+    {"series": "A250", "feature": "argon", "why": "No argon line on the A250 quotes in tools/milgard_quote_lines.json, and brochures/milgard-a250-aluminum.pdf does not mention argon."},
+    {"series": "A250", "feature": "highHeatBead", "why": "Not stated for A250."},
+    {"series": "A250", "feature": "glass", "why": "A250 quotes use Cardinal 340+ (Low-E). That package is not named in data/*.json or the A250 brochure text, so it is not printed."},
+    {"series": "A250", "feature": "fullLifetime", "why": "tools/onelink/door_colors.csv notes Full Lifetime is not offered on the A250 door base. The brochure states Lifetime Limited only."},
+    {"series": "AX650", "feature": "argon", "why": "AX650 brochures say argon is available and list E366 with Argon as a glazing option. data/milgard-ax650.json sets the priced glass to Tempered SunCoatMAX and does not say argon."},
+    {"series": "AX650", "feature": "lifetimeWarranty", "why": "AX650 brochures only say to see warranty information online. No lifetime terms."},
+    {"series": "AX650", "feature": "highHeatBead", "why": "Not stated on the AX650 sheets."},
+    {"series": "ultra", "feature": "argon", "why": "Not stated for the ultra series id."},
+    {"series": "ultra", "feature": "lifetimeWarranty", "why": "brochures/milgard-c700-fiberglass.pdf states a Lifetime Limited Warranty for C700. data/options.json says not to name this fiberglass line C650 or C700, and it does not say ultra is C700. The C700 warranty is not copied onto ultra."},
+    {"series": "ultra", "feature": "highHeatBead", "why": "Not stated for ultra."},
+    {"series": "ultra", "feature": "glass", "why": "No glass package is named for ultra."},
+    {"series": "ultra", "feature": "priced", "why": "ultra is a talking point in data/options.json. It is not a series in data/rates.json, so a normal estimate cannot select it."},
+    {"series": "100", "feature": "argon", "why": "brochures/andersen-100-series.pdf does not mention argon."},
+    {"series": "100", "feature": "lifetimeWarranty", "why": "The 100 Series brochure states a transferable limited warranty: 20 years on glass and 10 years on non-glass parts. That is not a lifetime warranty."},
+    {"series": "100", "feature": "highHeatBead", "why": "Not stated for Andersen 100."},
+    {"series": "100", "feature": "glass", "why": "The brochure lists Low-E and SmartSun as glass options. data/options.json puts Low-E4 SmartSun on a separate talking-point id, smartsun, not on series 100. No default package is printed. The 2-panel patio door is the exception: data/variable-rates.json says that type includes tempered glass."},
+    {"series": "200", "feature": "argon", "why": "Not stated."},
+    {"series": "200", "feature": "lifetimeWarranty", "why": "Not stated."},
+    {"series": "200", "feature": "highHeatBead", "why": "Not stated."},
+    {"series": "200", "feature": "glass", "why": "Not stated."},
+    {"series": "200", "feature": "priced", "why": "Talking point in data/options.json only. Not in data/rates.json."},
+    {"series": "400", "feature": "argon", "why": "Not stated."},
+    {"series": "400", "feature": "lifetimeWarranty", "why": "Not stated."},
+    {"series": "400", "feature": "highHeatBead", "why": "Not stated."},
+    {"series": "400", "feature": "glass", "why": "Not stated. The options bullet mentions a glass menu and does not name the package."},
+    {"series": "400", "feature": "priced", "why": "Talking point in data/options.json only. Not in data/rates.json."},
+    {"series": "A", "feature": "argon", "why": "Not stated."},
+    {"series": "A", "feature": "lifetimeWarranty", "why": "Not stated."},
+    {"series": "A", "feature": "highHeatBead", "why": "Not stated."},
+    {"series": "A", "feature": "glass", "why": "Not stated."},
+    {"series": "A", "feature": "priced", "why": "Talking point in data/options.json only. Not in data/rates.json."},
+    {"series": "E", "feature": "argon", "why": "Not stated."},
+    {"series": "E", "feature": "lifetimeWarranty", "why": "Not stated."},
+    {"series": "E", "feature": "highHeatBead", "why": "Not stated."},
+    {"series": "E", "feature": "glass", "why": "Not stated."},
+    {"series": "E", "feature": "priced", "why": "Talking point in data/options.json only. Not in data/rates.json."},
+    {"series": "8200", "feature": "frame", "why": "data/variable-rates.json frame is block, which is the install frame, not the material. data/options.json says residential aluminum on the IWC brand note and aluminum on series 8800, not on 8200."},
+    {"series": "8200", "feature": "argon", "why": "Not stated for 8200. Argon is stated for 8900 doors only."},
+    {"series": "8200", "feature": "lifetimeWarranty", "why": "The lifetime limited warranty bullet is on series 8800 in data/options.json, not on 8200."},
+    {"series": "8200", "feature": "highHeatBead", "why": "Not stated."},
+    {"series": "8200", "feature": "glass", "why": "No 8200 glass package is named. Xtreme Low-E was a brand-wide label with no series source."},
+    {"series": "8900", "feature": "frame", "why": "data/variable-rates.json frame is block_deluxe. That is the frame style, not vinyl, aluminum, or Fibrex."},
+    {"series": "8900", "feature": "lifetimeWarranty", "why": "Not stated for 8900."},
+    {"series": "8900", "feature": "highHeatBead", "why": "Not stated."},
+    {"series": "8800", "feature": "argon", "why": "Not stated."},
+    {"series": "8800", "feature": "highHeatBead", "why": "Not stated."},
+    {"series": "8800", "feature": "priced", "why": "Talking point in data/options.json. Priced IWC series in data/rates.json are 8200 and 8900."},
+    {"series": "smartsun", "feature": "series", "why": "Low-E4 SmartSun is a glass talking point in data/options.json, not a window series, and it is not a selection on an Andersen 100 line."},
+    {"series": "install", "feature": "newConstruction", "why": "Nail fin is named Nail fin in data/frame-types.json and Nail Fin RnR Stucco in data/install.json. Neither name says New construction, so the spec does not add it. Retrofit is added only when the line's frame or install name says retrofit, which Retrofit / Z-bar does."}
+  ]
+}

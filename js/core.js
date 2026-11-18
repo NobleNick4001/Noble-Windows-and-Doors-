@@ -79,7 +79,7 @@ export function linePriceText(line) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null, prehung: null, ax650: null };
+export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null, prehung: null, ax650: null, seriesFeatures: null };
 export const OFFLINE_MESSAGE = "You're offline, try again when connected";
 export function browserOffline() { return typeof navigator !== 'undefined' && navigator.onLine === false; }
 export let settings = {};
@@ -87,8 +87,8 @@ export let settings = {};
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement, data.milgardOnelink, data.prehung, data.ax650] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'), getJSON('data/milgard-onelink.json'), getJSON('data/prehung-doors.json'), getJSON('data/milgard-ax650.json'),
+  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement, data.milgardOnelink, data.prehung, data.ax650, data.seriesFeatures] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'), getJSON('data/milgard-onelink.json'), getJSON('data/prehung-doors.json'), getJSON('data/milgard-ax650.json'), getJSON('data/series-features.json'),
   ]);
   if (data.obscureGlass?.sections) {
     data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
@@ -319,14 +319,92 @@ function seriesLabel(line) {
   const brand = brandById(line?.brand);
   return brand?.series?.find((s) => s.id === line?.series)?.name || line?.series || '';
 }
+function seriesFeature(line) {
+  const id = line?.series == null ? '' : String(line.series);
+  return data.seriesFeatures?.series?.[id] || null;
+}
+function confirmedGlass(line) {
+  const feat = seriesFeature(line);
+  if (!feat) return '';
+  return feat.types?.[line?.type]?.glass || feat.glass || '';
+}
+// Retrofit or New construction only when that line's frame or install name says so.
+function installKind(line) {
+  if (!line || isPrehungLine(line) || isAx650Line(line)) return '';
+  const bits = [];
+  const frameId = line.install?.frameType || line.frameType || line.frame || '';
+  const frame = data.frameTypes?.types?.find((t) => t.id === frameId);
+  if (frame?.name) bits.push(frame.name);
+  const typeName = data.install?.types?.find((t) => t.id === line.install?.type)?.name;
+  if (typeName) bits.push(typeName);
+  if (data.options?.glass) {
+    for (const id of [...(line.options || []), ...(line.addons || [])]) {
+      const def = optionDef(id);
+      if (def?.name) bits.push(def.name);
+    }
+  }
+  const blob = bits.join(' ');
+  if (/new construction/i.test(blob)) return 'New construction';
+  if (/retrofit/i.test(blob)) return 'Retrofit';
+  return '';
+}
+function selectedGlassLabels(line) {
+  const ids = new Set([...(line?.options || []), ...(line?.addons || [])]);
+  const labels = [];
+  if (ids.has('tempered')) labels.push(optionDef('tempered')?.name || 'Tempered (safety) glass');
+  else if (ids.has('tempered_lower')) labels.push('Tempered (lower sash only)');
+  if (ids.has('laminated')) labels.push(optionDef('laminated')?.name || 'Laminated glass');
+  if (ids.has('obscure')) {
+    const pattern = obscurePatternName(line);
+    labels.push(pattern ? `Obscured glass (${pattern})` : 'Obscured glass');
+  }
+  return labels;
+}
+// Compact spec under the line title. Unconfirmed features are left out.
+export function productSpec(line) {
+  if (!line || isPrehungLine(line)) return '';
+  const feat = seriesFeature(line);
+  const brandName = brandById(line.brand)?.name || (line.brand === 'iwc_window' || line.brand === 'iwc_door' ? 'IWC' : '');
+  const name = feat?.name || [brandName, seriesLabel(line)].filter(Boolean).join(' ');
+  const parts = [];
+  if (name) parts.push(name);
+  if (feat?.frame) parts.push(feat.frame);
+  const kind = installKind(line);
+  if (kind) parts.push(kind);
+  let color = '';
+  if (isAx650Line(line)) color = ax650Description(data.ax650, line).color;
+  else if (isMilgardDoorLine(line)) color = doorColorLabel(line.series, line.color) || colorName(line.color);
+  else if (line.color) color = colorName(line.color);
+  if (color) parts.push(shortColorName(color));
+  const glass = [];
+  const baseGlass = confirmedGlass(line);
+  if (baseGlass) glass.push(baseGlass);
+  if (data.options?.glass) {
+    for (const label of selectedGlassLabels(line)) {
+      const key = label.toLowerCase();
+      if (glass.some((item) => item.toLowerCase().includes(key.slice(0, 8)))) continue;
+      glass.push(label);
+    }
+  }
+  parts.push(...glass);
+  if (feat?.argon === true) parts.push('Argon gas');
+  if (feat?.lifetimeWarranty) parts.push(feat.lifetimeWarranty);
+  if (feat?.highHeatBead === true) parts.push('High-heat glazing bead');
+  return parts.filter(Boolean).join(' · ');
+}
 export function compactWindowLine(line, { includeBrand = false, ascii = false } = {}) {
-  if (isPrehungLine(line)) return prehungCompactLine(data.prehung, line, { ascii });
+  if (isPrehungLine(line)) {
+    const row = prehungCompactLine(data.prehung, line, { ascii });
+    row.spec = '';
+    return row;
+  }
   if (isAx650Line(line)) {
     const d = ax650Description(data.ax650, line);
     const brandName = brandById(line.brand)?.name || 'Milgard';
     const qty = Number(line.qty) || 1;
     return {
       title: `${line.label || 'Door'} — ${includeBrand ? brandName + ' ' : ''}AX650 ${d.style}`.replace(/\s+/g, ' ').trim(),
+      spec: productSpec(line),
       detail: [d.size, d.color, d.glass, `Qty ${qty}`].filter(Boolean).join(' · '),
       price: (Number(line.unit) || 0) * qty,
       priceText: '',
@@ -347,6 +425,7 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
   bits.push(`Qty ${Number(line.qty) || 1}`);
   return {
     title,
+    spec: productSpec(line),
     detail: bits.filter(Boolean).join(' · '),
     price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
     priceText: line.unavailable ? NOT_AVAILABLE_LABEL : (line.pricePending ? PRICE_PENDING_LABEL : (line.unpriced ? 'Not priced' : '')),
@@ -355,11 +434,7 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
 }
 const QUOTE_FRAME = { zbar: 'Z-bar', block: 'Block frame', nailfin: 'Nailing fin' };
 export function glassPackageName(line) {
-  const brand = line?.brand === 'iwc_window' || line?.brand === 'iwc_door' ? 'iwc' : line?.brand;
-  if (brand === 'milgard') return 'SunCoat Max Low-E (dual pane, argon)';
-  if (brand === 'andersen') return 'Dual-Pane Low-E SmartSun';
-  if (brand === 'iwc') return 'Xtreme Low-E';
-  return '';
+  return confirmedGlass(line);
 }
 function quoteFrameName(line) {
   const id = line?.install?.frameType || line?.frameType || '';
@@ -371,13 +446,18 @@ function obscurePatternName(line) {
 }
 // Customer-facing quote row. Glass package is the brand default. Tempered, obscure, and grids appear only when selected.
 export function quoteLine(line, { ascii = false } = {}) {
-  if (isPrehungLine(line)) return prehungQuoteLine(data.prehung, line, { ascii });
+  if (isPrehungLine(line)) {
+    const row = prehungQuoteLine(data.prehung, line, { ascii });
+    row.spec = '';
+    return row;
+  }
   if (isAx650Line(line)) {
     const d = ax650Description(data.ax650, line);
     const brandName = brandById(line.brand)?.name || 'Milgard';
     return {
       location: line.label || 'Door',
       title: `${brandName} AX650 ${d.style}`,
+      spec: productSpec(line),
       details: [d.color, d.glass].filter(Boolean),
       size: d.size,
       qty: Number(line.qty) || 1,
@@ -397,8 +477,6 @@ export function quoteLine(line, { ascii = false } = {}) {
   if (color) details.push(color);
   const frame = quoteFrameName(line);
   if (frame) details.push(frame);
-  const glass = glassPackageName(line);
-  if (glass) details.push(glass);
   if (ids.has('tempered')) details.push('Tempered (safety) glass');
   else if (ids.has('tempered_lower')) details.push('Tempered (lower sash only)');
   if (ids.has('laminated')) details.push('Laminated glass');
@@ -422,6 +500,7 @@ export function quoteLine(line, { ascii = false } = {}) {
   return {
     location: line.label || 'Window',
     title: product || custom || 'Window',
+    spec: productSpec(line),
     details,
     size: `${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`,
     qty: Number(line.qty) || 1,

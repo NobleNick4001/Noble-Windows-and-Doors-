@@ -1,4 +1,4 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText, productSpec } from '../core.js';
 import { prehungEstimateRow } from './prehung-ui.js';
 import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
@@ -46,6 +46,7 @@ export function compactWindowList(lines, { always = false, id = 'compact-windows
         drawingEl(l, 'win-drawing', { boxW: 132, boxH: 112 }),
         h('div', { class: 'win-copy' },
           h('div', { class: 'win-top' }, h('span', { class: 'win-title' }, row.title), h('b', { class: 'win-price' + (row.priceText ? ' pending-price' : '') }, row.priceText || fmt(row.price))),
+          row.spec ? h('div', { class: 'line-spec' }, row.spec) : null,
           h('div', { class: 'win-sub' }, row.detail))));
     }
   }
@@ -271,7 +272,7 @@ export function render(root) {
     const row = h('div', { class: 'lineitem' },
       h('div', { class: 'li-main' },
         drawingEl(l, 'line-drawing', { boxW: 168, boxH: 142 }),
-        h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
+        h('div', { class: 'li-text' }, h('b', {}, l.label), productSpec(l) ? h('div', { class: 'line-spec', id: 'li-spec-' + l.id }, productSpec(l)) : null, h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
           h('div', { class: 'fine', id: 'li-install-' + l.id }, `Install: ${installLabel(l.install, l)}`),
           needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
           l.sizeError ? h('div', { class: 'warn size-err', id: 'size-err-' + l.id }, l.sizeError) : null,
@@ -490,7 +491,8 @@ function estimateSheet(e) {
   const tb = h('tbody'); e.lines.forEach((l) => {
     const door = isPrehungLine(l);
     const detail = door ? prehungSummary(data.prehung, l).detail : '';
-    tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), door && detail ? h('div', { class: 'fine' }, detail) : null, !door && optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, ...lineFlags(l), !door && l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, door ? prehungSizeText(data.prehung, l) : (isAx650Line(l) ? ax650Description(data.ax650, l).size : `${l.w}" × ${l.h}"`)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit)))), h('td', { class: 'r' }, linePriceText(l))));
+    const spec = productSpec(l);
+    tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), spec ? h('div', { class: 'line-spec' }, spec) : null, door && detail ? h('div', { class: 'fine' }, detail) : null, !door && optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, ...lineFlags(l), !door && l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, door ? prehungSizeText(data.prehung, l) : (isAx650Line(l) ? ax650Description(data.ax650, l).size : `${l.w}" × ${l.h}"`)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit)))), h('td', { class: 'r' }, linePriceText(l))));
   });
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));

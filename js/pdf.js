@@ -220,6 +220,7 @@ function writeCompactWindows(w, lines) {
     for (const l of section.lines) {
       const row = compactWindowLine(l, { includeBrand: false, ascii: true });
       w.pair(row.title, row.priceText || fmt(row.price), { size: 10, bold: true, gap: 0 });
+      if (row.spec) w.text(row.spec, { size: 8, gap: 1, color: [92, 101, 112] });
       w.text(row.detail, { size: 8, gap: 4, color: [92, 101, 112] });
     }
   }
@@ -635,12 +636,13 @@ export async function makeEstimatePdf(e, opts = {}) {
   function rowHeight(item) {
     const descW = cols[3].w - 6;
     const title = wrapped(item.title, descW, 9, true);
+    const spec = item.spec ? wrapped(item.spec, descW, 8, false) : [];
     const rest = item.details.flatMap((d) => wrapped(d, descW, 8, false));
     const loc = wrapped(item.location || '', cols[2].w - 4, 8, false);
     const size = wrapped(item.size || '', cols[4].w - 4, 8, false);
     const elev = item.drawing ? 84 : (item.line ? ELEVATION_BLOCK : 24);
-    const h = Math.max(elev, title.length * 11 + rest.length * 10 + 10, loc.length * 10 + 10, size.length * 10 + 10);
-    return { title, rest, loc, size, h };
+    const h = Math.max(elev, title.length * 11 + spec.length * 10 + rest.length * 10 + 10, loc.length * 10 + 10, size.length * 10 + 10);
+    return { title, spec, rest, loc, size, h };
   }
 
   items.forEach((item) => {
@@ -676,6 +678,11 @@ export async function makeEstimatePdf(e, opts = {}) {
     x += cols[2].w;
     let dy = 0;
     drawn.title.forEach((line) => { paint(line, cols[3], base + dy, 9, true, 'left'); dy += 11; });
+    if (drawn.spec.length) {
+      doc.setTextColor(92, 101, 112);
+      drawn.spec.forEach((line) => { paint(line, cols[3], base + dy, 8, false, 'left'); dy += 10; });
+      doc.setTextColor(17, 17, 17);
+    }
     drawn.rest.forEach((line) => { paint(line, cols[3], base + dy, 8, false, 'left'); dy += 10; });
     x += cols[3].w;
     drawn.size.forEach((line, i) => paint(line, cols[4], base + i * 10, 8, false, 'left'));
