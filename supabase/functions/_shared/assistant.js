@@ -1,7 +1,7 @@
 // Sales-assistant dates, metrics, and internal email HTML. No network and no secrets.
 // Phoenix is UTC-7 all year. Business days skip Saturday and Sunday only.
 
-import { phoenixParts } from '../hubspot-sync/followup.js';
+import { followUpDue, phoenixParts } from '../hubspot-sync/followup.js';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const STALL_MS = 7 * DAY_MS;
@@ -109,11 +109,19 @@ export function isOverdueAt(followUp, at) {
 
 export function isOpenPresented(estimate, asOf) {
   if (!estimate?.presented_at) return false;
-  if (new Date(estimate.presented_at).getTime() >= asOf.getTime()) return false;
   if (estimate.deleted_at && new Date(estimate.deleted_at).getTime() < asOf.getTime()) return false;
+  if (new Date(estimate.presented_at).getTime() >= asOf.getTime()) return false;
   if (estimate.signed_at && new Date(estimate.signed_at).getTime() < asOf.getTime()) return false;
+  if (estimate.won_at && new Date(estimate.won_at).getTime() < asOf.getTime()) return false;
   if (estimate.lost_at && new Date(estimate.lost_at).getTime() < asOf.getTime()) return false;
   return true;
+}
+
+export function wonStamp(estimate) {
+  if (!estimate || estimate.deleted_at || estimate.status === 'lost' || estimate.lost_at) return null;
+  if (estimate.won_at) return estimate.won_at;
+  if (estimate.status === 'won' || estimate.status === 'signed') return estimate.signed_at || null;
+  return null;
 }
 
 export function isStalledDeal(estimate, times, asOf) {
@@ -171,7 +179,7 @@ export function buildWeeklyReport({ reps, estimates = [], followUps = [], appoin
   const rows = people.map((rep) => {
     const mine = (row) => row.owner_id === rep.id && !row.deleted_at;
     const jobs = estimates.filter((row) => row.owner_id === rep.id && !row.deleted_at);
-    const signed = jobs.filter((row) => inRange(row.signed_at, week)).length;
+    const signed = jobs.filter((row) => inRange(wonStamp(row), week)).length;
     const lost = jobs.filter((row) => inRange(row.lost_at, week)).length;
     const held = jobs.filter((row) => inRange(row.presented_at, week)).length;
     const set = appointments.filter((row) => mine(row) && inRange(row.set_at, week) && (row.source === 'app' || row.source === 'hubspot')).length;
@@ -212,6 +220,7 @@ export function digestPlan({ reps, followUps, estimates = [], now = new Date() }
     if (!isDueOrOverdue(row.due_at, now, row.status)) continue;
     if (!byOwner.has(row.owner_id)) byOwner.set(row.owner_id, []);
     const job = jobs.get(row.estimate_id) || row.estimates || {};
+    if (job.deleted_at) continue;
     byOwner.get(row.owner_id).push({
       id: row.id,
       customerName: job.customer_name || row.customer_name || 'Customer',
@@ -356,4 +365,158 @@ export function buildWeeklyHtml({ week, reps }) {
     ${blocks || '<p>No reps.</p>'}
     <p style="margin:16px 0 0;color:#5c6770;font-size:13px;">Sent to the manager and the chief of staff. Customers are not copied.</p>`;
   return shell(weeklySubject(week), body);
+}
+
+export function monthRange(year, month) {
+  const y = Number(year);
+  const m = Number(month);
+  const start = new Date(Date.UTC(y, m, 1, 7, 0, 0, 0));
+  const end = new Date(Date.UTC(y, m + 1, 1, 7, 0, 0, 0));
+  return { start, end, year: start.getUTCFullYear(), month: start.getUTCMonth() };
+}
+
+export function currentMonth(now = new Date()) {
+  const p = phoenixParts(now);
+  return monthRange(p.year, p.month);
+}
+
+export function shiftMonth(range, delta) {
+  const index = range.year * 12 + range.month + (Number(delta) || 0);
+  return monthRange(Math.floor(index / 12), index % 12);
+}
+
+export function formatMonth(range) {
+  return formatPhoenix(range.start, { month: 'long', year: 'numeric' });
+}
+
+export function monthKey(range) {
+  return `${range.year}-${String(range.month + 1).padStart(2, '0')}`;
+}
+
+export function monthFromKey(key) {
+  const match = /^(\d{4})-(\d{2})$/.exec(String(key || ''));
+  if (!match) return null;
+  const month = Number(match[2]) - 1;
+  if (month < 0 || month > 11) return null;
+  return monthRange(Number(match[1]), month);
+}
+
+function sumAmounts(rows) {
+  return rows.reduce((sum, row) => sum + (Number(row.total_amount ?? row.total) || 0), 0);
+}
+
+export function isCurrentPipeline(estimate) {
+  if (!estimate || estimate.deleted_at) return false;
+  if (estimate.status === 'lost' || estimate.lost_at) return false;
+  if (estimate.status === 'won' || estimate.status === 'signed' || estimate.won_at || estimate.signed_at) return false;
+  return estimate.status === 'presented';
+}
+
+export function monthMetrics({ estimates = [], appointments = [], ownerId, month }) {
+  const mine = (row) => !ownerId || row.owner_id === ownerId;
+  const jobs = estimates.filter((row) => mine(row) && !row.deleted_at);
+  const won = jobs.filter((row) => inRange(wonStamp(row), month));
+  const lost = jobs.filter((row) => inRange(row.lost_at, month));
+  const presented = jobs.filter((row) => inRange(row.presented_at, month));
+  const set = appointments.filter((row) => mine(row) && inRange(row.set_at, month) && (row.source === 'app' || row.source === 'hubspot') && !row.deleted_estimate);
+  const pipeline = estimates.filter((row) => mine(row) && isCurrentPipeline(row));
+  return {
+    appointmentsSet: set.length,
+    appointmentsHeld: presented.length,
+    presented: presented.length,
+    wonCount: won.length,
+    wonDollars: sumAmounts(won),
+    lostCount: lost.length,
+    lostDollars: sumAmounts(lost),
+    closeRate: closeRate(won.length, lost.length),
+    pipeline: sumAmounts(pipeline),
+    won,
+    lost,
+  };
+}
+
+export function momChange(current, previous) {
+  const now = Number(current) || 0;
+  const then = Number(previous) || 0;
+  if (!then && !now) return { direction: 'flat', text: '—' };
+  if (!then) return { direction: 'up', text: 'New' };
+  const pct = Math.round(((now - then) / Math.abs(then)) * 100);
+  if (pct === 0) return { direction: 'flat', text: '0%' };
+  return { direction: pct > 0 ? 'up' : 'down', text: `${pct > 0 ? '+' : ''}${pct}%` };
+}
+
+export function formatSyncedAgo(iso, now = new Date()) {
+  if (!iso) return 'Not synced yet';
+  const min = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60000));
+  if (min < 1) return 'Synced just now';
+  if (min === 1) return 'Synced 1 min ago';
+  if (min < 60) return `Synced ${min} min ago`;
+  const hours = Math.round(min / 60);
+  if (hours === 1) return 'Synced 1 hour ago';
+  return `Synced ${hours} hours ago`;
+}
+
+export function snoozeDue(from = new Date()) {
+  return followUpDue(from, 2);
+}
+
+export const UNCONTACTED_RULE = 'A HubSpot contact, or a deal that is not Closed Won or Closed Lost, is an uncontacted lead when its hubspot_owner_id equals the rep’s profiles.hubspot_owner_id and it has no associated call, email, note, or meeting. A blank owner id matches nothing.';
+
+export function isUncontactedLead(lead, ownerHubspotId) {
+  const owner = String(ownerHubspotId || '').trim();
+  if (!owner || String(lead?.hubspot_owner_id || '').trim() !== owner) return false;
+  if (lead?.closed) return false;
+  const counts = lead?.engagements || {};
+  return !(Number(counts.calls) || Number(counts.emails) || Number(counts.notes) || Number(counts.meetings));
+}
+
+export function lostDealNote({ repName, presentedAt, total, lines } = {}) {
+  const when = presentedAt
+    ? formatPhoenix(presentedAt, { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—';
+  const rows = (lines || []).map((line) => {
+    const series = String(line?.series || line?.label || 'Line').trim() || 'Line';
+    const qty = Number(line?.qty);
+    const count = Number.isFinite(qty) && qty > 0 ? qty : 0;
+    const explicit = Number(line?.lineTotal);
+    const unit = Number(line?.unit);
+    const lineTotal = Number.isFinite(explicit) ? explicit : (Number.isFinite(unit) ? unit : 0) * count;
+    return `- ${series} · qty ${count} · ${money(lineTotal)}`;
+  });
+  return [
+    'Lost estimate',
+    `Rep: ${String(repName || '').trim() || 'Rep'}`,
+    `Presented: ${when}`,
+    `Total: ${money(total)}`,
+    '',
+    'Lines:',
+    ...(rows.length ? rows : ['- None']),
+  ].join('\n');
+}
+
+export function syncDecision({ appUpdatedAt, hubspotUpdatedAt, lastSyncedAt }) {
+  const last = lastSyncedAt ? new Date(lastSyncedAt).getTime() : null;
+  const appChanged = appUpdatedAt && last != null && new Date(appUpdatedAt).getTime() > last;
+  const hubChanged = hubspotUpdatedAt && (last == null || new Date(hubspotUpdatedAt).getTime() > last);
+  if (appChanged && hubChanged) return 'conflict';
+  if (hubChanged && !appChanged) return 'take-hubspot';
+  return 'keep-app';
+}
+
+export function stageToStatus(stageLabel, stageId) {
+  const label = String(stageLabel || '');
+  const id = String(stageId || '').toLowerCase();
+  if (/closed\s*won/i.test(label) || id === 'closedwon') return 'won';
+  if (/closed\s*lost/i.test(label) || id === 'closedlost') return 'lost';
+  if (/presentation|appointment/i.test(label) || id === 'presentationscheduled' || id === 'appointmentscheduled') return 'presented';
+  return null;
+}
+
+export function hubspotBodyAllowed(body) {
+  const walk = (value) => {
+    if (!value || typeof value !== 'object') return true;
+    if (Array.isArray(value)) return value.every(walk);
+    return Object.entries(value).every(([key, child]) => !/margin|cost|profit/i.test(key) && walk(child));
+  };
+  return walk(body);
 }

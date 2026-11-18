@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.weekly-report]
 verify_jwt = false
+
+[functions.hubspot-webhook]
+verify_jwt = false

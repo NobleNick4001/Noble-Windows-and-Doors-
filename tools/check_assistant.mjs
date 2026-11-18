@@ -2,10 +2,12 @@
 import { readFileSync } from 'node:fs';
 import { addBusinessDays, followUpDue, resolveTaskOwner, shouldCreateFollowUp } from '../supabase/functions/hubspot-sync/followup.js';
 import {
-  buildDigestHtml, buildWeeklyHtml, buildWeeklyReport, closeRate, digestPlan, digestSubject,
-  dueBucket, formatCloseRate, formatWeek, hubspotAppointmentRows, isDueOrOverdue, isOpenPresented,
-  isOverdueAt, isStalledDeal, secretMatches, weekFromKey, weekKey, weekRange, weeklyRecipients,
+  buildDigestHtml, buildWeeklyHtml, buildWeeklyReport, closeRate, currentMonth, digestPlan, digestSubject,
+  dueBucket, formatCloseRate, formatMonth, formatSyncedAgo, formatWeek, hubspotAppointmentRows, hubspotBodyAllowed,
+  isDueOrOverdue, isOpenPresented, isOverdueAt, isStalledDeal, isUncontactedLead, lostDealNote, monthMetrics,
+  secretMatches, stageToStatus, syncDecision, weekFromKey, weekKey, weekRange, weeklyRecipients,
 } from '../supabase/functions/_shared/assistant.js';
+import { hubspotSignatureOk } from '../supabase/functions/_shared/hubspot-sign.js';
 import { buildHtmlRaw } from '../supabase/functions/_shared/outbound.js';
 
 const fail = (msg) => { console.error('FAIL', msg); process.exitCode = 1; };
@@ -194,7 +196,84 @@ has(accounts, 'Mike', 'Mike is the blank placeholder');
 const nav = read('../js/app.js');
 has(nav, 'followup-badge', 'the nav has the follow-up badge');
 const sw = read('../sw.js');
-has(sw, "const CACHE = 'nwd-sales-v63-sales-assistant'", 'service worker cache was bumped');
+has(sw, "const CACHE = 'nwd-sales-v68-sales-tab'", 'service worker cache was bumped');
+has(sw, 'js/ax650.js', 'AX650 stays precached');
+has(sw, 'js/vendor/supabase-js-2.119.0.mjs', 'vendored supabase-js stays precached');
+
+const november = currentMonth(new Date('2026-11-17T16:00:00.000Z'));
+eq(formatMonth(november), 'November 2026', 'current Phoenix month');
+eq(november.start.toISOString(), '2026-11-01T07:00:00.000Z', 'November starts at midnight Phoenix');
+const dash = monthMetrics({
+  ownerId: 'eric',
+  month: november,
+  estimates: [
+    { id: 'w', owner_id: 'eric', customer_name: 'Ada Cole', status: 'won', total_amount: 5000, won_at: '2026-11-12T18:00:00.000Z', presented_at: '2026-11-02T18:00:00.000Z' },
+    { id: 's', owner_id: 'eric', customer_name: 'Signed Job', status: 'signed', total_amount: 1000, signed_at: '2026-11-20T18:00:00.000Z', presented_at: '2026-11-03T18:00:00.000Z' },
+    { id: 'l', owner_id: 'eric', customer_name: 'Bea Ortiz', status: 'lost', total_amount: 2000, lost_at: '2026-11-18T18:00:00.000Z', presented_at: '2026-11-04T18:00:00.000Z' },
+    { id: 'p', owner_id: 'eric', customer_name: 'Open Job', status: 'presented', total_amount: 9000, presented_at: '2026-10-02T18:00:00.000Z' },
+    { id: 'gone', owner_id: 'eric', customer_name: 'Deleted', status: 'won', total_amount: 99999, won_at: '2026-11-08T18:00:00.000Z', deleted_at: '2026-11-09T18:00:00.000Z' },
+  ],
+  appointments: [
+    { owner_id: 'eric', set_at: '2026-11-05T18:00:00.000Z', source: 'app' },
+    { owner_id: 'eric', set_at: '2026-11-06T18:00:00.000Z', source: 'hubspot' },
+    { owner_id: 'eric', set_at: '2026-10-06T18:00:00.000Z', source: 'app' },
+  ],
+});
+eq(dash.appointmentsSet, 2, 'appointments set this month');
+eq(dash.appointmentsHeld, 3, 'appointments held are estimates presented this month');
+eq(dash.presented, 3, 'estimates presented this month');
+eq(dash.wonCount, 2, 'won count includes the Won button and a signed job');
+eq(dash.wonDollars, 6000, 'won dollars');
+eq(dash.lostCount, 1, 'lost count');
+eq(dash.lostDollars, 2000, 'lost dollars');
+eq(dash.closeRate, 2 / 3, 'close rate is won divided by won plus lost');
+eq(dash.pipeline, 9000, 'open pipeline is current and ignores the month and deleted rows');
+eq(formatSyncedAgo(new Date(Date.now() - 3 * 60 * 1000).toISOString(), new Date()), 'Synced 3 min ago', 'sync label');
+
+const note = lostDealNote({
+  repName: 'Eric Havins',
+  presentedAt: '2026-11-14T19:00:00.000Z',
+  total: 8888.33,
+  lines: [
+    { series: 'V250', qty: 2, unit: 1600 },
+    { series: '100', qty: 4, lineTotal: 5688.33 },
+  ],
+});
+eq(note, [
+  'Lost estimate',
+  'Rep: Eric Havins',
+  'Presented: Nov 14, 2026',
+  'Total: $8,888.33',
+  '',
+  'Lines:',
+  '- V250 · qty 2 · $3,200.00',
+  '- 100 · qty 4 · $5,688.33',
+].join('\n'), 'lost HubSpot note');
+eq(/margin|cost|profit/i.test(note), false, 'lost note has no margin or cost');
+eq(hubspotBodyAllowed({ properties: { dealstage: 'closedlost', amount: '8888.33' } }), true, 'selling amount is allowed');
+eq(hubspotBodyAllowed({ properties: { gross_margin: '40' } }), false, 'margin fields are refused');
+eq(syncDecision({ appUpdatedAt: '2026-11-10T00:00:00Z', hubspotUpdatedAt: '2026-11-11T00:00:00Z', lastSyncedAt: '2026-11-01T00:00:00Z' }), 'conflict', 'both sides changed since the last sync');
+eq(syncDecision({ appUpdatedAt: '2026-10-01T00:00:00Z', hubspotUpdatedAt: '2026-11-11T00:00:00Z', lastSyncedAt: '2026-11-01T00:00:00Z' }), 'take-hubspot', 'only HubSpot changed');
+eq(stageToStatus('Closed Won', 'closedwon'), 'won', 'Closed Won maps to won');
+eq(stageToStatus('Closed Lost', 'closedlost'), 'lost', 'Closed Lost maps to lost');
+eq(isUncontactedLead({ hubspot_owner_id: '55', closed: false, engagements: { calls: 0, emails: 0, notes: 0, meetings: 0 } }, '55'), true, 'no call, email, note, or meeting is uncontacted');
+eq(isUncontactedLead({ hubspot_owner_id: '55', closed: false, engagements: { calls: 1, emails: 0, notes: 0, meetings: 0 } }, '55'), false, 'a logged call is contacted');
+eq(isUncontactedLead({ hubspot_owner_id: '55', closed: false, engagements: {} }, ''), false, 'a blank owner id matches nothing');
+const signed = await hubspotSignatureOk({
+  method: 'POST',
+  uri: 'https://example.test/functions/v1/hubspot-webhook',
+  body: '[]',
+  timestamp: '1700000000000',
+  signature: 'nope',
+  secret: 'client-secret',
+  now: 1700000000000,
+});
+eq(signed, false, 'a bad webhook signature is rejected');
+has(read('../supabase/functions/hubspot-webhook/index.ts'), 'x-hubspot-signature-v3', 'webhook requires the HubSpot signature');
+has(read('../supabase/migrations/006_sales_dashboard.sql'), 'only admin can open the team dashboard', 'team dashboard is admin only in the database');
+has(read('../supabase/migrations/006_sales_dashboard.sql'), 'only the owner or an admin can delete an estimate', 'delete is owner or admin');
+has(read('../js/pages/lost.js'), "Delete this estimate? This can't be undone.", 'delete confirm copy');
+has(read('../js/cloud.js'), 'Do not call HubSpot', 'delete does not call HubSpot');
 
 if (process.exitCode) console.error('assistant check failed');
 else console.log('assistant check ok');

@@ -7,6 +7,8 @@ import {
   customerQuery, normEmail, parseName, phoneFormats, rankCandidates, resolveContactChoice, pickDeal,
 } from './match.js';
 import { followUpDue, followUpTitle, matchOwner, resolveTaskOwner, shouldCreateFollowUp } from './followup.js';
+import { hubspotBodyAllowed, lostDealNote, snoozeDue } from '../_shared/assistant.js';
+import { pullHubspot } from './pull.js';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -68,6 +70,9 @@ async function loggedWrite(admin: any, token: string, path: string, init: Reques
   action: string; hubspotObject?: string | null; hubspotId?: string | null; detail?: Record<string, unknown>;
 }) {
   const method = String(init?.method || 'GET').toUpperCase();
+  if (init?.body && !hubspotBodyAllowed(JSON.parse(String(init.body)))) {
+    throw new Error('Refusing to send cost data to HubSpot');
+  }
   try {
     const body = await hubspot(token, path, init);
     if (method !== 'GET') {
@@ -178,7 +183,7 @@ async function dealStage(token: string, event: string, pipelineHint?: string) {
   const stages = pipeline?.stages || [];
   const label = (s: any) => String(s.label || '');
   let stage = null;
-  if (event === 'signed') {
+  if (event === 'signed' || event === 'won') {
     stage = stages.find((s: any) => /closed\s*won/i.test(label(s)) || s.id === 'closedwon');
   } else if (event === 'lost') {
     stage = stages.find((s: any) => /closed\s*lost/i.test(label(s)) || s.id === 'closedlost');
@@ -187,8 +192,8 @@ async function dealStage(token: string, event: string, pipelineHint?: string) {
       || stages.find((s: any) => /appointment/i.test(label(s)))
       || stages.find((s: any) => s.id === 'presentationscheduled' || s.id === 'appointmentscheduled');
   }
-  const fallbackId = event === 'signed' ? 'closedwon' : event === 'lost' ? 'closedlost' : 'presentationscheduled';
-  const fallbackLabel = event === 'signed' ? 'Closed Won' : event === 'lost' ? 'Closed Lost' : 'Presentation Scheduled';
+  const fallbackId = event === 'signed' || event === 'won' ? 'closedwon' : event === 'lost' ? 'closedlost' : 'presentationscheduled';
+  const fallbackLabel = event === 'signed' || event === 'won' ? 'Closed Won' : event === 'lost' ? 'Closed Lost' : 'Presentation Scheduled';
   return {
     pipelineId: pipeline?.id || 'default',
     stageId: stage?.id || fallbackId,
@@ -378,6 +383,21 @@ async function loseEstimate(admin: any, token: string, user: any, estimate: any)
   } else {
     await recordAudit(admin, { ...audit, action: 'deal.lost', hubspotObject: 'deal', detail: { skipped: 'no deal', ok: true } });
   }
+  if (estimate.hubspot_deal_id) {
+    try {
+      const { data: owner } = await admin.from('profiles').select('full_name, email').eq('id', estimate.owner_id).maybeSingle();
+      const doc = estimate.document || {};
+      const note = lostDealNote({
+        repName: owner?.full_name || owner?.email || '',
+        presentedAt: estimate.presented_at,
+        total: estimate.total_amount,
+        lines: doc.lines || estimate.lines || [],
+      });
+      await attachNote(token, String(estimate.hubspot_deal_id), note, audit);
+    } catch {
+      // The stage change already succeeded. The note error is in assistant_audit.
+    }
+  }
   const lostAt = new Date().toISOString();
   const { error: saveErr } = await admin.from('estimates').update({ status: 'lost', lost_at: lostAt }).eq('id', estimate.id);
   if (saveErr) return json(500, { ok: false, error: saveErr.message });
@@ -397,6 +417,129 @@ async function loseEstimate(admin: any, token: string, user: any, estimate: any)
     await recordAudit(admin, { ...audit, followUpId: row.id, action: 'followup.cancel', detail: { reason: 'lost', ok: true } });
   }
   return json(200, { ok: true, event: 'lost', stage: stageLabel, lost_at: lostAt });
+}
+
+async function moveDeal(admin, token, user, estimate, event) {
+  const audit = { admin, actorId: user.id, estimateId: estimate.id };
+  if (!estimate.hubspot_deal_id) {
+    await recordAudit(admin, { ...audit, action: event === 'won' ? 'deal.won' : 'deal.reopen', detail: { skipped: 'no deal', ok: true } });
+    return { stageLabel: null };
+  }
+  const read = await hubspot(token, `/crm/v3/objects/deals/${estimate.hubspot_deal_id}?properties=pipeline,dealstage`);
+  const stage = await dealStage(token, event, read?.properties?.pipeline);
+  await loggedWrite(admin, token, `/crm/v3/objects/deals/${estimate.hubspot_deal_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ properties: { pipeline: stage.pipelineId, dealstage: stage.stageId } }),
+  }, { ...audit, action: event === 'won' ? 'deal.won' : 'deal.reopen', hubspotObject: 'deal', hubspotId: String(estimate.hubspot_deal_id), detail: { stage: stage.stageLabel } });
+  return { stageLabel: stage.stageLabel };
+}
+
+async function winEstimate(admin, token, user, estimate) {
+  let stageLabel = null;
+  try {
+    const moved = await moveDeal(admin, token, user, estimate, 'won');
+    stageLabel = moved.stageLabel;
+  } catch (err) {
+    return json(502, { ok: false, error: err instanceof Error ? err.message : 'HubSpot deal was not moved' });
+  }
+  const wonAt = new Date().toISOString();
+  const { error } = await admin.from('estimates').update({ status: 'won', won_at: wonAt }).eq('id', estimate.id);
+  if (error) return json(500, { ok: false, error: error.message });
+  return json(200, { ok: true, event: 'won', stage: stageLabel, won_at: wonAt });
+}
+
+async function reopenEstimate(admin, token, user, profile, estimate) {
+  if (profile?.role !== 'admin') return json(403, { ok: false, error: 'Only an admin can reopen an estimate' });
+  let stageLabel = null;
+  try {
+    const moved = await moveDeal(admin, token, user, estimate, 'presented');
+    stageLabel = moved.stageLabel;
+  } catch (err) {
+    return json(502, { ok: false, error: err instanceof Error ? err.message : 'HubSpot deal was not moved' });
+  }
+  const { error } = await admin.from('estimates').update({ status: 'presented', won_at: null, lost_at: null }).eq('id', estimate.id);
+  if (error) return json(500, { ok: false, error: error.message });
+  return json(200, { ok: true, event: 'reopen', stage: stageLabel });
+}
+
+async function snoozeFollowUp(admin, token, user, profile, payload) {
+  const id = String(payload.followUpId || '');
+  if (!id) return json(400, { ok: false, error: 'followUpId is required' });
+  const { data: row, error } = await admin.from('follow_ups').select('*').eq('id', id).maybeSingle();
+  if (error) return json(500, { ok: false, error: error.message });
+  if (!row) return json(404, { ok: false, error: 'Follow-up not found' });
+  if (row.owner_id !== user.id && profile?.role !== 'admin') return json(403, { ok: false, error: 'Not your follow-up' });
+  const due = snoozeDue(new Date());
+  if (row.hubspot_task_id) {
+    await loggedWrite(admin, token, `/crm/v3/objects/tasks/${row.hubspot_task_id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ properties: { hs_timestamp: due } }),
+    }, { admin, actorId: user.id, estimateId: row.estimate_id, followUpId: row.id, action: 'task.snooze', hubspotObject: 'task', hubspotId: String(row.hubspot_task_id) });
+  }
+  const { error: saveErr } = await admin.from('follow_ups').update({ due_at: due }).eq('id', row.id);
+  if (saveErr) return json(500, { ok: false, error: saveErr.message });
+  return json(200, { ok: true, due_at: due });
+}
+
+async function logNote(admin, token, user, profile, payload) {
+  const text = String(payload.note || '').trim();
+  if (!text) return json(400, { ok: false, error: 'A note is required' });
+  const estimateId = String(payload.estimateId || '');
+  let dealId = String(payload.hubspotId || '');
+  let object = String(payload.hubspotObject || 'deal');
+  let ownerId = user.id;
+  if (estimateId) {
+    const { data: estimate, error } = await admin.from('estimates').select('id, owner_id, hubspot_deal_id, deleted_at').eq('id', estimateId).maybeSingle();
+    if (error) return json(500, { ok: false, error: error.message });
+    if (!estimate || estimate.deleted_at) return json(404, { ok: false, error: 'Estimate not found' });
+    if (estimate.owner_id !== user.id && profile?.role !== 'admin') return json(403, { ok: false, error: 'Not your estimate' });
+    dealId = String(estimate.hubspot_deal_id || '');
+    object = 'deal';
+    ownerId = estimate.owner_id;
+  } else if (profile?.role !== 'admin' && payload.ownerId && payload.ownerId !== user.id) {
+    return json(403, { ok: false, error: 'Not your lead' });
+  }
+  if (!dealId) return json(400, { ok: false, error: 'There is no HubSpot record to attach this note to' });
+  const audit = { admin, actorId: user.id, estimateId: estimateId || null };
+  if (object === 'deal') await attachNote(token, dealId, text, audit);
+  else {
+    await loggedWrite(admin, token, '/crm/v3/objects/notes', {
+      method: 'POST',
+      body: JSON.stringify({ properties: { hs_timestamp: new Date().toISOString(), hs_note_body: text } }),
+    }, { ...audit, action: 'note.create', hubspotObject: 'note', detail: { ownerId } });
+  }
+  return json(200, { ok: true });
+}
+
+async function pushAppointment(admin, token, user, profile, payload) {
+  const estimateId = String(payload.estimateId || '');
+  const { data: estimate, error } = await admin.from('estimates').select('*').eq('id', estimateId).maybeSingle();
+  if (error) return json(500, { ok: false, error: error.message });
+  if (!estimate || estimate.deleted_at) return json(404, { ok: false, error: 'Estimate not found' });
+  if (estimate.owner_id !== user.id && profile?.role !== 'admin') return json(403, { ok: false, error: 'Not your estimate' });
+  const { data: owner } = await admin.from('profiles').select('hubspot_owner_id').eq('id', estimate.owner_id).maybeSingle();
+  const start = new Date().toISOString();
+  const properties = {
+    hs_meeting_title: `Appointment: ${estimate.customer_name || 'Customer'}`,
+    hs_meeting_start_time: start,
+    hs_timestamp: start,
+  };
+  if (owner?.hubspot_owner_id) properties.hubspot_owner_id = String(owner.hubspot_owner_id);
+  const meeting = await loggedWrite(admin, token, '/crm/v3/objects/meetings', {
+    method: 'POST',
+    body: JSON.stringify({ properties }),
+  }, { admin, actorId: user.id, estimateId, action: 'meeting.create', hubspotObject: 'meeting' });
+  const meetingId = meeting?.id ? String(meeting.id) : null;
+  if (meetingId && estimate.hubspot_deal_id) {
+    await loggedWrite(admin, token, `/crm/v4/objects/meetings/${meetingId}/associations/default/deals/${estimate.hubspot_deal_id}`, {
+      method: 'PUT',
+      body: '{}',
+    }, { admin, actorId: user.id, estimateId, action: 'association.write', hubspotObject: 'meeting', hubspotId: meetingId });
+  }
+  if (meetingId) {
+    await admin.from('appointments').update({ hubspot_meeting_id: meetingId }).eq('estimate_id', estimateId).eq('source', 'app').is('hubspot_meeting_id', null);
+  }
+  return json(200, { ok: true, hubspot_meeting_id: meetingId });
 }
 
 Deno.serve(async (req) => {
@@ -420,10 +563,20 @@ Deno.serve(async (req) => {
   try { payload = await req.json(); } catch { return json(400, { ok: false, error: 'Expected JSON' }); }
   const { data: profile } = await admin.from('profiles').select('role, email, full_name, hubspot_owner_id').eq('id', user.id).maybeSingle();
   if (payload.action === 'complete-followup') return completeFollowUp(admin, token, user, profile, payload);
+  if (payload.action === 'snooze-followup') return snoozeFollowUp(admin, token, user, profile, payload);
+  if (payload.action === 'log-note') return logNote(admin, token, user, profile, payload);
+  if (payload.action === 'push-appointment') return pushAppointment(admin, token, user, profile, payload);
+  if (payload.action === 'pull') {
+    const profiles = profile?.role === 'admin'
+      ? (await admin.from('profiles').select('id, full_name, email, role, hubspot_owner_id')).data || []
+      : [profile].filter(Boolean);
+    const summary = await pullHubspot({ admin, token, profiles });
+    return json(200, { ok: !summary.error, ...summary, last_synced_at: new Date().toISOString() });
+  }
 
   const estimateId = String(payload.estimateId || '');
   const mode = payload.mode === 'preview' ? 'preview' : 'sync';
-  const event = payload.event === 'signed' ? 'signed' : payload.event === 'presented' ? 'presented' : payload.event === 'lost' ? 'lost' : '';
+  const event = payload.event === 'signed' ? 'signed' : payload.event === 'presented' ? 'presented' : payload.event === 'lost' ? 'lost' : payload.event === 'won' ? 'won' : payload.event === 'reopen' ? 'reopen' : '';
   if (!estimateId) return json(400, { ok: false, error: 'estimateId is required' });
   if (mode === 'sync' && !event) return json(400, { ok: false, error: 'estimateId and event are required' });
 
@@ -432,6 +585,8 @@ Deno.serve(async (req) => {
   if (!estimate || estimate.deleted_at) return json(404, { ok: false, error: 'Estimate not found' });
   if (estimate.owner_id !== user.id && profile?.role !== 'admin') return json(403, { ok: false, error: 'Not your estimate' });
   if (event === 'lost') return loseEstimate(admin, token, user, estimate);
+  if (event === 'won') return winEstimate(admin, token, user, estimate);
+  if (event === 'reopen') return reopenEstimate(admin, token, user, profile, estimate);
 
   try {
     const query = customerQuery(estimate);

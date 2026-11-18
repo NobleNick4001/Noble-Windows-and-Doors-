@@ -4,8 +4,9 @@ import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../preh
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor, ax650LineEditor } from './milgard-ui.js';
 import { ax650Description, ax650Model, ax650Install } from '../ax650.js';
-import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin, markLost, recordAppointment } from '../cloud.js';
-import { lostConfirm } from './lost.js';
+import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin, markLost, markWon, reopenEstimate, recordAppointment } from '../cloud.js';
+import { lostConfirm, wonConfirm, deleteConfirm } from './lost.js';
+import { renderRep } from './sales.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
 import { icon } from '../icons.js';
 import { stepper, installEditor, upgradeEditor, customPriceFields } from './calculator.js';
@@ -17,12 +18,25 @@ const pctUi = { forId: null, draft: '', dirty: false, error: '' };
 const hubUi = { estimateId: null, matches: [], autoId: null, busy: false, intent: null };
 const sendUi = { busy: false, error: '', confirm: '' };
 const lostUi = { forId: null, confirm: false, busy: false };
+const wonUi = { forId: null, confirm: false, busy: false };
+const deleteUi = { forId: null, confirm: false, busy: false };
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 function statusLabel(status) {
   if (status === 'signed') return 'Signed';
   if (status === 'presented') return 'Presented';
   if (status === 'lost') return 'Lost';
+  if (status === 'won') return 'Won';
   return 'Draft';
+}
+async function confirmWon(e, rerender) {
+  if (wonUi.busy) return;
+  wonUi.busy = true;
+  rerender();
+  try { await markWon(e); wonUi.confirm = false; }
+  finally { wonUi.busy = false; rerender(); }
+}
+function canDelete(e, uid) {
+  return isAdmin() || !e?.ownerId || !uid || e.ownerId === uid;
 }
 async function confirmLost(e, rerender) {
   if (lostUi.busy) return;
@@ -262,7 +276,10 @@ export function render(root) {
       h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, icon('plus'), 'New'),
       h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name && !(e.overlays || []).length) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
       h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' || e.status === 'lost' || hubUi.busy ? true : null, onclick: () => presentEstimate(rerender) }, 'Mark presented'),
+      e.status === 'presented' ? h('button', { type: 'button', class: 'btn primary', id: 'btn-won', disabled: wonUi.busy ? true : null, onclick: () => { wonUi.confirm = true; rerender(); } }, 'Won') : null,
       e.status === 'presented' ? h('button', { type: 'button', class: 'btn danger', id: 'btn-lost', disabled: lostUi.busy ? true : null, onclick: () => { lostUi.confirm = true; rerender(); } }, 'Lost') : null,
+      (e.status === 'won' || e.status === 'lost') && isAdmin() ? h('button', { type: 'button', class: 'btn', id: 'btn-reopen', onclick: () => reopenEstimate(e) }, 'Reopen') : null,
+      canDelete(e, userId()) ? h('button', { type: 'button', class: 'btn danger', id: 'btn-delete', onclick: () => { deleteUi.forId = e.id; deleteUi.confirm = true; rerender(); } }, 'Delete') : null,
       h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
       h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
   wrap.append(h('a', { class: 'btn primary xl', id: 'btn-present', href: '#/estimate/present' }, 'Present'));
@@ -473,6 +490,23 @@ export function render(root) {
       onConfirm: () => confirmLost(e, rerender),
     }));
   }
+  if (wonUi.confirm && e.status === 'presented') {
+    wrap.append(wonConfirm({
+      customer: e.customer?.name,
+      total: totals(e).total,
+      busy: wonUi.busy,
+      onCancel: () => { wonUi.confirm = false; rerender(); },
+      onConfirm: () => confirmWon(e, rerender),
+    }));
+  }
+  if (deleteUi.confirm && deleteUi.forId === e.id) {
+    wrap.append(deleteConfirm({
+      customer: e.customer?.name,
+      busy: deleteUi.busy,
+      onCancel: () => { deleteUi.confirm = false; rerender(); },
+      onConfirm: () => { deleteUi.confirm = false; estimates.remove(e.id); estimates.startNew(); location.hash = '#/saved'; },
+    }));
+  }
   root.replaceChildren(wrap);
   restoreView(view);
 }
@@ -589,12 +623,16 @@ function ownerLine(x, uid) {
   return name || 'Another rep';
 }
 
-export function renderList(root) {
+export function renderList(root, sub) {
+  if (sub === 'sales') { renderRep(root, sub === 'sales' ? '' : sub); return; }
   const uid = userId();
   const seeAll = canSeeAllEstimates();
-  const all = estimates.list().filter((x) => !x.deletedAt && (seeAll || !uid || !x.ownerId || x.ownerId === uid));
+  const all = estimates.list().filter((x) => !x.deletedAt && x.status !== 'lost' && (seeAll || !uid || !x.ownerId || x.ownerId === uid));
   const cur = estimates.currentId();
-  const wrap = h('div', { class: 'page' }, h('div', { class: 'row between wrap gap' }, h('h1', {}, seeAll ? 'Estimates' : 'My estimates'), h('div', { class: 'row gap' },
+  const wrap = h('div', { class: 'page' }, h('div', { class: 'tabs seg', id: 'mine-tabs' },
+    h('a', { class: 'seg-btn on', href: '#/saved' }, 'Estimates'),
+    h('a', { class: 'seg-btn', href: '#/saved/sales' }, 'Sales')),
+  h('div', { class: 'row between wrap gap' }, h('h1', {}, seeAll ? 'Estimates' : 'My estimates'), h('div', { class: 'row gap' },
     h('button', { class: 'btn', id: 'btn-refresh-estimates', onclick: async () => { await refreshEstimates(); renderList(root); } }, 'Refresh'),
     h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate'))));
   wrap.append(h('p', { class: 'fine' }, seeAll
@@ -612,8 +650,9 @@ export function renderList(root) {
         h('div', { class: 'muted' }, `${x.number} · ${statusWord} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}${x.promoCode ? ' · ' + x.promoCode : ''}`),
         h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'), h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
+        x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm primary', id: 'btn-won-' + x.id, onclick: () => { wonUi.forId = x.id; wonUi.confirm = true; renderList(root); } }, 'Won') : null,
         x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-lost-' + x.id, onclick: () => { lostUi.forId = x.id; lostUi.confirm = true; renderList(root); } }, 'Lost') : null,
-        mine ? h('button', { class: 'btn sm danger', onclick: () => { if (confirm('Remove this estimate from your list? It is archived, not erased.')) { estimates.remove(x.id); renderList(root); } } }, 'Remove') : null)));
+        mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-delete-' + x.id, onclick: () => { deleteUi.forId = x.id; deleteUi.confirm = true; renderList(root); } }, 'Delete') : null)));
   });
   if (lostUi.confirm) {
     const target = all.find((x) => x.id === lostUi.forId && x.status === 'presented');
@@ -624,6 +663,29 @@ export function renderList(root) {
         busy: lostUi.busy,
         onCancel: () => { lostUi.confirm = false; renderList(root); },
         onConfirm: () => confirmLost(target, () => renderList(root)),
+      }));
+    }
+  }
+  if (wonUi.confirm) {
+    const target = all.find((x) => x.id === wonUi.forId && x.status === 'presented');
+    if (target) {
+      wrap.append(wonConfirm({
+        customer: target.customer?.name,
+        total: totals(target).total,
+        busy: wonUi.busy,
+        onCancel: () => { wonUi.confirm = false; renderList(root); },
+        onConfirm: () => confirmWon(target, () => renderList(root)),
+      }));
+    }
+  }
+  if (deleteUi.confirm) {
+    const target = all.find((x) => x.id === deleteUi.forId);
+    if (target) {
+      wrap.append(deleteConfirm({
+        customer: target.customer?.name,
+        busy: deleteUi.busy,
+        onCancel: () => { deleteUi.confirm = false; renderList(root); },
+        onConfirm: () => { deleteUi.confirm = false; estimates.remove(target.id); renderList(root); },
       }));
     }
   }

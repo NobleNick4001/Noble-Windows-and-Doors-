@@ -17,12 +17,13 @@ import * as admin from './pages/admin.js';
 import * as accounts from './pages/accounts.js';
 import * as followups from './pages/followups.js';
 import * as report from './pages/report.js';
+import * as sales from './pages/sales.js';
 
 const ROUTES = [
   ['calculator', 'Calculator', 'calculator', (r) => calculator.render(r)],
   ['doors', 'Doors', 'door', (r) => prehung.render(r)],
   ['estimate', 'Estimate', 'estimate', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'present' ? estimate.renderPresent(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
-  ['saved', 'Mine', 'folder', (r) => estimate.renderList(r)],
+  ['saved', 'Mine', 'folder', (r, sub, extra) => (sub === 'sales' ? sales.renderRep(r, extra) : estimate.renderList(r))],
   ['followups', 'Follow-ups', 'followups', (r) => followups.render(r)],
   ['options', 'Options', 'options', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', 'gallery', (r) => gallery.render(r)],
@@ -34,7 +35,7 @@ const ROUTES = [
 function allRoutes() {
   const list = [...ROUTES];
   const inserts = [];
-  if (isAdmin()) inserts.push(['admin', 'Admin', 'user', (r, sub, extra) => (sub === 'report' ? report.render(r, sub, extra) : admin.render(r))]);
+  if (isAdmin()) inserts.push(['admin', 'Admin', 'user', (r, sub, extra) => (sub === 'dashboard' ? sales.renderAdmin(r, extra) : sub === 'report' ? report.render(r, sub, extra) : admin.render(r))]);
   inserts.push(['accounts', 'Accounts', 'shield', (r) => accounts.render(r), !isAdmin()]);
   list.splice(3, 0, ...inserts);
   return list;

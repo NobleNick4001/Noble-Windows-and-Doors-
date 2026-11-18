@@ -21,6 +21,7 @@ export async function render(root) {
   wrap.append(h('div', { class: 'row between wrap gap' },
     h('h1', {}, 'Admin'),
     h('div', { class: 'row gap wrap' },
+      h('a', { class: 'btn', id: 'admin-team-sales', href: '#/admin/dashboard' }, 'Team sales'),
       h('a', { class: 'btn', id: 'admin-weekly-report', href: '#/admin/report' }, 'Weekly report'),
       h('button', { class: 'btn', id: 'admin-refresh', onclick: () => render(root) }, 'Refresh'))));
 

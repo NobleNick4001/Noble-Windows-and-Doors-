@@ -4,6 +4,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildDigestHtml, digestPlan, digestSubject, secretMatches } from '../_shared/assistant.js';
 import { mailEnv, sendHtml } from '../_shared/outbound.js';
+import { pullHubspot } from '../hubspot-sync/pull.js';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -31,10 +32,17 @@ Deno.serve(async (req) => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const env = mailEnv((key) => Deno.env.get(key) ?? '');
   const now = new Date();
+  const { data: syncProfiles } = await admin.from('profiles').select('id, full_name, email, role, hubspot_owner_id');
+  let pull = { owners: 0, error: '' };
+  try {
+    pull = await pullHubspot({ admin, token: Deno.env.get('HUBSPOT_TOKEN') ?? '', profiles: syncProfiles || [] });
+  } catch (err) {
+    pull = { owners: 0, error: err instanceof Error ? err.message : 'HubSpot pull failed' };
+  }
 
   const [{ data: reps, error: repErr }, { data: followUps, error: fuErr }] = await Promise.all([
     admin.from('profiles').select('id, email, full_name, role'),
-    admin.from('follow_ups').select('id, owner_id, estimate_id, due_at, status, estimates(customer_name, total_amount)').eq('status', 'open'),
+    admin.from('follow_ups').select('id, owner_id, estimate_id, due_at, status, estimates(customer_name, total_amount, deleted_at)').eq('status', 'open'),
   ]);
   if (repErr) return json(500, { ok: false, error: repErr.message });
   if (fuErr) return json(500, { ok: false, error: fuErr.message });
@@ -62,5 +70,5 @@ Deno.serve(async (req) => {
       errors.push({ to: plan.to, error: err instanceof Error ? err.message : 'Email failed' });
     }
   }
-  return json(200, { ok: errors.length === 0, sent, errors });
+  return json(200, { ok: errors.length === 0, sent, errors, pull });
 });

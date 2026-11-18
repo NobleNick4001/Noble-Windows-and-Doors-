@@ -391,6 +391,13 @@ nav a.on .nav-badge{background:#14171a;color:#fff;box-shadow:0 0 0 2px var(--ora
 .metric{background:var(--soft);border-radius:12px;padding:.65rem .75rem}
 .metric span{display:block;color:var(--mut);font-size:.75rem;font-weight:700}
 .metric b{display:block;margin-top:.15rem;color:var(--navy);font-size:1.25rem}
+button.metric,button.sales-box{text-align:left;width:100%}
+.sales-box{display:flex;flex-direction:column;gap:.15rem;background:#fff;border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;color:var(--ink)}
+.sales-box.history{flex-direction:row;justify-content:space-between;align-items:center;width:100%;margin:.35rem 0}
+.sales-table{min-width:640px}
+.mom-up{color:var(--ok);font-weight:800}
+.mom-down{color:var(--bad);font-weight:800}
+.mom-flat{color:var(--mut)}
 @media (max-width:760px){
   .nav-badge{top:1px;right:0;box-shadow:0 0 0 2px #fff;font-size:.62rem}
   nav a.on .nav-badge{box-shadow:0 0 0 2px var(--orange)}
