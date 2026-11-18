@@ -187,10 +187,11 @@ body[data-route="estimate-present"] main{max-width:none;padding:0 .35rem calc(96
 .sheet table tr.sub td{color:#000}
 .grid3>*,.grid2>*,.field,.field input,.row>input{min-width:0}
 .calc-milgard .chip.pick.on{background:var(--blue);color:#fff;border-color:var(--blue)}
-.calc-milgard .labor-boxes{display:flex;flex-wrap:wrap;gap:.5rem;margin:.35rem 0 .6rem}
-.calc-milgard .labor-box{flex:1 1 140px;border:1.5px solid var(--navy);background:#fff;color:var(--navy);border-radius:12px;padding:.65rem .55rem;min-height:48px;font:inherit;font-weight:700;font-size:.82rem;cursor:pointer;line-height:1.2;text-align:center}
-.calc-milgard .labor-box small{display:block;font-weight:600;margin-top:.15rem}
-.calc-milgard .labor-box.on{background:var(--orange);border-color:var(--orange-d);color:var(--navy)}
+.calc-milgard .labor-boxes,.labor-boxes{display:flex;flex-wrap:wrap;gap:.5rem;margin:.35rem 0 .6rem}
+.calc-milgard .labor-box,.labor-box{flex:1 1 140px;border:1.5px solid var(--navy);background:#fff;color:var(--navy);border-radius:12px;padding:.65rem .55rem;min-height:48px;font:inherit;font-weight:700;font-size:.82rem;cursor:pointer;line-height:1.2;text-align:center}
+.calc-milgard .labor-box small,.labor-box small{display:block;font-weight:600;margin-top:.15rem}
+.calc-milgard .labor-box.on,.labor-box.on{background:var(--orange);border-color:var(--orange-d);color:var(--navy)}
+div.labor-box{cursor:default}
 .calc-milgard .labor-add.on{background:var(--orange);border-color:var(--orange-d);color:var(--navy)}
 .calc-milgard .size-err{color:var(--bad);font-size:.82rem;font-weight:700;min-height:1.1em;margin:.15rem 0 .4rem}
 .calc-milgard .note{font-size:.8rem;background:#fff7e0;border-radius:6px;padding:.4rem .55rem;margin-top:.35rem}
