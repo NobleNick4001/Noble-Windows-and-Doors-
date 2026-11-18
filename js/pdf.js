@@ -1,5 +1,5 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
-import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine } from './core.js';
+import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine, rowAmountText } from './core.js';
 import { currentProfile } from './cloud.js';
 import { windowDrawingSVG } from './drawings.js';
 import { isPrehungLine, migratePrehungEstimate } from './prehung.js';
@@ -178,7 +178,8 @@ export async function makeContractPdf(model) {
     writeCompactWindows(w, model.lines);
   }
   row('Estimated completion date:', model.completionDate ? fdate(model.completionDate + 'T12:00:00') : '');
-  (model.summary || []).forEach((line) => w.text(line.label + '  ' + fmt(line.amount), { size: 11, gap: 1 }));
+  (model.summary || []).forEach((line) => w.text(line.label + '  ' + rowAmountText(line), { size: 11, gap: line.note ? 1 : 1 }));
+  (model.summary || []).filter((line) => line.note).forEach((line) => w.text(line.note, { size: 9, gap: 2 }));
   w.text('Project Total Cost  ' + fmt(model.pay.total), { size: 12, bold: true, gap: 3 });
   w.text(a.depositLabel + '  ' + fmt(model.pay.deposit), { size: 11, gap: 2 });
   w.text(a.balanceLabel + '  ' + fmt(model.pay.balance), { size: 11, gap: 8 });
@@ -689,8 +690,9 @@ export async function makeEstimatePdf(e, opts = {}) {
 
   const pct = Number(data.agreement?.depositPct) || 60;
   const pay = contractPay(t.total, pct);
+  const laborNote = summaryLines(t).find((row) => row.note)?.note || '';
   const totalRows = [
-    ...summaryLines(t).map((row) => ({ label: row.label, value: fmt(row.amount), strong: false })),
+    ...summaryLines(t).map((row) => ({ label: row.label, value: rowAmountText(row), strong: false })),
     { label: 'TOTAL', value: fmt(t.total), strong: true },
     { label: `Deposit (${pct}%)`, value: fmt(pay.deposit), strong: false },
     { label: `Final (${100 - pct}%)`, value: fmt(pay.balance), strong: false },
@@ -709,6 +711,14 @@ export async function makeEstimatePdf(e, opts = {}) {
     y += 16;
   });
   y += 8;
+  if (laborNote) {
+    const noteLines = wrapped(laborNote, width, 8, false);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(92, 101, 112);
+    doc.text(noteLines, margin, y + 8);
+    y += noteLines.length * 10 + 6;
+  }
   if (e.notes) {
     const notes = wrapped(e.notes, width, 8, false);
     if (y + notes.length * 10 > pageH - 36) { doc.addPage(); y = margin; }
