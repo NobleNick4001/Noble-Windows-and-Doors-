@@ -185,6 +185,11 @@ const hub = read('../supabase/functions/hubspot-sync/index.ts');
 for (const needle of ['closedlost', 'assistant_audit', 'follow_ups', 'resolveTaskOwner', 'task.complete', 'deal.lost']) {
   has(hub, needle, 'hubspot sync');
 }
+const beforePull = hub.split("payload.action === 'pull'")[0];
+const salesProfile = beforePull.slice(beforePull.lastIndexOf(".from('profiles').select("));
+has(salesProfile, "select('id, role, email, full_name, hubspot_owner_id')", 'a sales pull uses the signed-in profile id');
+const adminPull = hub.split("payload.action === 'pull'")[1].split('pullHubspot')[0];
+has(adminPull, "select('id, full_name, email, role, hubspot_owner_id')", 'an admin pull selects every profile id');
 const page = read('../js/pages/estimate.js');
 has(page, "id: 'btn-lost'", 'presented estimates have a Lost button');
 has(page, 'lostConfirm', 'Lost opens a confirm step');
