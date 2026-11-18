@@ -561,7 +561,7 @@ Deno.serve(async (req) => {
 
   let payload: any = {};
   try { payload = await req.json(); } catch { return json(400, { ok: false, error: 'Expected JSON' }); }
-  const { data: profile } = await admin.from('profiles').select('role, email, full_name, hubspot_owner_id').eq('id', user.id).maybeSingle();
+  const { data: profile } = await admin.from('profiles').select('id, role, email, full_name, hubspot_owner_id').eq('id', user.id).maybeSingle();
   if (payload.action === 'complete-followup') return completeFollowUp(admin, token, user, profile, payload);
   if (payload.action === 'snooze-followup') return snoozeFollowUp(admin, token, user, profile, payload);
   if (payload.action === 'log-note') return logNote(admin, token, user, profile, payload);
