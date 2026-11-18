@@ -17,7 +17,9 @@ const fail = (msg) => { console.error('FAIL', msg); process.exitCode = 1; };
 const eq = (actual, expected, msg) => { if (actual !== expected) fail(`${msg}: got ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`); };
 const has = (list, needle, msg) => { if (!list.includes(needle)) fail(msg + ' — missing ' + needle); };
 
-eq(glassPackageName({ brand: 'milgard', series: 'V300' }), '', 'V300 glass package is not confirmed');
+eq(glassPackageName({ brand: 'milgard', series: 'V300' }), 'SunCoatMAX / Cardinal 340+ Low-E', 'V300 glass default');
+eq(glassPackageName({ brand: 'milgard', series: 'V250', glass: '1/8" Cardinal 340+ (Low-E) over clear' }), 'Cardinal 340+', 'cardinal quote glass');
+eq(glassPackageName({ brand: 'milgard', series: 'V400', customDescription: 'SunCoat low-e' }), 'SunCoatMAX', 'suncoat selection');
 eq(glassPackageName({ brand: 'milgard', series: 'AX650' }), 'Tempered SunCoatMAX', 'AX650 glass');
 eq(glassPackageName({ brand: 'andersen', series: '100' }), '', 'Andersen 100 glass package is not confirmed');
 eq(glassPackageName({ brand: 'andersen', series: '100', type: 'patio_door_2p' }), 'Tempered glass', 'Andersen patio door glass');
@@ -35,8 +37,7 @@ eq(kitchen.size, '45″ × 37¾″', 'size');
 has(kitchen.details, 'White / White', 'color');
 has(kitchen.details, 'Z-bar', 'z-bar');
 has(kitchen.details, 'Screen', 'screen');
-eq(kitchen.spec, 'Milgard V300 Trinsic · Vinyl · Retrofit · White · Lifetime limited warranty', 'v300 spec');
-if (/argon|suncoat|bead|smartsun/i.test(kitchen.spec)) fail('v300 spec invented a feature');
+eq(kitchen.spec, 'Milgard V300 Trinsic · Vinyl · Retrofit · White · SunCoatMAX / Cardinal 340+ Low-E · Argon gas · High-heat glazing bead · Full lifetime warranty', 'v300 spec');
 if (kitchen.details.some((d) => /tempered|obscure|grid|argon|suncoat/i.test(d))) fail('unselected glass options were invented');
 
 const tempered = quoteLine({
@@ -61,14 +62,17 @@ const andersen = quoteLine({
 });
 eq(andersen.title, 'Andersen 100 Series Casement', 'andersen title');
 eq(andersen.price, 800, 'qty times unit');
-eq(andersen.spec, 'Andersen 100 Series · Fibrex · White', 'andersen spec');
-if (/argon|lifetime|bead|smartsun/i.test(andersen.spec)) fail('andersen spec invented a feature');
+eq(andersen.spec, 'Andersen 100 Series · Fibrex · White · Argon gas', 'andersen spec');
+if (/lifetime|bead|smartsun/i.test(andersen.spec)) fail('andersen spec added warranty or bead');
 has(andersen.details, 'Grids (flat colonial)', 'grids');
-eq(productSpec({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', install: { frameType: 'zbar' } }), 'Milgard V250 Style Line · Vinyl · Retrofit · White · Lifetime limited warranty', 'v250 retrofit spec');
+eq(productSpec({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', install: { frameType: 'zbar' } }), 'Milgard V250 Style Line · Vinyl · Retrofit · White · SunCoatMAX / Cardinal 340+ Low-E · Argon gas · Limited lifetime warranty', 'v250 retrofit spec');
+eq(productSpec({ brand: 'milgard', series: 'V400', type: 'picture', color: 'ww', install: { frameType: 'block' } }), 'Milgard V400 Tuscany · Vinyl · White · SunCoatMAX / Cardinal 340+ Low-E · Argon gas · High-heat glazing bead · Full lifetime warranty', 'v400 spec');
 eq(productSpec({ brand: 'iwc', series: '8900', type: '2panel', color: 'bronze-anodized' }), 'IWC 8900 Doors · Bronze Anodized · Tempered glass · Argon gas', '8900 spec');
+eq(productSpec({ brand: 'iwc', series: '8800', type: 'hslider', color: 'ww' }), 'IWC 8800 Series Ambassador · Aluminum · White · Low-E · Argon gas', '8800 has no warranty');
 const ax = productSpec({ brand: 'milgard', series: 'AX650', type: 'stack2', color: 'white' });
-if (!ax.includes('Milgard AX650') || !ax.includes('Aluminum') || !ax.includes('Tempered SunCoatMAX')) fail('ax650 spec ' + ax);
-if (/argon|lifetime|bead/i.test(ax)) fail('ax650 spec invented a feature');
+if (!ax.includes('Milgard AX650') || !ax.includes('Aluminum') || !ax.includes('Tempered SunCoatMAX') || !ax.includes('Argon gas')) fail('ax650 spec ' + ax);
+if (/lifetime|bead|SunCoatMAX \/ Cardinal/i.test(ax)) fail('ax650 spec invented a feature');
+if (productSpec({ brand: 'prehung', series: 'V300' })) fail('prehung rows stay without a spec');
 
 const pdf = readFileSync(new URL('../js/pdf.js', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../css/styles.css', import.meta.url), 'utf8');

@@ -1,11 +1,14 @@
-// Accounts and durable sync. supabase-js is loaded from the CDN on demand so a
-// missing network does not stop the rest of the app. The publishable key is a client key.
+// Accounts and durable sync. supabase-js is the vendored bundle so sign-in does
+// not wait on cdn.jsdelivr.net. That URL is only a fallback if the local file throws.
+// The publishable key is a client key.
 import { h, store, estimates, totals, summaryLines, toast, browserOffline, OFFLINE_MESSAGE } from './core.js';
 import { passwordError, publicPasswordFailure, recoveryFromHash, toPublicAccount } from '../supabase/functions/account-passwords/password.js';
 
 export const SUPABASE_URL = 'https://nmyatpcjqfokmfbssimc.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_SnKqbI5z7tlZzQmntcxumQ_AqB1pNJ9';
+const LOCAL_SUPABASE = './vendor/supabase-js-2.119.0.mjs';
 const CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SIGNIN_LOAD_MESSAGE = "Couldn't load sign-in. Check your connection or reload the app.";
 const QUEUE_KEY = 'nwd.syncQueue';
 
 export const ACCOUNTS = [
@@ -51,6 +54,9 @@ export function nameForEmail(email) {
 }
 
 let client = null;
+let loading = null;
+let localAttempts = 0;
+let cdnAttempts = 0;
 let me = null;
 let profile = null;
 let timer = null;
@@ -71,18 +77,57 @@ export function currentProfile() { return profile; }
 export function isAdmin() { return profile?.role === 'admin'; }
 export function canSeeAllEstimates() { return profile?.role === 'admin' || profile?.see_all === true; }
 
-export async function getSupabase() {
-  if (client) return client;
+function loadReason(err) {
+  const text = err instanceof Error ? err.message : String(err || 'unknown error');
+  return text.split('\n')[0].slice(0, 180);
+}
+
+function withRetry(url, attempt) {
+  if (!attempt) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}retry=${attempt}`;
+}
+
+function signInLoadError() {
+  return browserOffline() ? OFFLINE_MESSAGE : SIGNIN_LOAD_MESSAGE;
+}
+
+// A failed import() stays rejected in Safari until the page reloads. The next
+// try uses a new URL. client stays null, and loading is cleared when the
+// attempt finishes, so a rejected promise is not reused.
+async function importSupabaseModule() {
   try {
-    const { createClient } = await import(CDN);
-    client = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    return await import(withRetry(LOCAL_SUPABASE, localAttempts));
+  } catch (localErr) {
+    localAttempts += 1;
+    console.error('local supabase-js:', loadReason(localErr));
+    try {
+      return await import(withRetry(CDN, cdnAttempts));
+    } catch (cdnErr) {
+      cdnAttempts += 1;
+      throw cdnErr;
+    }
+  }
+}
+
+async function createSupabase() {
+  try {
+    const mod = await importSupabaseModule();
+    if (typeof mod.createClient !== 'function') throw new Error('supabase-js did not export createClient');
+    client = mod.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
     });
     return client;
   } catch (err) {
-    console.error(err);
+    client = null;
+    console.error("Couldn't load sign-in:", loadReason(err));
     return null;
   }
+}
+
+export async function getSupabase() {
+  if (client) return client;
+  if (!loading) loading = createSupabase().finally(() => { loading = null; });
+  return loading;
 }
 
 function loadQueue() { return store.get(QUEUE_KEY, []); }
@@ -761,7 +806,7 @@ export async function signOut() {
 export async function signIn(email, password) {
   if (browserOffline()) return { error: OFFLINE_MESSAGE };
   const sb = await getSupabase();
-  if (!sb) return { error: browserOffline() ? OFFLINE_MESSAGE : 'Sign-in needs a connection.' };
+  if (!sb) return { error: signInLoadError() };
   const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
   if (error) return { error: friendlyAuth(error.message) };
   if (!data.session) return { error: 'Check your email to confirm the account, then sign in.' };
@@ -786,7 +831,7 @@ export async function signIn(email, password) {
 export async function signUp(email, password, fullName) {
   if (browserOffline()) return { error: OFFLINE_MESSAGE };
   const sb = await getSupabase();
-  if (!sb) return { error: browserOffline() ? OFFLINE_MESSAGE : 'Create account needs a connection.' };
+  if (!sb) return { error: signInLoadError() };
   const known = nameForEmail(email);
   const { data, error } = await sb.auth.signUp({
     email: email.trim(),
@@ -821,7 +866,7 @@ export async function startAuth({ onReady, onSignedOut } = {}) {
       bootFromCache(session, access);
       return;
     }
-    await showLogin('Sign-in needs a connection the first time. Estimates already on this device stay here.');
+    await showLogin(signInLoadError());
     return;
   }
   const recovery = await adoptRecovery(sb);

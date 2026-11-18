@@ -323,7 +323,24 @@ function seriesFeature(line) {
   const id = line?.series == null ? '' : String(line.series);
   return data.seriesFeatures?.series?.[id] || null;
 }
+const MILGARD_GLASS_SERIES = new Set(['V250', 'V300', 'V400', 'A250']);
+function indicatedMilgardGlass(line) {
+  const parts = [];
+  for (const key of ['glass', 'glassPackage', 'quoteGlass', 'desc', 'customDescription']) {
+    if (line?.[key] != null && String(line[key]).trim()) parts.push(String(line[key]));
+  }
+  const text = parts.join(' ').toLowerCase();
+  const sun = text.includes('suncoat');
+  const cardinal = text.includes('cardinal') && text.includes('340');
+  if (sun && !cardinal) return 'SunCoatMAX';
+  if (cardinal && !sun) return 'Cardinal 340+';
+  return '';
+}
 function confirmedGlass(line) {
+  const id = line?.series == null ? '' : String(line.series);
+  if (MILGARD_GLASS_SERIES.has(id)) {
+    return indicatedMilgardGlass(line) || seriesFeature(line)?.glassDefault || 'SunCoatMAX / Cardinal 340+ Low-E';
+  }
   const feat = seriesFeature(line);
   if (!feat) return '';
   return feat.types?.[line?.type]?.glass || feat.glass || '';
@@ -387,9 +404,10 @@ export function productSpec(line) {
     }
   }
   parts.push(...glass);
-  if (feat?.argon === true) parts.push('Argon gas');
+  const argon = data.seriesFeatures?.argonAll?.label || (feat?.argon === true ? 'Argon gas' : '');
+  if (argon) parts.push(argon);
+  if (typeof feat?.highHeatBead === 'string' && feat.highHeatBead) parts.push(feat.highHeatBead);
   if (feat?.lifetimeWarranty) parts.push(feat.lifetimeWarranty);
-  if (feat?.highHeatBead === true) parts.push('High-heat glazing bead');
   return parts.filter(Boolean).join(' · ');
 }
 export function compactWindowLine(line, { includeBrand = false, ascii = false } = {}) {
