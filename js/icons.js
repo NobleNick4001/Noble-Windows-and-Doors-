@@ -30,6 +30,7 @@ export const ICON = {
   sun: stroke('<circle cx="12" cy="12" r="3.4"/><path d="M12 3v2.1M12 18.9V21M3 12h2.1M18.9 12H21M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5"/>'),
   cloud: stroke('<path d="M7 18h10.2a3.8 3.8 0 0 0 .5-7.6 5.6 5.6 0 0 0-10.8-1.4A3.7 3.7 0 0 0 7 18z"/>'),
   shield: stroke('<path d="M12 3.2l7 2.8v5.6c0 4.2-2.9 7-7 8.6-4.1-1.6-7-4.4-7-8.6V6z"/>'),
+  followups: stroke('<path d="M9 5H7.5A1.5 1.5 0 0 0 6 6.5v12A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5v-12A1.5 1.5 0 0 0 16.5 5H15"/><rect x="9" y="3.5" width="6" height="3" rx="1"/><path d="M9 12.5l2 2 4-4"/>'),
   eye: stroke('<path d="M2.5 12S6 6.8 12 6.8 21.5 12 21.5 12 18 17.2 12 17.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.4"/>'),
   grid: stroke('<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M12 4v16M4 12h16"/>'),
   screen: stroke('<rect x="4.5" y="3.5" width="15" height="17" rx="1.5"/><path d="M4.5 8h15M9 8v12.5M14.5 8v12.5M4.5 13h15"/>'),

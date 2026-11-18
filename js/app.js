@@ -15,12 +15,16 @@ import * as overlay from './pages/overlay.js';
 import * as settings from './pages/settings.js';
 import * as admin from './pages/admin.js';
 import * as accounts from './pages/accounts.js';
+import * as followups from './pages/followups.js';
+import * as report from './pages/report.js';
+import * as sales from './pages/sales.js';
 
 const ROUTES = [
   ['calculator', 'Calculator', 'calculator', (r) => calculator.render(r)],
   ['doors', 'Doors', 'door', (r) => prehung.render(r)],
   ['estimate', 'Estimate', 'estimate', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'present' ? estimate.renderPresent(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
-  ['saved', 'Mine', 'folder', (r) => estimate.renderList(r)],
+  ['saved', 'Mine', 'folder', (r, sub, extra) => (sub === 'sales' ? sales.renderRep(r, extra) : estimate.renderList(r))],
+  ['followups', 'Follow-ups', 'followups', (r) => followups.render(r)],
   ['options', 'Options', 'options', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', 'gallery', (r) => gallery.render(r)],
   ['brochures', 'Brochures', 'brochures', (r) => brochures.render(r)],
@@ -31,7 +35,7 @@ const ROUTES = [
 function allRoutes() {
   const list = [...ROUTES];
   const inserts = [];
-  if (isAdmin()) inserts.push(['admin', 'Admin', 'user', (r) => admin.render(r)]);
+  if (isAdmin()) inserts.push(['admin', 'Admin', 'user', (r, sub, extra) => (sub === 'dashboard' ? sales.renderAdmin(r, extra) : sub === 'report' ? report.render(r, sub, extra) : admin.render(r))]);
   inserts.push(['accounts', 'Accounts', 'shield', (r) => accounts.render(r), !isAdmin()]);
   list.splice(3, 0, ...inserts);
   return list;
@@ -46,9 +50,23 @@ function mountGear(on) {
   gear.classList.toggle('on', on);
 }
 
+function paintNav(nav, active) {
+  $('#nav').replaceChildren(...nav.map(([id, label, ico]) => {
+    const link = h('a', { href: '#/' + id, class: id === active ? 'on' : '' }, icon(ico, 'ico'), h('span', { class: 'nl' }, label));
+    if (id === 'followups' && followups.dueCount() > 0) {
+      link.append(h('span', { class: 'nav-badge', id: 'followup-badge' }, String(followups.dueCount())));
+      link.setAttribute('aria-label', `Follow-ups, ${followups.dueCount()} due`);
+    }
+    return link;
+  }));
+}
+
 function route() {
   if (!unlocked) return;
-  const [, name = 'calculator', sub] = location.hash.split('/');
+  const parts = location.hash.replace(/^#\/?/, '').split('/');
+  const name = parts[0] || 'calculator';
+  const sub = parts[1];
+  const extra = parts.slice(2).join('/');
   const routes = allRoutes();
   const r = routes.find((x) => x[0] === name) || routes[0];
   const nav = routes.filter((x) => x[0] !== 'settings' && !x[4]);
@@ -57,10 +75,10 @@ function route() {
   obscure.stop();
   stopFrameTypes();
   document.body.dataset.route = r[0] + (sub ? '-' + sub : '');
-  $('#nav').replaceChildren(...nav.map(([id, label, ico]) => h('a', { href: '#/' + id, class: id === r[0] ? 'on' : '' }, icon(ico, 'ico'), h('span', { class: 'nl' }, label))));
+  paintNav(nav, r[0]);
   mountGear(r[0] === 'settings');
   const app = $('#app');
-  try { r[3](app, sub); } catch (err) { console.error(err); app.replaceChildren(h('div', { class: 'card' }, 'Something went wrong: ' + err.message)); }
+  try { r[3](app, sub, extra); } catch (err) { console.error(err); app.replaceChildren(h('div', { class: 'card' }, 'Something went wrong: ' + err.message)); }
   window.scrollTo(0, 0);
 }
 
@@ -86,9 +104,11 @@ function boot() {
       if (name === 'saved' || name === 'admin') route();
     });
     window.addEventListener('nwd-access', () => { if (unlocked) route(); });
+    window.addEventListener('nwd-followups', () => { if (unlocked) followups.syncBadge(document.getElementById('nav')); });
   }
   mountAccount(document.getElementById('account'));
   route();
+  followups.refresh().catch(() => {});
 }
 
 (async () => {

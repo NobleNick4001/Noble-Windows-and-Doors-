@@ -1,6 +1,6 @@
 import { h, toast } from '../core.js';
 import { icon } from '../icons.js';
-import { isAdmin, currentProfile, listAccounts, sendPasswordReset, setTemporaryPassword } from '../cloud.js';
+import { isAdmin, currentProfile, listAccounts, sendPasswordReset, setTemporaryPassword, loadHubspotOwners, setHubspotOwner } from '../cloud.js';
 import { generateTempPassword, passwordError, PASSWORD_HINT } from '../../supabase/functions/account-passwords/password.js';
 
 const fdate = (t) => t ? new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
@@ -23,9 +23,22 @@ export async function render(root) {
   }
   mountAccounts(root, {
     selfEmail: String(currentProfile()?.email || '').toLowerCase(),
-    load: listAccounts,
+    load: async () => {
+      const res = await listAccounts();
+      if (res?.error) return res;
+      const owners = await loadHubspotOwners();
+      const byEmail = new Map((owners.people || []).map((row) => [String(row.email || '').toLowerCase(), row.hubspot_owner_id || '']));
+      return {
+        people: (res.people || []).map((person) => ({
+          ...person,
+          hubspot_owner_id: byEmail.get(String(person.email || '').toLowerCase()) || '',
+        })),
+        ownerError: owners.error || '',
+      };
+    },
     sendReset: sendPasswordReset,
     setTemp: setTemporaryPassword,
+    setOwner: setHubspotOwner,
   });
 }
 
@@ -37,6 +50,7 @@ export function mountAccounts(root, api) {
   let revealed = api.initial?.revealed || null;
   let busy = false;
   let notice = api.initial?.notice || '';
+  let ownerError = api.initial?.ownerError || '';
   const self = String(api.selfEmail || '').toLowerCase();
 
   const draw = () => {
@@ -45,7 +59,9 @@ export function mountAccounts(root, api) {
       h('h1', {}, 'Accounts'),
       h('button', { type: 'button', class: 'btn', id: 'accounts-refresh', onclick: () => reload() }, 'Refresh')));
     page.append(h('p', { class: 'fine' }, 'Passwords are stored as one-way hashes. They cannot be viewed. Send a reset email, or set a temporary password and give it to the rep yourself. A temporary password is shown once on this screen, is not emailed, and must be changed at the next sign-in.'));
+    page.append(h('p', { class: 'fine' }, 'HubSpot owner id is used for follow-up tasks. Leave it blank to show not set. Mike’s id stays blank until you fill it in.'));
     if (notice) page.append(h('p', { class: 'fine', id: 'accounts-notice' }, notice));
+    if (ownerError) page.append(h('p', { class: 'warn', id: 'owner-error' }, ownerError));
     if (loading) page.append(h('p', { class: 'muted' }, 'Loading accounts…'));
     else if (error) page.append(h('div', { class: 'card' }, h('p', { class: 'warn', id: 'accounts-error' }, error)));
     else page.append(list());
@@ -90,10 +106,42 @@ export function mountAccounts(root, api) {
         h('div', { class: 'fine' }, 'Last sign-in ' + (person.signed_up ? (fdate(person.last_sign_in_at) || 'Never') : '—')),
         person.revoked ? h('div', { class: 'warn' }, 'Revoked. Restore them on the Admin page or they still cannot sign in.') : null,
         person.must_change_password ? h('div', { class: 'fine' }, 'Must set a new password at the next sign-in.') : null,
+        ownerField(person, id),
         actions));
     });
     return box;
   };
+
+  const ownerField = (person, id) => {
+    const value = String(person.hubspot_owner_id || '').trim();
+    return h('div', { class: 'owner-field' },
+      h('label', { class: 'field' },
+        h('span', { class: 'lbl' }, 'HubSpot owner id'),
+        h('input', {
+          type: 'text',
+          id: 'hubspot-owner-' + id,
+          value,
+          placeholder: 'not set',
+          autocomplete: 'off',
+          'aria-label': 'HubSpot owner id for ' + (person.full_name || person.email),
+          disabled: person.signed_up ? null : true,
+        })),
+      h('div', { class: 'fine' + (value ? '' : ' owner-unset'), id: 'hubspot-owner-state-' + id }, value ? '' : 'not set'),
+      person.signed_up
+        ? h('button', { type: 'button', class: 'btn sm', id: 'save-owner-' + id, onclick: () => saveOwner(person, id) }, 'Save owner')
+        : h('p', { class: 'fine' }, 'They need to sign in once before this can be saved.'));
+  };
+
+  async function saveOwner(person, id) {
+    const value = document.getElementById('hubspot-owner-' + id)?.value || '';
+    if (api.setOwner) {
+      const res = await api.setOwner(person.email, value);
+      if (res?.error) { toast(res.error); return; }
+    }
+    person.hubspot_owner_id = value.trim();
+    toast(value.trim() ? 'HubSpot owner saved.' : 'HubSpot owner cleared.');
+    draw();
+  }
 
   const overlay = () => {
     if (revealed) return revealedDialog();
@@ -222,7 +270,10 @@ export function mountAccounts(root, api) {
       const res = await api.load();
       loading = false;
       if (res?.error) error = res.error;
-      else people = res.people || [];
+      else {
+        people = res.people || [];
+        ownerError = res.ownerError || '';
+      }
     } catch (err) {
       loading = false;
       error = 'Could not load accounts.';

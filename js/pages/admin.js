@@ -18,7 +18,12 @@ export async function render(root) {
   const byId = Object.fromEntries(people.map((p) => [p.id, p]));
   const mine = String(currentProfile()?.email || '').toLowerCase();
   const wrap = h('div', { class: 'page' });
-  wrap.append(h('div', { class: 'row between wrap' }, h('h1', {}, 'Admin'), h('button', { class: 'btn', id: 'admin-refresh', onclick: () => render(root) }, 'Refresh')));
+  wrap.append(h('div', { class: 'row between wrap gap' },
+    h('h1', {}, 'Admin'),
+    h('div', { class: 'row gap wrap' },
+      h('a', { class: 'btn', id: 'admin-team-sales', href: '#/admin/dashboard' }, 'Team sales'),
+      h('a', { class: 'btn', id: 'admin-weekly-report', href: '#/admin/report' }, 'Weekly report'),
+      h('button', { class: 'btn', id: 'admin-refresh', onclick: () => render(root) }, 'Refresh'))));
 
   const nameInput = h('input', { type: 'text', id: 'rep-name', autocomplete: 'name', required: true });
   const emailInput = h('input', { type: 'email', id: 'rep-email', autocomplete: 'off', required: true });
