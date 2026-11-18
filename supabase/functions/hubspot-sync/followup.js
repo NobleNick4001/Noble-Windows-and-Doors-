@@ -66,3 +66,93 @@ export function shouldCreateFollowUp(existing) {
   if (!existing || existing.status !== 'open') return true;
   return !String(existing.hubspot_task_id || '').trim();
 }
+
+export function estimateNotes(estimate) {
+  const doc = estimate?.document;
+  if (doc && typeof doc === 'object' && doc.notes != null) return String(doc.notes);
+  if (estimate?.notes != null) return String(estimate.notes);
+  return '';
+}
+
+// Short note stored when an estimate is marked presented.
+export function presentedFollowUpNote(estimate) {
+  const amount = moneyLabel(estimate?.total_amount);
+  const presentedAt = estimate?.presented_at || estimate?.presentedAt || '';
+  const when = presentedAt
+    ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(presentedAt))
+    : '';
+  const head = when ? `Presented ${amount} estimate on ${when}` : `Presented ${amount} estimate`;
+  const extra = estimateNotes(estimate).trim();
+  return extra ? `${head}\n${extra}` : head;
+}
+
+export function plainEngagement(text) {
+  return String(text || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
+export function engagementBody(kind, properties) {
+  const p = properties || {};
+  if (kind === 'notes') return plainEngagement(p.hs_note_body);
+  if (kind === 'calls') return plainEngagement(p.hs_call_body || p.hs_call_title);
+  if (kind === 'emails') {
+    const subject = String(p.hs_email_subject || '').trim();
+    const text = plainEngagement(p.hs_email_text || '');
+    if (subject && text) return plainEngagement(`${subject}\n${text}`);
+    return plainEngagement(text || subject);
+  }
+  return '';
+}
+
+export function pickLatestEngagement(items) {
+  const usable = (items || []).filter((item) => String(item?.body || '').trim());
+  usable.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+  return usable[0] || null;
+}
+
+// Latest HubSpot note, call, or email wins when it is at least as new as the present.
+// Otherwise the note is the estimate itself.
+export function followUpNoteFromInteraction({ estimate, engagement } = {}) {
+  const fallback = presentedFollowUpNote(estimate);
+  const body = String(engagement?.body || '').trim();
+  if (!body) return fallback;
+  const at = engagement?.at ? new Date(engagement.at).getTime() : NaN;
+  const presented = estimate?.presented_at ? new Date(estimate.presented_at).getTime() : NaN;
+  if (Number.isFinite(presented) && (!Number.isFinite(at) || presented > at)) return fallback;
+  return body;
+}
+
+// One open follow-up per non-deleted presented estimate. Won and lost are skipped.
+export function planFollowUpBackfill({ estimates, openFollowUps, engagementByEstimateId } = {}) {
+  const openByEstimate = new Map();
+  for (const row of openFollowUps || []) {
+    if ((row?.status || 'open') === 'open' && row.estimate_id) openByEstimate.set(row.estimate_id, row);
+  }
+  const plans = [];
+  for (const estimate of estimates || []) {
+    if (!estimate?.id || estimate.deleted_at) continue;
+    if (estimate.status !== 'presented' || estimate.won_at || estimate.lost_at) continue;
+    const note = followUpNoteFromInteraction({
+      estimate,
+      engagement: engagementByEstimateId?.[estimate.id] || null,
+    });
+    const open = openByEstimate.get(estimate.id);
+    if (!open) {
+      plans.push({ action: 'insert', estimateId: estimate.id, ownerId: estimate.owner_id, note });
+      continue;
+    }
+    if (String(open.note || '') !== note) plans.push({ action: 'update', id: open.id, note });
+  }
+  return plans;
+}

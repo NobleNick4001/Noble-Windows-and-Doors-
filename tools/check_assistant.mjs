@@ -201,7 +201,7 @@ has(accounts, 'Mike', 'Mike is the blank placeholder');
 const nav = read('../js/app.js');
 has(nav, 'followup-badge', 'the nav has the follow-up badge');
 const sw = read('../sw.js');
-has(sw, "const CACHE = 'nwd-sales-v68-sales-tab'", 'service worker cache was bumped');
+has(sw, "const CACHE = 'nwd-sales-v69-delete-followups'", 'service worker cache was bumped');
 has(sw, 'js/ax650.js', 'AX650 stays precached');
 has(sw, 'js/vendor/supabase-js-2.119.0.mjs', 'vendored supabase-js stays precached');
 
