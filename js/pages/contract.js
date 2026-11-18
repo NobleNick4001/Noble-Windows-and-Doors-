@@ -18,7 +18,7 @@ function colorPhrase(id) {
   return name.split('/')[0].trim().toLowerCase() + ' frames';
 }
 function installPhrase(inst, line) {
-  if (isAx650Line(line)) return 'installation to be confirmed';
+  if (isAx650Line(line)) return 'AX650 installation';
   const frame = frameTypeById(inst?.frameType);
   const raw = (frame?.name || installType(inst?.type)?.name || 'install').toLowerCase();
   if (raw.includes('retrofit')) return 'retrofit install';

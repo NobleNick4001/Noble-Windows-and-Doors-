@@ -1,13 +1,18 @@
 {
-  "_readme": "Milgard AX650 stacking, pocket, and bifold doors. This table REPLACES the earlier AX650 prices. Every dollar amount is a FINAL CUSTOMER PRICE from the revised OneLink table. The 45% margin (marginAlreadyIncluded) is already in those amounts. applyMargin is false and pricesAre is customer, so the app must use the numbers as-is. Do not run them through marginFactor() and do not divide by 0.55. There is no cost column and no pocket adder. Pocket is its own configuration. Each band is one flat customer price for any allowed width (the price is the config's max-width price). Height bands are net frame height: band 1 up to and including 80 inches, band 2 over 80 up to and including 96, band 3 over 96 up to 119.5. Valid height for every model is 79.5 to 119.5. Glass is Tempered SunCoatMAX. No screens. installLabor is null, so the estimate shows TBD and does not add $0.",
+  "_readme": "Milgard AX650 stacking, pocket, and bifold doors. This table REPLACES the earlier AX650 prices. Every dollar amount is a FINAL CUSTOMER PRICE from the revised OneLink table. The 45% margin (marginAlreadyIncluded) is already in those amounts. applyMargin is false and pricesAre is customer, so the app must use the numbers as-is. Do not run them through marginFactor() and do not divide by 0.55. There is no cost column and no pocket adder. Pocket is its own configuration. Each band is one flat customer price for any allowed width (the price is the config's max-width price). Height bands are net frame height: band 1 up to and including 80 inches, band 2 over 80 up to and including 96, band 3 over 96 up to 119.5. Valid height for every model is 79.5 to 119.5. Glass is Tempered SunCoatMAX. No screens. Install is a separate customer price: $500 plus $500 per panel, with no margin added. It is not part of the door price.",
   "sourceQuote": "MQPASG000219-1",
   "marginAlreadyIncluded": 0.45,
   "applyMargin": false,
   "pricesAre": "customer",
   "glass": "Tempered SunCoatMAX",
   "screens": false,
-  "installLabor": null,
-  "installLabel": "TBD",
+  "install": {
+    "applyMargin": false,
+    "pricesAre": "customer",
+    "flat": 500,
+    "perPanel": 500,
+    "_readme": "Customer install price. No margin is added. Amount is flat plus perPanel times the panel count: 2-panel $1,500, 3-panel $2,000, 4-panel $2,500, 5-panel $3,000. Same for stacking, pocket, and bifold."
+  },
   "height": {
     "min": 79.5,
     "max": 119.5,

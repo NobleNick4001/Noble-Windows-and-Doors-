@@ -1,8 +1,8 @@
 // Core helpers, data loading, settings, estimate store, pricing.
 import { isMilgardDoorLine, milgardQuote, doorColorLabel } from './milgard.js';
 import { isPrehungLine, pricePrehung, prehungCompactLine, prehungQuoteLine } from './prehung.js';
-import { isAx650Line, ax650Description, ax650Quote, INSTALL_TBD } from './ax650.js';
-export { isMilgardDoorLine, isPrehungLine, isAx650Line, INSTALL_TBD };
+import { isAx650Line, ax650Description, ax650Quote, ax650Install } from './ax650.js';
+export { isMilgardDoorLine, isPrehungLine, isAx650Line };
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -807,7 +807,7 @@ const doorPanelKey = (line) => (data.install?.doors?.panels?.[line?.type] != nul
 // Labor only. Add-ons, including door header footage and the write-in, are addonUnit.
 export function installUnit(inst, line) {
   if (line && isPrehungLine(line)) return pricePrehung(data.prehung, line.prehung || line).labor;
-  if (line && isAx650Line(line)) return 0;
+  if (line && isAx650Line(line)) return ax650Install(data.ax650, line);
   inst = inst || defaultInstall();
   if (inst.override != null && inst.override !== '' && !isNaN(inst.override)) return roundMoney(Number(inst.override));
   if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
@@ -854,7 +854,10 @@ export function addonUnit(inst, line) {
 }
 export function installLabel(inst, line) {
   if (line && isPrehungLine(line)) return 'Prehung door installation';
-  if (line && isAx650Line(line)) return INSTALL_TBD;
+  if (line && isAx650Line(line)) {
+    const style = ax650Description(data.ax650, line).style;
+    return style ? `${style} install` : 'AX650 install';
+  }
   inst = inst || defaultInstall();
   if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
     const name = { '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel' }[line.type] || 'Patio door';
@@ -1009,7 +1012,6 @@ export function totals(e) {
   const lines = e.lines || [];
   const qtyOf = (l) => Number(l.qty) || 0;
   const windows = r2(lines.reduce((s, l) => s + (Number(l.unit) || 0) * qtyOf(l), 0));
-  const laborPending = lines.some(isAx650Line);
   const install = r2(lines.reduce((s, l) => s + installUnit(l.install, l) * qtyOf(l), 0));
   const addons = r2(lines.reduce((s, l) => s + addonUnit(l.install, l) * qtyOf(l), 0));
   const stucco = stuccoState(e);
@@ -1027,7 +1029,7 @@ export function totals(e) {
   const subtotal = r2(windows + labor + extras + shipping - discount - percentDiscountAmount);
   const materialsSub = r2(taxable + tax + shipping);
   return {
-    windows, install, addons, labor, laborPending, shipping, stucco: stucco.total, stuccoName: stucco.name, stuccoQty: stucco.qty, stuccoUnit: stucco.unit, stuccoOn: stucco.on,
+    windows, install, addons, labor, shipping, stucco: stucco.total, stuccoName: stucco.name, stuccoQty: stucco.qty, stuccoUnit: stucco.unit, stuccoOn: stucco.on,
     extras, discount, discountLabel: promo.label, promo, percentDiscount, percentDiscountAmount, percentDiscountLabel,
     subtotal, materialsSub, taxable, tax, taxPct: SALES_TAX_PCT, total: r2(subtotal + tax),
     count: lines.reduce((s, l) => s + qtyOf(l), 0),
@@ -1036,16 +1038,6 @@ export function totals(e) {
 export function rowAmountText(row) {
   if (row && row.amountText != null) return row.amountText;
   return fmt(row?.amount || 0);
-}
-const LABOR_TBD_NOTE = 'AX650 installation is not priced yet and is not included in the total.';
-function laborDisplay(row, t) {
-  if (row.id !== 'install' || !t?.laborPending) return row;
-  const known = Number(t.labor) || 0;
-  return {
-    ...row,
-    amountText: known > 0.004 ? `${fmt(known)} + ${INSTALL_TBD}` : INSTALL_TBD,
-    note: LABOR_TBD_NOTE,
-  };
 }
 // On-screen quote. Materials, tax, and shipping stay together. Installation is every
 // window and door labor line plus add-ons, and it is not part of the material price or the tax.
@@ -1058,7 +1050,7 @@ export function quoteTotalRows(t) {
   rows.push({ id: 'tax', label: `Tax ${t.taxPct}% (materials only)`, amount: t.tax });
   rows.push({ id: 'shipping', label: 'Shipping', amount: t.shipping });
   rows.push({ id: 'materialsSub', label: 'Materials subtotal', amount: t.materialsSub, strong: true });
-  rows.push(laborDisplay({ id: 'install', label: 'Installation', amount: t.labor, strong: true }, t));
+  rows.push({ id: 'install', label: 'Installation', amount: t.labor, strong: true });
   if (laborOff) rows.push({ id: 'laborDiscount', label: t.discountLabel || 'Discount', amount: -laborOff, discount: true });
   if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
   return rows;
@@ -1070,7 +1062,7 @@ export function summaryLines(t, { includeMaterials = true } = {}) {
   const rows = [{ id: 'windows', label: 'Windows subtotal', amount: t.windows }];
   if (t.discount) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -t.discount, discount: true });
   if (t.percentDiscountAmount) rows.push({ id: 'percentDiscount', label: t.percentDiscountLabel || 'Additional discount', amount: -t.percentDiscountAmount, discount: true });
-  rows.push(laborDisplay({ id: 'install', label: 'Installation / Labor', amount: t.labor }, t));
+  rows.push({ id: 'install', label: 'Installation / Labor', amount: t.labor });
   rows.push({ id: 'shipping', label: 'Shipping & Handling', amount: t.shipping });
   if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
   rows.push({ id: 'tax', label: `Sales Tax (${SALES_TAX_PCT}%)`, amount: t.tax });

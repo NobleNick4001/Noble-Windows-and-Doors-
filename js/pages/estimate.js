@@ -1,9 +1,9 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText, INSTALL_TBD } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText } from '../core.js';
 import { prehungEstimateRow } from './prehung-ui.js';
 import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor, ax650LineEditor } from './milgard-ui.js';
-import { ax650Description, ax650Model } from '../ax650.js';
+import { ax650Description, ax650Model, ax650Install } from '../ax650.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin } from '../cloud.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
 import { icon } from '../icons.js';
@@ -272,7 +272,7 @@ export function render(root) {
       h('div', { class: 'li-main' },
         drawingEl(l, 'line-drawing', { boxW: 168, boxH: 142 }),
         h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
-          h('div', { class: 'fine', id: 'li-install-' + l.id }, isAx650Line(l) ? `Install: ${INSTALL_TBD}` : `Install: ${installLabel(l.install, l)}`),
+          h('div', { class: 'fine', id: 'li-install-' + l.id }, `Install: ${installLabel(l.install, l)}`),
           needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
           l.sizeError ? h('div', { class: 'warn size-err', id: 'size-err-' + l.id }, l.sizeError) : null,
           addonNames(l.install, l).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install, l).join(', ')}`) : null,
@@ -319,7 +319,7 @@ export function render(root) {
           : upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
         h('b', {}, 'Installation'),
         isAx650Line(l)
-          ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax-install-' + l.id }, 'Installation', h('small', {}, INSTALL_TBD)))
+          ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax-install-' + l.id }, 'Installation', h('small', {}, `${fmt(ax650Install(data.ax650, l))} / door`)))
           : isMilgardDoorLine(l)
           ? doorInstallEditor(l, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id + '-')
           : installEditor(l.install, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id, l),

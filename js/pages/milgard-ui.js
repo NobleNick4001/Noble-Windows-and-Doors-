@@ -1,6 +1,6 @@
 import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, addonUnit, installLabel, addonNames, defaultInstall, typeName, colorById, quoteTotalRows, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, rowAmountText, isAx650Line } from '../core.js';
 import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorColorLabel, A250_WINDOW_COLORS, A250_WINDOW_STYLES, a250GlassOptions, styleLimits } from '../milgard.js';
-import { ax650Quote, ax650Description, ax650Groups, ax650Model, parseInches, inchField, INSTALL_TBD, AX650_SERIES } from '../ax650.js';
+import { ax650Quote, ax650Description, ax650Groups, ax650Model, ax650Install, parseInches, inchField, AX650_SERIES } from '../ax650.js';
 import { drawingEl } from '../drawings.js';
 import { icon } from '../icons.js';
 
@@ -84,7 +84,7 @@ function ensure(calc) {
 
 export function installFromCalc(calc) {
   if (ax650On(calc)) {
-    return { type: 'ax650', pending: true, surcharges: [], headerFeet: '', writeIn: null, override: null, custom: null, frameType: null };
+    return { type: 'ax650', pending: false, surcharges: [], headerFeet: '', writeIn: null, override: null, custom: null, frameType: null };
   }
   if (calc.product === 'door') {
     return {
@@ -356,7 +356,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   left.append(h('h3', {}, 'Installation'));
   if (ax) {
-    left.append(h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax650-install' }, 'Installation', h('small', {}, INSTALL_TBD))));
+    left.append(h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax650-install' }, 'Installation', h('small', {}, `${fmt(ax650Install(data.ax650, { type: calc.type }))} / door`))));
   } else if (calc.product === 'window') left.append(windowLabor(calc, persist, rerender, update));
   else left.append(doorLabor(calc, persist, rerender, update, doorLaborEl));
 
@@ -475,7 +475,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       supplierPrice: null, customDescription: '',
       unitBase: p.unit, optionsEach: 0, unit: p.unit, rate: p.rate, rateSet: settings.rateSet,
       estimated: false, pricingMode: ax ? 'ax650' : 'onelink', pricePending: !!p.pricePending, provisional: !!p.provisional, unavailable: false,
-      install: inst, installUnit: ax ? null : installUnit(inst, line),
+      install: inst, installUnit: installUnit(inst, line),
     });
     estimates.persist();
     calc.w = '';

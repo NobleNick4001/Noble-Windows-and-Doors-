@@ -1,8 +1,8 @@
 // AX650 customer prices. The 45% margin is already in the stored amounts.
 // Each band is flat for any allowed width. Pocket is its own model, not an adder.
 import { readFileSync } from 'node:fs';
-import { data, priceWindow, totals, summaryLines, installLabel, rowAmountText, INSTALL_TBD } from '../js/core.js';
-import { parseInches } from '../js/ax650.js';
+import { data, priceWindow, totals, summaryLines, installUnit, rowAmountText } from '../js/core.js';
+import { parseInches, ax650Install } from '../js/ax650.js';
 
 const load = (p) => JSON.parse(readFileSync(p, 'utf8'));
 data.rates = load('data/rates.json');
@@ -86,16 +86,31 @@ const quoted = price('stack3', 120, 80).unit;
 near(quoted, raw, 'engine returns the stored customer price');
 check(Math.abs(quoted - raw / 0.55) > 1, 'engine does not divide by 0.55');
 
+const expectInstall = { stack2: 1500, pocket2: 1500, stack3: 2000, pocket3: 2000, bifold3: 2000, stack4: 2500, pocket4: 2500, bifold4: 2500, bifold5: 3000 };
+for (const [type, amount] of Object.entries(expectInstall)) {
+  const sample = line(type, EDGES[type][0], 80);
+  near(ax650Install(data.ax650, sample), amount, type + ' install');
+  near(installUnit(sample.install, sample), amount, type + ' installUnit');
+}
+check(data.ax650.install.applyMargin === false, 'install margin stays off');
 const axLine = line('stack3', 120, 80);
 axLine.unit = quoted;
-axLine.install = { type: 'ax650', pending: true, surcharges: [] };
-check(installLabel(axLine.install, axLine) === INSTALL_TBD, 'AX650 install label is TBD');
+axLine.install = { type: 'ax650', surcharges: [] };
 const only = totals({ lines: [axLine], extras: [], stuccoRepair: { on: false }, promoCode: '', percentDiscount: 0 });
 const installRow = summaryLines(only).find((r) => r.id === 'install');
-check(rowAmountText(installRow) === 'TBD', 'Installation displays TBD, not ' + rowAmountText(installRow));
+check(rowAmountText(installRow) === '$2,000.00', 'Installation is $2,000, not ' + rowAmountText(installRow));
+check(!installRow.note, 'no unpriced-install note');
 near(only.windows, 16637.12, 'door price is in the material total');
-near(only.tax, 1513.98, 'tax on the door');
-near(only.total, 18301.10, 'total excludes unknown labor');
+near(only.install, 2000, 'install is in the labor base');
+near(only.labor, 2000, 'combined installation includes the door install');
+near(only.tax, 1513.98, 'tax stays on materials');
+near(only.total, 20301.10, 'total includes the $2,000 install');
+const five = line('bifold5', 190, 110);
+five.unit = 40298.36;
+five.install = { type: 'ax650', surcharges: [] };
+const fiveJob = totals({ lines: [five], extras: [], stuccoRepair: { on: false }, promoCode: '', percentDiscount: 0 });
+near(fiveJob.labor, 3000, '5-panel install is $3,000');
+near(fiveJob.total, 47115.51, '5-panel total includes install');
 
 if (errs.length) {
   console.log('FAILED');
