@@ -1,4 +1,4 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText, syncCustomerName, joinCustomerName } from '../core.js';
 import { prehungEstimateRow } from './prehung-ui.js';
 import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
@@ -15,7 +15,7 @@ import { drawingEl } from '../drawings.js';
 const open = new Set(); // line ids being edited
 const promoUi = { forId: null, draft: '', dirty: false, error: '' };
 const pctUi = { forId: null, draft: '', dirty: false, error: '' };
-const hubUi = { estimateId: null, matches: [], autoId: null, busy: false, intent: null };
+const hubUi = { estimateId: null, matches: [], autoId: null, busy: false, intent: null, goPresent: false };
 const sendUi = { busy: false, error: '', confirm: '' };
 const lostUi = { forId: null, confirm: false, busy: false };
 const wonUi = { forId: null, confirm: false, busy: false };
@@ -27,7 +27,7 @@ window.addEventListener('nwd-delete-failed', (ev) => {
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 function statusLabel(status) {
   if (status === 'signed') return 'Signed';
-  if (status === 'presented') return 'Presented';
+  if (status === 'presented') return 'Shown';
   if (status === 'lost') return 'Lost';
   if (status === 'won') return 'Won';
   return 'Draft';
@@ -117,6 +117,21 @@ const MILGARD_OPTION_TYPES = ['hslider', 'xox', 'vslider', 'picture', 'casement'
 function usesMilgardEditor(l) {
   return l.pricingMode === 'onelink' || (l.brand === 'milgard' && (isMilgardDoorLine(l) || MILGARD_OPTION_TYPES.includes(l.type)));
 }
+async function showCustomer(rerender) {
+  const e = estimates.current();
+  syncCustomerName(e.customer);
+  if (!e.customer.name && !(e.lines || []).length) {
+    toast('Add a name or a window first.');
+    return;
+  }
+  if (!e.status || e.status === 'draft') {
+    hubUi.goPresent = true;
+    await presentEstimate(rerender);
+    return;
+  }
+  location.hash = '#/estimate/present';
+}
+
 async function presentEstimate(rerender) {
   if (hubUi.busy) return;
   hubUi.busy = true;
@@ -132,6 +147,10 @@ async function presentEstimate(rerender) {
     }
     hubUi.estimateId = null;
     await markPresented(current);
+    if (hubUi.goPresent && current.status === 'presented') {
+      hubUi.goPresent = false;
+      location.hash = '#/estimate/present';
+    }
   } finally {
     hubUi.busy = false;
     rerender();
@@ -148,7 +167,13 @@ async function confirmHubspot(e, choice, rerender) {
     hubUi.matches = [];
     hubUi.intent = null;
     if (sending) await deliverEstimate(e, rerender);
-    else await markPresented(e);
+    else {
+      await markPresented(e);
+      if (hubUi.goPresent && e.status === 'presented') {
+        hubUi.goPresent = false;
+        location.hash = '#/estimate/present';
+      }
+    }
   } finally {
     hubUi.busy = false;
     rerender();
@@ -272,28 +297,38 @@ export function render(root) {
   const save = () => { estimates.persist(); };
   const rerender = () => render(root);
 
+  syncCustomerName(e.customer);
   const signed = e.status === 'signed' || (e.contract?.signatures?.p1a && e.contract?.signatures?.p1b);
   if (lostUi.forId !== e.id) { lostUi.forId = e.id; lostUi.confirm = false; lostUi.busy = false; }
   const statusWord = statusLabel(e.status);
-  wrap.append(h('div', { class: 'row between wrap' }, h('div', {}, h('h1', {}, 'Estimate'), h('div', { class: 'muted' }, `${e.number} · ${fdate(e.created)} · ${statusWord}`), signed ? h('div', { class: 'fine', id: 'agreement-signed' }, 'Agreement signed') : null),
-    h('div', { class: 'row wrap gap' },
-      h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, icon('plus'), 'New'),
-      h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name && !(e.overlays || []).length) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
-      h('button', { type: 'button', class: 'btn', id: 'btn-presented', disabled: e.status === 'signed' || e.status === 'lost' || hubUi.busy ? true : null, onclick: () => presentEstimate(rerender) }, 'Mark presented'),
-      e.status === 'presented' ? h('button', { type: 'button', class: 'btn primary', id: 'btn-won', disabled: wonUi.busy ? true : null, onclick: () => { wonUi.confirm = true; rerender(); } }, 'Won') : null,
-      e.status === 'presented' ? h('button', { type: 'button', class: 'btn danger', id: 'btn-lost', disabled: lostUi.busy ? true : null, onclick: () => { lostUi.confirm = true; rerender(); } }, 'Lost') : null,
-      (e.status === 'won' || e.status === 'lost') && isAdmin() ? h('button', { type: 'button', class: 'btn', id: 'btn-reopen', onclick: () => reopenEstimate(e) }, 'Reopen') : null,
-      canDelete(e, userId()) ? h('button', { type: 'button', class: 'btn danger', id: 'btn-delete', onclick: () => { deleteNotice = ''; deleteUi.forId = e.id; deleteUi.confirm = true; rerender(); } }, 'Delete') : null,
-      h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
-      h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
-  wrap.append(h('a', { class: 'btn primary xl', id: 'btn-present', href: '#/estimate/present' }, 'Present'));
+  const setPart = (key, value) => {
+    e.customer[key] = value;
+    e.customer.name = joinCustomerName(e.customer.first, e.customer.last);
+    if (!e.hubspotContactId) delete e.hubspotChoice;
+    save();
+  };
+  wrap.append(h('div', {}, h('h1', {}, 'Estimate'), h('div', { class: 'muted' }, `${e.number} · ${fdate(e.created)} · ${statusWord}`), signed ? h('div', { class: 'fine', id: 'agreement-signed' }, 'Agreement signed') : null));
+  wrap.append(h('div', { class: 'card', id: 'customer-names' },
+    h('div', { class: 'cols2' },
+      h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'First name'), h('input', { type: 'text', id: 'c-first', value: e.customer.first || '', autocomplete: 'off', oninput: (ev) => setPart('first', ev.target.value) })),
+      h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Last name'), h('input', { type: 'text', id: 'c-last', value: e.customer.last || '', autocomplete: 'off', oninput: (ev) => setPart('last', ev.target.value) }))),
+    h('button', { type: 'button', class: 'btn primary xl', id: 'btn-present', disabled: hubUi.busy ? true : null, onclick: () => showCustomer(rerender) }, hubUi.busy ? 'Saving…' : 'Show customer')));
+  wrap.append(h('div', { class: 'row wrap gap' },
+    h('button', { class: 'btn', onclick: () => { estimates.startNew(); rerender(); } }, icon('plus'), 'New'),
+    h('button', { class: 'btn', onclick: () => { if (!e.lines.length && !e.customer.name && !(e.overlays || []).length) return toast('Nothing to duplicate yet'); save(); estimates.duplicate(e.id); toast('Duplicated'); rerender(); } }, 'Duplicate'),
+    e.status === 'presented' ? h('button', { type: 'button', class: 'btn primary', id: 'btn-won', disabled: wonUi.busy ? true : null, onclick: () => { wonUi.confirm = true; rerender(); } }, 'Won') : null,
+    e.status === 'presented' ? h('button', { type: 'button', class: 'btn danger', id: 'btn-lost', disabled: lostUi.busy ? true : null, onclick: () => { lostUi.confirm = true; rerender(); } }, 'Lost') : null,
+    (e.status === 'won' || e.status === 'lost') && isAdmin() ? h('button', { type: 'button', class: 'btn', id: 'btn-reopen', onclick: () => reopenEstimate(e) }, 'Reopen') : null,
+    canDelete(e, userId()) ? h('button', { type: 'button', class: 'btn danger', id: 'btn-delete', onclick: () => { deleteNotice = ''; deleteUi.forId = e.id; deleteUi.confirm = true; rerender(); } }, 'Delete') : null,
+    h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
+    h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'PDF')));
   if (deleteNotice) wrap.append(h('p', { class: 'warn', id: 'delete-error' }, deleteNotice));
   const picker = hubspotPicker(e, rerender);
   if (picker) wrap.append(picker);
 
   // customer
   const cf = (key, label, type = 'text', ph = '') => h('label', { class: 'field' }, h('span', { class: 'lbl' }, label), h('input', { type, id: 'c-' + key, value: e.customer[key], placeholder: ph, autocomplete: 'off', oninput: (ev) => { e.customer[key] = ev.target.value; if (!e.hubspotContactId) delete e.hubspotChoice; save(); } }));
-  wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Customer'), h('div', { class: 'cols2' }, cf('name', 'Name'), cf('phone', 'Phone', 'tel'), cf('email', 'Email', 'email'), cf('address', 'Job address')),
+  wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Customer'), h('div', { class: 'cols2' }, cf('phone', 'Phone', 'tel'), cf('email', 'Email', 'email'), cf('address', 'Job address')),
     e.status === 'signed' || e.status === 'lost' ? null : h('div', { class: 'row gap wrap' },
       h('button', { type: 'button', class: 'btn sm', id: 'btn-appointment', onclick: () => recordAppointment(e) }, 'Appointment set'))));
 
@@ -624,15 +659,34 @@ export function renderPresent(root) {
 
 function ownerLine(x, uid) {
   const name = x.ownerName || '';
-  if (!x.ownerId || x.ownerId === uid) return name ? `You · ${name}` : 'You';
+  if (!x.ownerId || x.ownerId === uid) return '';
   return name || 'Another rep';
 }
+
+const MINE_FILTERS = [
+  ['all', 'All'],
+  ['draft', 'Draft'],
+  ['presented', 'Shown'],
+  ['won', 'Won'],
+  ['lost', 'Lost'],
+];
+let mineQuery = '';
+let mineFilter = 'all';
 
 export function renderList(root, sub) {
   if (sub === 'sales') { renderRep(root, sub === 'sales' ? '' : sub); return; }
   const uid = userId();
   const seeAll = canSeeAllEstimates();
-  const all = estimates.list().filter((x) => !x.deletedAt && x.status !== 'lost' && (seeAll || !uid || !x.ownerId || x.ownerId === uid));
+  const all = estimates.list().filter((x) => {
+    if (x.deletedAt) return false;
+    if (!(seeAll || !uid || !x.ownerId || x.ownerId === uid)) return false;
+    const status = x.status || 'draft';
+    if (mineFilter !== 'all' && status !== mineFilter) return false;
+    const q = mineQuery.trim().toLowerCase();
+    if (!q) return true;
+    const hay = [x.customer?.name, x.customer?.first, x.customer?.last, x.customer?.address, x.customer?.phone, x.number].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
   const cur = estimates.currentId();
   const wrap = h('div', { class: 'page' }, h('div', { class: 'tabs seg', id: 'mine-tabs' },
     h('a', { class: 'seg-btn on', href: '#/saved' }, 'Estimates'),
@@ -641,21 +695,40 @@ export function renderList(root, sub) {
     h('button', { class: 'btn', id: 'btn-refresh-estimates', onclick: async () => { deleteNotice = ''; await refreshEstimates(); renderList(root); } }, 'Refresh'),
     h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate'))));
   if (deleteNotice) wrap.append(h('p', { class: 'warn', id: 'delete-error' }, deleteNotice));
-  wrap.append(h('p', { class: 'fine' }, seeAll
-    ? 'Each estimate shows the rep who owns it. You can open another rep’s estimate. Changes still save only on your own.'
-    : 'Every estimate and signed agreement saves on this device and to your account, including when you are offline. Open one here on any device after you sign in.'));
-  if (!all.length) wrap.append(h('div', { class: 'card muted' }, 'No estimates yet. They show up here as you build them.'));
+  wrap.append(h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Search'), h('input', {
+    type: 'text', id: 'mine-search', value: mineQuery, placeholder: 'Name or address', autocomplete: 'off',
+    oninput: (ev) => {
+      mineQuery = ev.target.value;
+      const pos = ev.target.selectionStart;
+      renderList(root);
+      const next = document.getElementById('mine-search');
+      if (next) {
+        next.focus();
+        try { next.setSelectionRange(pos, pos); } catch { /* ignore */ }
+      }
+    },
+  })));
+  wrap.append(h('div', { class: 'chips', id: 'mine-filters' }, MINE_FILTERS.map(([id, label]) => h('button', {
+    type: 'button', class: 'chip' + (mineFilter === id ? ' on' : ''), id: 'mine-filter-' + id,
+    onclick: () => { mineFilter = id; renderList(root); },
+  }, label))));
+  if (!all.length) wrap.append(h('div', { class: 'card muted', id: 'mine-empty' }, mineQuery || mineFilter !== 'all' ? 'No estimates match.' : 'No estimates yet. They show up here as you build them.'));
   all.forEach((x) => {
     const t = totals(x);
     const statusWord = statusLabel(x.status);
     const mine = !x.ownerId || x.ownerId === uid || isAdmin();
+    const who = ownerLine(x, uid);
+    const digits = String(x.customer?.phone || '').replace(/[^\d+]/g, '');
     wrap.append(h('div', { class: 'card lineitem' + (x.id === cur ? ' current' : '') },
       h('div', { class: 'li-main' }, h('div', { class: 'li-text' },
         h('b', {}, x.customer.name || '(no name)'),
-        h('div', { class: 'muted', id: 'estimate-owner-' + x.id }, ownerLine(x, uid)),
+        who ? h('div', { class: 'muted', id: 'estimate-owner-' + x.id }, who) : null,
         h('div', { class: 'muted' }, `${x.number} · ${statusWord} · ${fdate(x.updated)} · ${t.count} window${t.count === 1 ? '' : 's'}${x.promoCode ? ' · ' + x.promoCode : ''}`),
         h('div', { class: 'fine' }, x.customer.address)), h('div', { class: 'li-price' }, h('b', {}, fmt(t.total)))),
-      h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'), h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
+      h('div', { class: 'row gap wrap' },
+        h('button', { class: 'btn primary', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'),
+        digits ? h('a', { class: 'btn', href: 'tel:' + digits }, 'Call') : null,
+        h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
         x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm primary', id: 'btn-won-' + x.id, onclick: () => { wonUi.forId = x.id; wonUi.confirm = true; renderList(root); } }, 'Won') : null,
         x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-lost-' + x.id, onclick: () => { lostUi.forId = x.id; lostUi.confirm = true; renderList(root); } }, 'Lost') : null,
         mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-delete-' + x.id, onclick: () => { deleteNotice = ''; deleteUi.forId = x.id; deleteUi.confirm = true; renderList(root); } }, 'Delete') : null)));

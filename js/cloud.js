@@ -241,11 +241,29 @@ function addOps(remoteId, ops) {
   saveQueue(q);
 }
 
+const SYNC_WORD = { ok: 'Saved', wait: 'Waiting', off: 'Offline' };
+
+export function connectionWord() {
+  return browserOffline() ? 'off' : 'ok';
+}
+
 function setSyncState(mode) {
+  const word = SYNC_WORD[mode] || SYNC_WORD.off;
   const el = document.getElementById('sync-state');
-  if (!el) return;
-  el.className = 'syncdot' + (mode === 'ok' ? '' : ' ' + mode);
-  el.title = mode === 'ok' ? 'Synced' : mode === 'wait' ? 'Waiting to sync' : 'Offline';
+  if (el) {
+    el.className = 'syncdot' + (mode === 'ok' ? '' : ' ' + mode);
+    el.title = word;
+  }
+  const label = document.getElementById('sync-word');
+  if (label) label.textContent = word;
+}
+
+export function paintConnection() {
+  const off = browserOffline();
+  const bar = document.getElementById('offline-bar');
+  if (bar) bar.hidden = !off;
+  document.body.classList.toggle('is-offline', off);
+  if (off) setSyncState('off');
 }
 
 function rememberAccount(userId) {
@@ -710,29 +728,52 @@ async function selectOpenFollowUps(sb) {
   return result;
 }
 
+export function plainLoadError(message) {
+  const msg = String(message || '').trim();
+  if (browserOffline() || /failed to fetch|networkerror|network request failed|offline/i.test(msg)) return OFFLINE_MESSAGE;
+  if (/permission denied|jwt|row-level|row level|pgrst/i.test(msg)) return "Couldn't load that. Try again when you are online.";
+  if (!msg || msg.length > 140) return "Couldn't load that. Try again.";
+  return msg;
+}
+
+export async function backfillFollowUps() {
+  if (!isAdmin()) return { ok: false, error: 'Only an admin can pull notes.' };
+  if (browserOffline()) return { ok: false, error: OFFLINE_MESSAGE };
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'Sign in to pull notes.' };
+  const { data, error } = await sb.functions.invoke('hubspot-sync', { body: { action: 'backfill-followups' } });
+  if (error || data?.error || data?.ok === false) {
+    return { ok: false, error: plainLoadError(data?.error || error?.message || 'Could not pull notes. Try again.') };
+  }
+  return { ok: true, created: Number(data?.created) || 0, updated: Number(data?.updated) || 0 };
+}
+
 export async function loadFollowUps() {
+  if (browserOffline()) return { error: OFFLINE_MESSAGE, rows: [] };
   const sb = await getSupabase();
   if (!sb) return { error: 'Sign in to see follow-ups.', rows: [] };
   const { data, error } = await selectOpenFollowUps(sb);
-  if (error) return { error: error.message, rows: [] };
+  if (error) return { error: plainLoadError(error.message), rows: [] };
   return { rows: (data || []).filter((row) => row.estimates && !row.estimates.deleted_at) };
 }
 
 export async function completeFollowUp(id) {
+  if (browserOffline()) return { ok: false, error: OFFLINE_MESSAGE };
   const sb = await getSupabase();
   if (!sb) return { ok: false, error: 'Sign in to complete a follow-up.' };
   const { data, error } = await sb.functions.invoke('hubspot-sync', {
     body: { action: 'complete-followup', followUpId: id },
   });
-  if (error || !data?.ok) return { ok: false, error: data?.error || 'The follow-up was not completed.' };
+  if (error || !data?.ok) return { ok: false, error: plainLoadError(data?.error || error?.message || 'The follow-up was not completed.') };
   return { ok: true, data };
 }
 
 export async function snoozeFollowUp(id) {
+  if (browserOffline()) return { ok: false, error: OFFLINE_MESSAGE };
   const sb = await getSupabase();
   if (!sb) return { ok: false, error: 'Sign in to snooze a follow-up.' };
   const { data, error } = await sb.functions.invoke('hubspot-sync', { body: { action: 'snooze-followup', followUpId: id } });
-  if (error || !data?.ok) return { ok: false, error: data?.error || 'The follow-up was not snoozed.' };
+  if (error || !data?.ok) return { ok: false, error: plainLoadError(data?.error || error?.message || 'The follow-up was not snoozed.') };
   return { ok: true, data };
 }
 
@@ -745,6 +786,7 @@ export async function logHubspotNote(body) {
 }
 
 export async function syncFromHubspot() {
+  if (browserOffline()) return { ok: false, error: OFFLINE_MESSAGE };
   const sb = await getSupabase();
   if (!sb) return { ok: false, error: 'Sign in to sync HubSpot.' };
   const { data, error } = await sb.functions.invoke('hubspot-sync', { body: { action: 'pull' } });
@@ -1069,8 +1111,8 @@ async function recheckAccess(andFlush) {
 function watchAccess() {
   if (watchingAccess) return;
   watchingAccess = true;
-  window.addEventListener('online', () => { recheckAccess(true); });
-  window.addEventListener('offline', () => setSyncState('off'));
+  window.addEventListener('online', () => { paintConnection(); recheckAccess(true); });
+  window.addEventListener('offline', () => { paintConnection(); setSyncState('off'); });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') recheckAccess(false);
   });
@@ -1084,9 +1126,12 @@ export function mountAccount(el) {
   if (!me) { el.replaceChildren(); return; }
   const who = profile?.full_name || profile?.email || 'Signed in';
   el.replaceChildren(
-    h('span', { class: 'syncdot', id: 'sync-state', title: 'Synced' }),
+    h('span', { class: 'syncdot', id: 'sync-state' }),
+    h('span', { class: 'sync-word', id: 'sync-word' }, 'Saved'),
     h('span', { class: 'who' }, who),
     h('button', { type: 'button', class: 'btn sm', id: 'btn-signout', onclick: () => signOut() }, 'Sign out'));
+  setSyncState(browserOffline() ? 'off' : 'ok');
+  paintConnection();
 }
 
 export async function signOut() {

@@ -7,7 +7,7 @@ import {
 } from '../../supabase/functions/_shared/assistant.js';
 
 function card(label, value, note) {
-  return h('button', { type: 'button', class: 'metric sales-box' },
+  return h('div', { class: 'metric sales-box' },
     h('span', {}, label),
     h('b', {}, value),
     note ? h('small', {}, note) : null);
@@ -64,6 +64,7 @@ export function dashboardView(model, actions = {}) {
       h('button', { type: 'button', class: 'btn', id: 'sales-prev', onclick: actions.onPrev }, 'Previous month'),
       h('button', { type: 'button', class: 'btn', id: 'sales-next', disabled: model.atCurrent ? true : null, onclick: actions.onNext }, 'Next month'),
       h('button', { type: 'button', class: 'btn primary', id: 'sales-refresh', onclick: actions.onRefresh }, 'Refresh'))));
+  if (model.notice) page.append(h('p', { class: model.noticeOk ? 'fine' : 'warn', id: 'sales-notice' }, model.notice));
   const conflicts = conflictLine(model.conflicts);
   if (conflicts) page.append(conflicts);
   page.append(h('div', { class: 'metric-grid', id: 'sales-metrics' },
@@ -88,7 +89,6 @@ function plainField(field) {
 function conflictLine(conflicts) {
   const rows = (conflicts || []).filter((row) => row);
   if (!rows.length) return null;
-  const noun = rows.length === 1 ? 'deal' : 'deals';
   const list = h('div', { id: 'sales-conflict-list', hidden: true });
   rows.forEach((row) => {
     list.append(h('p', { class: 'fine', id: 'sales-conflict-' + (row.id || row.customer) }, `${row.customer || 'Customer'} · ${plainField(row.field)}`));
@@ -99,8 +99,12 @@ function conflictLine(conflicts) {
     id: 'sales-conflict-details',
     onclick: () => { list.hidden = !list.hidden; },
   }, 'Details');
+  const names = rows.map((row) => row.customer || 'Customer');
+  const sentence = names.length === 1
+    ? `${names[0]} was updated in HubSpot too. This app kept its copy. `
+    : `${names.length} jobs were updated in HubSpot too. This app kept its copy. `;
   return h('div', { id: 'sales-conflicts' },
-    h('p', { class: 'fine' }, `${rows.length} ${noun} changed in both places; the app's version was kept. `, details),
+    h('p', { class: 'fine' }, sentence, details),
     list);
 }
 
@@ -152,7 +156,13 @@ export function adminDashboardView({ month, reps, atCurrent }, actions = {}) {
         readMetric(team, key, read),
         h('div', { class: 'fine mom mom-' + momChange(numberOf(team, key), numberOf(teamPrev, key)).direction }, changeText(momChange(numberOf(team, key), numberOf(teamPrev, key)))))));
   }
-  page.append(h('div', { class: 'card scroll' }, table));
+  page.append(h('div', { class: 'card scroll sales-table-wrap' }, table));
+  page.append(h('div', { class: 'rep-cards', id: 'rep-cards' }, ...reps.map((rep) => h('div', { class: 'card', id: 'rep-card-' + rep.id },
+    h('b', {}, rep.name),
+    h('div', { class: 'line' }, h('span', {}, 'Won'), h('b', {}, `${rep.metrics.wonCount} · ${fmt(rep.metrics.wonDollars)}`)),
+    h('div', { class: 'line' }, h('span', {}, 'Lost'), h('b', {}, `${rep.metrics.lostCount} · ${fmt(rep.metrics.lostDollars)}`)),
+    h('div', { class: 'line' }, h('span', {}, 'Close rate'), h('b', {}, formatCloseRate(rep.metrics.closeRate))),
+    h('div', { class: 'line' }, h('span', {}, 'Open pipeline'), h('b', {}, fmt(rep.metrics.pipeline)))))));
   page.append(h('p', { class: 'fine' }, 'Open pipeline is the current total of presented estimates, not this month. Arrows compare the selected month with the month before it.'));
   return page;
 }
@@ -210,6 +220,8 @@ export function toMetricEstimate(e) {
 }
 
 let pickedKey = '';
+let salesNotice = '';
+let salesNoticeOk = false;
 
 function helpFrom(rows, stalled, leads) {
   return {
@@ -263,7 +275,12 @@ export async function renderRep(root, monthToken) {
   const actions = {
     onPrev: () => go(shiftMonth(month, -1)),
     onNext: () => { if (monthKey(month) !== monthKey(current)) go(shiftMonth(month, 1)); },
-    onRefresh: async () => { await syncFromHubspot(); renderRep(root, monthKey(month)); },
+    onRefresh: async () => {
+      const res = await syncFromHubspot();
+      salesNoticeOk = !!res.ok;
+      salesNotice = res.ok ? 'Synced.' : (res.error || 'Could not sync. Try again.');
+      renderRep(root, monthKey(month));
+    },
     onDone: async (row) => { const res = await completeFollowUp(row.id); toast(res.ok ? 'Follow-up marked done.' : (res.error || 'Not completed.')); if (res.ok) renderRep(root, monthKey(month)); },
     onSnooze: async (row) => { const res = await snoozeFollowUp(row.id); toast(res.ok ? 'Snoozed 2 business days.' : (res.error || 'Not snoozed.')); if (res.ok) renderRep(root, monthKey(month)); },
     onOpen: (row) => { const local = estimates.list().find((e) => e.remoteId === row.estimateId || e.id === row.estimateId); if (local) { estimates.open(local.id); location.hash = '#/estimate'; } else toast('Open My estimates and refresh so this job downloads.'); },
@@ -280,6 +297,8 @@ export async function renderRep(root, monthToken) {
     metrics,
     synced: formatSyncedAgo(extras.syncedAt, now),
     conflicts: extras.conflicts || [],
+    notice: salesNotice,
+    noticeOk: salesNoticeOk,
     help: helpFrom(dueRows, stalled, extras.leads || []),
   }, actions));
 }

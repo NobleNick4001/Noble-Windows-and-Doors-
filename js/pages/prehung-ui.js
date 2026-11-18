@@ -165,15 +165,17 @@ export function render(root) {
       ...roomLabelProps(() => draft.label || '', setRoom),
     }),
     roomMsg));
-  addCard.append(h('div', { class: 'big', id: 'door-price' }, fmt(priced.material)));
-  addCard.append(h('div', { class: 'sub' }, 'door price'));
-  addCard.append(h('button', {
-    type: 'button', class: 'btn primary xl', id: 'btn-add-door',
-    disabled: locationOk ? null : true,
-    title: locationOk ? '' : 'Enter a location (e.g. Kitchen)',
-    onclick: () => addDoor(root),
-  }, icon('plus'), 'Add door'));
+  const dock = h('div', { class: 'card price price-dock', id: 'door-price-dock' },
+    h('div', { class: 'big', id: 'door-price' }, fmt(priced.material)),
+    h('div', { class: 'sub' }, 'this door'),
+    h('button', {
+      type: 'button', class: 'btn primary xl', id: 'btn-add-door',
+      disabled: locationOk ? null : true,
+      title: locationOk ? '' : 'Enter a location (e.g. Kitchen)',
+      onclick: () => addDoor(root),
+    }, icon('plus'), 'Add'));
   wrap.append(addCard);
+  wrap.append(dock);
 
   const list = h('div', { class: 'card', id: 'door-lines' });
   list.append(h('h3', {}, 'Doors on this estimate'));
@@ -258,7 +260,7 @@ function addDoor(root) {
   estimate.lines.push(line);
   estimates.persist();
   saveDraft();
-  toast(`Added to ${estimate.number}`);
+  toast(`${location} added · ${linePriceText(line)}`);
   render(root);
   focusRoom();
 }

@@ -891,6 +891,31 @@ export function priceWindow(line) {
   return { ...built, total: roundMoney(built.unit * qty) };
 }
 
+// One stored name stays the source for the database column. First and last are
+// split on the first space so an older estimate is not rewritten into a different name.
+export function splitCustomerName(name) {
+  const text = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!text) return { first: '', last: '' };
+  const space = text.indexOf(' ');
+  if (space < 0) return { first: text, last: '' };
+  return { first: text.slice(0, space), last: text.slice(space + 1) };
+}
+
+export function joinCustomerName(first, last) {
+  return [String(first || '').trim(), String(last || '').trim()].filter(Boolean).join(' ');
+}
+
+export function syncCustomerName(customer) {
+  if (!customer || typeof customer !== 'object') return customer;
+  if (customer.first == null && customer.last == null) {
+    const parts = splitCustomerName(customer.name);
+    customer.first = parts.first;
+    customer.last = parts.last;
+  }
+  customer.name = joinCustomerName(customer.first, customer.last);
+  return customer;
+}
+
 // ---------- estimates ----------
 export const estimates = {
   all() { return store.get('nwd.estimates', {}); },
@@ -906,7 +931,7 @@ export const estimates = {
   },
   blank() {
     return { id: uid(), number: this.nextNumber(), created: Date.now(), updated: Date.now(),
-      customer: { name: '', address: '', phone: '', email: '' }, lines: [], extras: [], stuccoRepair: { on: false, qty: null }, notes: '', promoCode: '', percentDiscount: 0, taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
+      customer: { name: '', first: '', last: '', address: '', phone: '', email: '' }, lines: [], extras: [], stuccoRepair: { on: false, qty: null }, notes: '', promoCode: '', percentDiscount: 0, taxPct: settings.taxPct, validDays: settings.validDays, saved: false };
   },
   // current draft: loaded or created on demand (not persisted until it has content)
   current() {
@@ -921,13 +946,18 @@ export const estimates = {
   startNew() { this._cur = this.blank(); this.setCurrent(this._cur.id); return this._cur; },
   persist() {
     const e = this._cur; if (!e) return;
+    if (e.customer) syncCustomerName(e.customer);
     const has = e.lines.length || (e.extras || []).length || e.stuccoRepair?.on || e.customer.name || e.customer.address || e.customer.phone || e.customer.email || e.notes || e.promoCode || Number(e.percentDiscount) > 0 || e.contract || (e.overlays || []).length;
     if (has || this.all()[e.id]) this.save(e);
   },
   duplicate(id) {
     const src = this.all()[id]; if (!src) return null;
     const c = JSON.parse(JSON.stringify(src)); c.id = uid(); c.number = this.nextNumber(); c.created = Date.now();
-    c.lines.forEach((l) => (l.id = uid())); c.customer.name = c.customer.name ? c.customer.name + ' (copy)' : '';
+    c.lines.forEach((l) => (l.id = uid()));
+    syncCustomerName(c.customer);
+    if (c.customer.last) c.customer.last += ' (copy)';
+    else c.customer.first = (c.customer.first || '') + ' (copy)';
+    c.customer.name = joinCustomerName(c.customer.first, c.customer.last);
     delete c.contract;
     delete c.remoteId;
     delete c.ownerId;
@@ -1039,30 +1069,30 @@ export function rowAmountText(row) {
   if (row && row.amountText != null) return row.amountText;
   return fmt(row?.amount || 0);
 }
-// On-screen quote. Materials, tax, and shipping stay together. Installation is every
-// window and door labor line plus add-ons, and it is not part of the material price or the tax.
+// On-screen quote. Each window or door is already its own line. Labor, add-ons, and
+// stucco are one Installation price. Tax and shipping stay as their own lines.
+// No margin labels and no second materials subtotal.
 export function quoteTotalRows(t) {
-  const rows = [{ id: 'windows', label: 'Windows & doors', amount: t.windows }];
+  const rows = [];
   const laborOff = t.promo?.laborAmount || 0;
   const materialOff = r2((t.discount || 0) - laborOff);
   if (materialOff) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -materialOff, discount: true });
   if (t.percentDiscountAmount) rows.push({ id: 'percentDiscount', label: t.percentDiscountLabel || 'Additional discount', amount: -t.percentDiscountAmount, discount: true });
-  rows.push({ id: 'tax', label: `Tax ${t.taxPct}% (materials only)`, amount: t.tax });
-  rows.push({ id: 'shipping', label: 'Shipping', amount: t.shipping });
-  rows.push({ id: 'materialsSub', label: 'Materials subtotal', amount: t.materialsSub, strong: true });
   rows.push({ id: 'install', label: 'Installation', amount: t.labor, strong: true });
   if (laborOff) rows.push({ id: 'laborDiscount', label: t.discountLabel || 'Discount', amount: -laborOff, discount: true });
+  rows.push({ id: 'shipping', label: 'Shipping', amount: t.shipping });
   if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
+  rows.push({ id: 'tax', label: 'Sales tax', amount: t.tax });
   return rows;
 }
-// Client-facing rows: itemized materials stay on the window lines. Labor, add-ons, and stucco are one Installation / Labor amount.
+// Client-facing rows: itemized materials stay on the window lines. Labor, add-ons, and stucco are one Installation amount.
 // includeMaterials false skips the window subtotal and the two material discounts when those rows are already printed above the totals.
 const MATERIAL_SUMMARY = new Set(['windows', 'discount', 'percentDiscount']);
 export function summaryLines(t, { includeMaterials = true } = {}) {
   const rows = [{ id: 'windows', label: 'Windows subtotal', amount: t.windows }];
   if (t.discount) rows.push({ id: 'discount', label: t.discountLabel || 'Discount', amount: -t.discount, discount: true });
   if (t.percentDiscountAmount) rows.push({ id: 'percentDiscount', label: t.percentDiscountLabel || 'Additional discount', amount: -t.percentDiscountAmount, discount: true });
-  rows.push({ id: 'install', label: 'Installation / Labor', amount: t.labor });
+  rows.push({ id: 'install', label: 'Installation', amount: t.labor });
   rows.push({ id: 'shipping', label: 'Shipping & Handling', amount: t.shipping });
   if (t.extras) rows.push({ id: 'extras', label: 'Additional items', amount: t.extras });
   rows.push({ id: 'tax', label: `Sales Tax (${SALES_TAX_PCT}%)`, amount: t.tax });

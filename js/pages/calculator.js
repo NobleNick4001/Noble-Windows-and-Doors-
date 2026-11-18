@@ -249,11 +249,11 @@ export function render(root) {
     h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Glass & upgrades')),
       upgradeEditor(calc, () => { persist(); update(); }, 'opt-'),
       calc.series === 'V400' ? h('p', { class: 'fine' }, 'Composite units: choose Custom unit and enter the supplier price.') : null),
-    h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Installation / labor')),
+    h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Installation')),
       installEditor(calc.install, (rerenderNeeded) => { persist(); rerenderNeeded ? rerender() : update(); }, 'calc-inst', calc)),
   );
 
-  const priceBox = h('div', { class: 'card price', id: 'pricebox' });
+  const priceBox = h('div', { class: 'card price price-dock', id: 'pricebox' });
   const right = h('div', { class: 'col sticky' }, priceBox, miniEstimate());
   wrap.append(h('div', { class: 'two' }, left, right));
   root.replaceChildren(wrap);
@@ -306,31 +306,19 @@ export function render(root) {
         h('button', { class: 'btn primary xl', id: 'btn-add', disabled: true, title: blocked ? 'Size is outside the Andersen 100 limit' : '' }, uiIcon('plus'), 'Add to estimate'));
       return;
     }
-    const qty = parseInt(calc.qty) || 1, inst = installUnit(calc.install), add = addonUnit(calc.install);
-    const each = p.unit + inst + add;
+    const qty = parseInt(calc.qty) || 1;
     const width = parseFloat(calc.w), height = parseFloat(calc.h);
     const warn = (width < 12 || height < 12 || width > 144 || height > 144);
     const doorWidth = calc.series === '8900' && width > 0 && (width < 59 || width > 192);
     const door = calc.type === 'patio_door_2p';
-    const noun = door ? 'Door' : 'Window';
     priceBox.append(...[
-      h('div', { class: 'big', id: 'price-window' }, fmt(p.unit)), h('div', { class: 'sub' }, p.optionsEach ? `${noun.toLowerCase()} price (materials, incl. glass) · each` : `${noun.toLowerCase()} price (materials) · each`),
-      h('div', { class: 'line' }, h('span', {}, 'Installation / labor (each)'), h('b', { id: 'price-install' }, fmt(inst))),
-      add ? h('div', { class: 'line' }, h('span', { id: 'price-addon-lbl' }, 'Add-ons (each) · ' + addonNames(calc.install).join(', ')), h('b', { id: 'price-addons' }, fmt(add))) : null,
-      h('div', { class: 'line strong' }, h('span', {}, add ? `${noun} + install + add-ons, each` : `${noun} + install, each`), h('b', { id: 'price-each' }, fmt(each))),
-      qty > 1 && h('div', { class: 'line' }, h('span', {}, `× ${qty} ${door ? 'doors' : 'windows'}`), h('b', { id: 'price-total' }, fmt(each * qty))),
+      h('div', { class: 'big', id: 'price-window' }, fmt(p.unit * qty)),
+      h('div', { class: 'sub' }, qty > 1 ? `${qty} × ${fmt(p.unit)}` : (door ? 'this door' : 'this window')),
       flushNote,
-      h('div', { class: 'fine' }, 'Material price. The estimate adds Installation / Labor, $150 shipping, and 9.1% sales tax on materials.'),
-      door ? h('p', { class: 'fine', id: 'door-includes' }, 'Includes tempered glass and the full fiberglass screen. Labor stays on its own line.') : null,
       frameWarn,
       warn && calc.brand !== 'andersen' && calc.series !== '8900' && h('p', { class: 'warn' }, 'Check the size — it is outside the usual range (12"–144").'),
       doorWidth && h('p', { class: 'warn' }, '8900 doors are quoted for widths of about 59"–192".'),
-      h('button', { class: 'link', onclick: () => { calc.details = !calc.details; persist(); update(); } }, calc.details ? 'Hide math' : 'Show math'),
-      calc.details && h('div', { class: 'math' }, mathText(p, calc.w, calc.h), ` · install: ${installLabel(calc.install)} = ${fmt(inst)}`, add ? ` · add-ons ${fmt(add)}` : ''),
-      h('button', { class: 'btn primary xl', id: 'btn-add', disabled: locationOk ? null : true, title: locationOk ? '' : 'Enter a location (e.g. Kitchen)', onclick: addToEstimate }, uiIcon('plus'), 'Add to estimate'),
-      h('p', { class: 'fine' }, p.mode === 'custom'
-        ? 'Supplier price is the material price. Installation is separate and rolls into the estimate’s Installation / Labor line. Promo codes do not discount this line.'
-        : 'Window price includes glass upcharges. Installation and add-ons stay off this price and roll into the estimate’s Installation / Labor line.')].filter(Boolean));
+      h('button', { class: 'btn primary xl', id: 'btn-add', disabled: locationOk ? null : true, title: locationOk ? '' : 'Enter a location (e.g. Kitchen)', onclick: addToEstimate }, uiIcon('plus'), 'Add')].filter(Boolean));
   }
   function addToEstimate() {
     const location = String(calc.label || '').trim();
@@ -364,7 +352,9 @@ export function render(root) {
         installUnit: installUnit(calc.install),
       });
     }
-    estimates.persist(); persist(); toast(`Added to ${e.number}`); rerender(); focusRoom();
+    estimates.persist(); persist();
+    toast(`${location} added · ${fmt(p.combo ? p.parts.reduce((s, part) => s + part.unit, 0) : p.unit * a.qty)}`);
+    rerender(); focusRoom();
   }
   function miniEstimate() {
     const e = estimates.current(); const t = totals(e);

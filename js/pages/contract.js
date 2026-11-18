@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine, isAx650Line, rowAmountText } from '../core.js';
+import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine, isAx650Line, rowAmountText, splitCustomerName, joinCustomerName } from '../core.js';
 import { migratePrehungEstimate } from '../prehung.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
@@ -135,9 +135,15 @@ export function render(root) {
     h('h1', { class: 'sh-title' }, a.title.toUpperCase()),
     h('div', { class: 'fine' }, 'Estimate # ' + e.number),
     field('Submitted by:', c.submittedBy, { id: 'submitted-by', edit: true, oninput: (ev) => { c.submittedBy = ev.target.value; settings.salesperson = ev.target.value; saveSettings(settings); save(); } }),
-    field('Contract submitted to:', e.customer.name, { id: 'ag-name', edit: true, oninput: (ev) => { e.customer.name = ev.target.value; save(); } }),
+    field('Contract submitted to:', e.customer.name, { id: 'ag-name', edit: true, oninput: (ev) => {
+      const parts = splitCustomerName(ev.target.value);
+      e.customer.first = parts.first;
+      e.customer.last = parts.last;
+      e.customer.name = joinCustomerName(parts.first, parts.last);
+      save();
+    } }),
     field('Property address:', e.customer.address, { id: 'ag-address', edit: true, oninput: (ev) => { e.customer.address = ev.target.value; save(); } }),
-    field('Home Phone and/ or cell phone:', e.customer.phone, { id: 'ag-phone', edit: true, type: 'tel', oninput: (ev) => { e.customer.phone = ev.target.value; save(); } }),
+    field('Phone:', e.customer.phone, { id: 'ag-phone', edit: true, type: 'tel', oninput: (ev) => { e.customer.phone = ev.target.value; save(); } }),
     field('Email Address:', e.customer.email, { id: 'ag-email', edit: true, type: 'email', oninput: (ev) => { e.customer.email = ev.target.value; save(); } }),
     spec,
     h('button', { type: 'button', class: 'link', id: 'spec-rebuild', onclick: () => { c.specsEdited = false; c.specifications = buildSpec(e); const box = document.getElementById('contract-spec'); if (box) box.value = c.specifications; save(); } }, 'Rebuild summary from the estimate'),
