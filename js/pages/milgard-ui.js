@@ -235,7 +235,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   const errEl = h('div', { class: 'size-err', id: 'size-err' });
   const wHint = h('div', { class: 'fine', id: 'size-w-hint' });
   const hHint = h('div', { class: 'fine', id: 'size-h-hint' });
-  const addBtn = h('button', { type: 'button', class: 'btn primary xl', id: 'btn-add' }, icon('plus'), 'Add to quote');
+  const addBtn = h('button', { type: 'button', class: 'btn primary xl', id: 'btn-add' }, icon('plus'), 'Add');
   const quoteEl = h('div', { id: 'quote-body' });
   const doorLaborEl = h('div', { class: 'labor-box on', id: 'door-labor-box' });
 
@@ -362,7 +362,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   const drawHost = h('div', { id: 'calc-drawing' });
   const right = h('div', { class: 'col sticky' },
-    h('div', { class: 'card price' }, h('h3', {}, '2 · Price'), drawHost, priceEl, unitEl, notesEl, addBtn),
+    h('div', { class: 'card price price-dock' }, h('h3', {}, '2 · Price'), drawHost, priceEl, unitEl, notesEl, addBtn),
     h('div', { class: 'card' }, h('h3', {}, '3 · Quote'), quoteEl));
   wrap.append(h('div', { class: 'two' }, left, right));
   root.replaceChildren(wrap);
@@ -481,7 +481,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     calc.w = '';
     calc.h = '';
     persist();
-    toast(`Added to ${e.number}`);
+    toast(`${location} added · ${fmt(p.unit * line.qty)}`);
     rerender();
     focusRoom();
   }

@@ -197,11 +197,11 @@ has(read('../js/pages/lost.js'), "id: 'lost-confirm'", 'Lost confirm dialog');
 const accounts = read('../js/pages/accounts.js');
 has(accounts, 'hubspot-owner-', 'Accounts has the HubSpot owner field');
 has(accounts, 'not set', 'a blank HubSpot owner id shows not set');
-has(accounts, 'Mike', 'Mike is the blank placeholder');
+eq(accounts.includes('Mike'), false, 'Accounts does not mention Mike');
 const nav = read('../js/app.js');
 has(nav, 'followup-badge', 'the nav has the follow-up badge');
 const sw = read('../sw.js');
-has(sw, "const CACHE = 'nwd-sales-v69-delete-followups'", 'service worker cache was bumped');
+has(sw, "const CACHE = 'nwd-sales-v70-ux'", 'service worker cache was bumped');
 has(sw, 'js/ax650.js', 'AX650 stays precached');
 has(sw, 'js/vendor/supabase-js-2.119.0.mjs', 'vendored supabase-js stays precached');
 

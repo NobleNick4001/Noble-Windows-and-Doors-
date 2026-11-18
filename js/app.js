@@ -1,6 +1,6 @@
 import { $, h, loadData } from './core.js';
 import { icon, svg } from './icons.js';
-import { startAuth, isAdmin, mountAccount, signIn, signUp, consumeAuthMessage } from './cloud.js';
+import { startAuth, isAdmin, mountAccount, signIn, signUp, consumeAuthMessage, paintConnection } from './cloud.js';
 import { renderLogin } from './pages/auth.js';
 import * as calculator from './pages/calculator.js';
 import * as prehung from './pages/prehung-ui.js';
@@ -18,17 +18,29 @@ import * as accounts from './pages/accounts.js';
 import * as followups from './pages/followups.js';
 import * as report from './pages/report.js';
 import * as sales from './pages/sales.js';
+import * as more from './pages/more.js';
+
+const NAV = [
+  ['calculator', 'Quote', 'calculator'],
+  ['doors', 'Doors', 'door'],
+  ['brochures', 'Brochures', 'brochures'],
+  ['estimate', 'Estimate', 'estimate'],
+  ['saved', 'Mine', 'folder'],
+  ['more', 'More', 'grid'],
+];
+const MORE_ROUTES = new Set(['more', 'followups', 'options', 'gallery', 'preview', 'settings', 'admin', 'accounts']);
 
 const ROUTES = [
-  ['calculator', 'Calculator', 'calculator', (r) => calculator.render(r)],
+  ['calculator', 'Quote', 'calculator', (r) => calculator.render(r)],
   ['doors', 'Doors', 'door', (r) => prehung.render(r)],
+  ['brochures', 'Brochures', 'brochures', (r) => brochures.render(r)],
   ['estimate', 'Estimate', 'estimate', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'present' ? estimate.renderPresent(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
   ['saved', 'Mine', 'folder', (r, sub, extra) => (sub === 'sales' ? sales.renderRep(r, extra) : estimate.renderList(r))],
+  ['more', 'More', 'grid', (r) => more.render(r)],
   ['followups', 'Follow-ups', 'followups', (r) => followups.render(r)],
   ['options', 'Options', 'options', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', 'gallery', (r) => gallery.render(r)],
-  ['brochures', 'Brochures', 'brochures', (r) => brochures.render(r)],
-  ['preview', 'Overlay', 'preview', (r) => overlay.render(r)],
+  ['preview', 'Window photo', 'preview', (r) => overlay.render(r)],
   ['settings', 'Settings', 'settings', (r) => settings.render(r)],
 ];
 
@@ -50,15 +62,26 @@ function mountGear(on) {
   gear.classList.toggle('on', on);
 }
 
-function paintNav(nav, active) {
-  $('#nav').replaceChildren(...nav.map(([id, label, ico]) => {
+function navActive() {
+  const name = location.hash.replace(/^#\/?/, '').split('/')[0] || 'calculator';
+  return MORE_ROUTES.has(name) ? 'more' : name;
+}
+
+function paintNav(active) {
+  $('#nav').replaceChildren(...NAV.map(([id, label, ico]) => {
     const link = h('a', { href: '#/' + id, class: id === active ? 'on' : '' }, icon(ico, 'ico'), h('span', { class: 'nl' }, label));
-    if (id === 'followups' && followups.dueCount() > 0) {
+    if (id === 'more' && followups.dueCount() > 0) {
       link.append(h('span', { class: 'nav-badge', id: 'followup-badge' }, String(followups.dueCount())));
-      link.setAttribute('aria-label', `Follow-ups, ${followups.dueCount()} due`);
+      link.setAttribute('aria-label', `More, ${followups.dueCount()} follow-ups due`);
     }
     return link;
   }));
+}
+
+function ensureOfflineBar() {
+  if (document.getElementById('offline-bar')) return;
+  const bar = h('div', { id: 'offline-bar', hidden: true }, 'Offline. Quotes on this iPad still save. Email and follow-ups need a connection.');
+  document.querySelector('.top')?.after(bar);
 }
 
 function route() {
@@ -69,13 +92,14 @@ function route() {
   const extra = parts.slice(2).join('/');
   const routes = allRoutes();
   const r = routes.find((x) => x[0] === name) || routes[0];
-  const nav = routes.filter((x) => x[0] !== 'settings' && !x[4]);
   gallery.stop();
   brochures.stop();
   obscure.stop();
   stopFrameTypes();
   document.body.dataset.route = r[0] + (sub ? '-' + sub : '');
-  paintNav(nav, r[0]);
+  paintNav(MORE_ROUTES.has(r[0]) ? 'more' : r[0]);
+  ensureOfflineBar();
+  paintConnection();
   mountGear(r[0] === 'settings');
   const app = $('#app');
   try { r[3](app, sub, extra); } catch (err) { console.error(err); app.replaceChildren(h('div', { class: 'card' }, 'Something went wrong: ' + err.message)); }
@@ -104,7 +128,9 @@ function boot() {
       if (name === 'saved' || name === 'admin') route();
     });
     window.addEventListener('nwd-access', () => { if (unlocked) route(); });
-    window.addEventListener('nwd-followups', () => { if (unlocked) followups.syncBadge(document.getElementById('nav')); });
+    window.addEventListener('nwd-followups', () => { if (unlocked) paintNav(navActive()); });
+    window.addEventListener('online', () => paintConnection());
+    window.addEventListener('offline', () => paintConnection());
   }
   mountAccount(document.getElementById('account'));
   route();

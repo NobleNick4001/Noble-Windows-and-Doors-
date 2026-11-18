@@ -187,13 +187,14 @@ const quoteJob = totals({
   extras: [], promoCode: '', stuccoRepair: { on: false },
 });
 const quoteRows = quoteTotalRows(quoteJob);
-check(quoteRows.map((r) => r.label).join('|') === 'Windows & doors|Tax 9.1% (materials only)|Shipping|Materials subtotal|Installation', 'quote row order ' + quoteRows.map((r) => r.label).join('|'));
-near(quoteRows.find((r) => r.id === 'windows').amount, 382.10 + blackDoor, 'quote materials', 0.02);
+check(quoteRows.map((r) => r.label).join('|') === 'Installation|Shipping|Sales tax', 'quote row order ' + quoteRows.map((r) => r.label).join('|'));
+check(!quoteRows.some((r) => /materials only|Materials subtotal|Windows & doors|margin/i.test(r.label)), 'quote has no materials breakdown');
+near(quoteJob.windows, 382.10 + blackDoor, 'quote materials', 0.02);
 near(quoteRows.find((r) => r.id === 'install').amount, 360 + 850, 'quote installation is labor only', 0.02);
-near(quoteRows.find((r) => r.id === 'materialsSub').amount, quoteJob.taxable + quoteJob.tax + quoteJob.shipping, 'materials subtotal', 0.02);
+near(quoteJob.materialsSub, quoteJob.taxable + quoteJob.tax + quoteJob.shipping, 'materials subtotal', 0.02);
 near(quoteJob.materialsSub + quoteJob.labor, quoteJob.total, 'total is materials subtotal plus installation', 0.02);
 near(quoteJob.tax, Math.round(quoteJob.windows * 0.091 * 100) / 100, 'tax is 9.1% of materials', 0.02);
-check(quoteRows.find((r) => r.id === 'install').amount !== quoteRows.find((r) => r.id === 'windows').amount, 'installation is not the material total');
+check(quoteRows.find((r) => r.id === 'install').amount !== quoteJob.windows, 'installation is not the material total');
 
 const shown = priceWindow({ brand: 'milgard', series: 'V250', type: 'hslider', color: 'ww', w: 36, h: 24, qty: 2 });
 check(shown && shown.mode === 'onelink' && shown.total === Math.round(shown.unit * 2 * 100) / 100, 'linePrice qty');

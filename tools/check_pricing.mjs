@@ -121,7 +121,7 @@ if (rows[0].label !== 'Windows subtotal') fail('windows label ' + rows[0].label)
 const tail = summaryLines(t, { includeMaterials: false }).map((r) => r.id).join(',');
 if (tail !== 'install,shipping,tax') fail('material rows should drop out of the second totals block ' + tail);
 const rowById = Object.fromEntries(rows.map((r) => [r.id, r]));
-eq(rowById.install.label, 'Installation / Labor', 'labor label');
+eq(rowById.install.label, 'Installation', 'labor label');
 eq(rowById.install.amount, 795, 'one labor line');
 eq(rowById.shipping.label, 'Shipping & Handling', 'shipping label');
 eq(rowById.shipping.amount, 150, 'shipping line');

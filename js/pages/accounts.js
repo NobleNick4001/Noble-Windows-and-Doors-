@@ -59,7 +59,7 @@ export function mountAccounts(root, api) {
       h('h1', {}, 'Accounts'),
       h('button', { type: 'button', class: 'btn', id: 'accounts-refresh', onclick: () => reload() }, 'Refresh')));
     page.append(h('p', { class: 'fine' }, 'Passwords are stored as one-way hashes. They cannot be viewed. Send a reset email, or set a temporary password and give it to the rep yourself. A temporary password is shown once on this screen, is not emailed, and must be changed at the next sign-in.'));
-    page.append(h('p', { class: 'fine' }, 'HubSpot owner id is used for follow-up tasks. Leave it blank to show not set. Mike’s id stays blank until you fill it in.'));
+    page.append(h('p', { class: 'fine' }, 'HubSpot owner id is used for follow-up tasks. Leave it blank to show not set.'));
     if (notice) page.append(h('p', { class: 'fine', id: 'accounts-notice' }, notice));
     if (ownerError) page.append(h('p', { class: 'warn', id: 'owner-error' }, ownerError));
     if (loading) page.append(h('p', { class: 'muted' }, 'Loading accounts…'));

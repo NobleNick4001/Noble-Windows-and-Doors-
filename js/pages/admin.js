@@ -1,7 +1,17 @@
 import { h, fmt, estimates, toast } from '../core.js';
-import { isAdmin, currentProfile, loadAdmin, loadRoster, setUserRole, setSeeAll, addRep, revokeAccess, restoreAccess, reassignEstimate, loadSignatures } from '../cloud.js';
+import { isAdmin, currentProfile, loadAdmin, loadRoster, setUserRole, setSeeAll, addRep, revokeAccess, restoreAccess, reassignEstimate, loadSignatures, backfillFollowUps } from '../cloud.js';
 
 const fdate = (t) => t ? new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+let pullState = { busy: false, text: '', ok: false };
+
+function pullResult(res) {
+  if (!res?.ok) return res?.error || 'Could not pull notes. Try again.';
+  const added = Number(res.created) || 0;
+  const updated = Number(res.updated) || 0;
+  const addWord = added === 1 ? '1 follow-up added' : `${added} follow-ups added`;
+  const noteWord = updated === 1 ? '1 note updated' : `${updated} notes updated`;
+  return `${addWord}. ${noteWord}.`;
+}
 
 export async function render(root) {
   if (!isAdmin()) {
@@ -24,6 +34,21 @@ export async function render(root) {
       h('a', { class: 'btn', id: 'admin-team-sales', href: '#/admin/dashboard' }, 'Team sales'),
       h('a', { class: 'btn', id: 'admin-weekly-report', href: '#/admin/report' }, 'Weekly report'),
       h('button', { class: 'btn', id: 'admin-refresh', onclick: () => render(root) }, 'Refresh'))));
+  wrap.append(h('div', { class: 'card', id: 'pull-notes' },
+    h('button', {
+      type: 'button',
+      class: 'btn primary',
+      id: 'btn-pull-notes',
+      disabled: pullState.busy ? true : null,
+      onclick: async () => {
+        pullState = { busy: true, text: 'Pulling…', ok: false };
+        render(root);
+        const res = await backfillFollowUps();
+        pullState = { busy: false, text: pullResult(res), ok: !!res.ok };
+        render(root);
+      },
+    }, pullState.busy ? 'Pulling…' : 'Pull notes from HubSpot'),
+    pullState.text ? h('p', { class: pullState.ok ? 'fine' : 'warn', id: 'pull-notes-result' }, pullState.text) : h('p', { class: 'fine' }, 'Admin only. Shows how many follow-ups were added.')));
 
   const nameInput = h('input', { type: 'text', id: 'rep-name', autocomplete: 'name', required: true });
   const emailInput = h('input', { type: 'email', id: 'rep-email', autocomplete: 'off', required: true });
