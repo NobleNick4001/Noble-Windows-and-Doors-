@@ -10,6 +10,9 @@ const LOCAL_SUPABASE = './vendor/supabase-js-2.119.0.mjs';
 const CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SIGNIN_LOAD_MESSAGE = "Couldn't load sign-in. Check your connection or reload the app.";
 const QUEUE_KEY = 'nwd.syncQueue';
+const STASH_KEY = 'nwd.deleteStash';
+const TOMBSTONE_KEY = 'nwd.deletedRemoteIds';
+export const DELETE_FAILED_MESSAGE = "Couldn't delete this estimate. It is back in your list.";
 
 export const ACCOUNTS = [
   { email: 'mgr@noblewandd.com', role: 'admin', fullName: 'Nicholas Sommer' },
@@ -259,6 +262,53 @@ function rememberAccount(userId) {
 const origSave = estimates.save.bind(estimates);
 const origRemove = estimates.remove.bind(estimates);
 
+function loadTombstones() {
+  const ids = store.get(TOMBSTONE_KEY, []);
+  return new Set(Array.isArray(ids) ? ids : []);
+}
+
+function rememberTombstone(remoteId) {
+  const ids = store.get(TOMBSTONE_KEY, []);
+  const list = (Array.isArray(ids) ? ids : []).filter((id) => id !== remoteId);
+  list.push(remoteId);
+  store.set(TOMBSTONE_KEY, list.slice(-400));
+}
+
+function dropTombstone(remoteId) {
+  const ids = store.get(TOMBSTONE_KEY, []);
+  store.set(TOMBSTONE_KEY, (Array.isArray(ids) ? ids : []).filter((id) => id !== remoteId));
+}
+
+function stashDelete(e) {
+  if (!e?.remoteId) return;
+  const all = store.get(STASH_KEY, {});
+  all[e.remoteId] = JSON.parse(JSON.stringify(e));
+  store.set(STASH_KEY, all);
+}
+
+function takeStash(remoteId) {
+  const all = store.get(STASH_KEY, {});
+  const saved = all?.[remoteId] || null;
+  if (saved) {
+    delete all[remoteId];
+    store.set(STASH_KEY, all);
+  }
+  return saved;
+}
+
+function restoreDeleted(remoteId) {
+  dropTombstone(remoteId);
+  const saved = takeStash(remoteId);
+  if (!saved?.id) return false;
+  origSave(saved);
+  return true;
+}
+
+function notifyDeleteFailed() {
+  toast(DELETE_FAILED_MESSAGE);
+  window.dispatchEvent(new CustomEvent('nwd-delete-failed', { detail: { message: DELETE_FAILED_MESSAGE } }));
+}
+
 function installSync() {
   if (estimates._synced) return;
   estimates._synced = true;
@@ -276,8 +326,11 @@ function installSync() {
       toast('You can only delete your own estimates.');
       return;
     }
-    // Soft delete only. Do not call HubSpot.
-    if (e?.remoteId) addOps(e.remoteId, ['delete']);
+    // Soft delete only. Do not call HubSpot. Keep a copy so a failed save can put it back.
+    if (e?.remoteId) {
+      stashDelete(e);
+      addOps(e.remoteId, ['delete']);
+    }
     origRemove(id);
     scheduleFlush();
   };
@@ -348,8 +401,11 @@ async function doFlush() {
     for (const item of batch) {
       try {
         if (item.ops.includes('delete')) {
-          const { error } = await sb.from('estimates').update({ deleted_at: new Date().toISOString() }).eq('id', item.remoteId);
+          // RPC, not PATCH. A PATCH that sets deleted_at is rejected by e_sel (403).
+          const { error } = await sb.rpc('soft_delete_estimate', { p_id: item.remoteId });
           if (error) throw error;
+          rememberTombstone(item.remoteId);
+          takeStash(item.remoteId);
           continue;
         }
         const e = findByRemote(item.remoteId);
@@ -383,6 +439,12 @@ async function doFlush() {
         if (left.length) remain.push({ remoteId: item.remoteId, ops: ['upsert', ...left] });
       } catch (err) {
         const msg = String(err?.message || err);
+        if (item.ops.includes('delete')) {
+          restoreDeleted(item.remoteId);
+          notifyDeleteFailed();
+          console.error('soft delete failed', msg);
+          continue;
+        }
         if (/foreign key|profiles/i.test(msg) && !profileWarned) {
           profileWarned = true;
           toast('This account has no profile yet. Apply the database migration, then sign in again.');
@@ -420,9 +482,10 @@ async function pull(sb) {
   const { data, error } = await sb.from('estimates').select('id, owner_id, status, document, hubspot_contact_id, hubspot_deal_id, presented_at, signed_at, won_at, lost_at, sent_at, sent_to, updated_at, deleted_at, profiles!owner_id(full_name, email), contracts(id, signed_at)').order('updated_at', { ascending: false });
   if (error || !data) return;
   const queued = new Set(loadQueue().map((q) => q.remoteId));
+  const gone = loadTombstones();
   const all = estimates.all();
   for (const row of data) {
-    if (row.deleted_at || queued.has(row.id)) continue;
+    if (row.deleted_at || queued.has(row.id) || gone.has(row.id)) continue;
     const remote = fromRow(row);
     if (!remote) continue;
     const foreign = me && remote.ownerId && remote.ownerId !== me && !isAdmin();
@@ -430,10 +493,16 @@ async function pull(sb) {
     const local = all[remote.id];
     if (!local || foreign || (remote.updated || 0) >= (local.updated || 0)) all[remote.id] = remote;
   }
-  if (!canSeeAllEstimates()) {
-    for (const [id, e] of Object.entries(all)) {
-      if (e.ownerId && me && e.ownerId !== me && !queued.has(e.remoteId)) delete all[id];
+  for (const [id, e] of Object.entries(all)) {
+    if (e?.remoteId && gone.has(e.remoteId)) {
+      delete all[id];
+      continue;
     }
+    if (!canSeeAllEstimates() && e.ownerId && me && e.ownerId !== me && !queued.has(e.remoteId)) delete all[id];
+  }
+  if (estimates._cur?.remoteId && gone.has(estimates._cur.remoteId)) {
+    estimates._cur = null;
+    store.set('nwd.currentId', null);
   }
   store.set('nwd.estimates', all);
 }
@@ -631,13 +700,20 @@ export async function recordAppointment(e) {
   return { ok: true };
 }
 
+async function selectOpenFollowUps(sb) {
+  const embed = 'estimates(customer_name, total_amount, status, deleted_at, customer_phone), profiles!owner_id(full_name, email)';
+  const withNote = `id, estimate_id, owner_id, hubspot_task_id, due_at, status, completed_at, created_at, note, ${embed}`;
+  const withoutNote = `id, estimate_id, owner_id, hubspot_task_id, due_at, status, completed_at, created_at, ${embed}`;
+  const run = (columns) => sb.from('follow_ups').select(columns).eq('status', 'open').order('due_at', { ascending: true });
+  let result = await run(withNote);
+  if (result.error && /note/i.test(result.error.message || '')) result = await run(withoutNote);
+  return result;
+}
+
 export async function loadFollowUps() {
   const sb = await getSupabase();
   if (!sb) return { error: 'Sign in to see follow-ups.', rows: [] };
-  const { data, error } = await sb.from('follow_ups')
-    .select('id, estimate_id, owner_id, hubspot_task_id, due_at, status, completed_at, created_at, estimates(customer_name, total_amount, status, deleted_at, customer_phone), profiles!owner_id(full_name, email)')
-    .eq('status', 'open')
-    .order('due_at', { ascending: true });
+  const { data, error } = await selectOpenFollowUps(sb);
   if (error) return { error: error.message, rows: [] };
   return { rows: (data || []).filter((row) => row.estimates && !row.estimates.deleted_at) };
 }

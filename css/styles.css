@@ -387,6 +387,7 @@ nav a.on .nav-badge{background:#14171a;color:#fff;box-shadow:0 0 0 2px var(--ora
 .owner-field{display:flex;flex-direction:column;gap:.25rem;max-width:280px}
 .owner-unset{color:var(--orange-d);font-weight:800}
 .fu-card.overdue{border-color:var(--orange);box-shadow:inset 0 0 0 1px var(--orange)}
+.fu-note{margin:.35rem 0 0;white-space:pre-wrap;color:var(--ink)}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:.55rem}
 .metric{background:var(--soft);border-radius:12px;padding:.65rem .75rem}
 .metric span{display:block;color:var(--mut);font-size:.75rem;font-weight:700}

@@ -20,6 +20,10 @@ const sendUi = { busy: false, error: '', confirm: '' };
 const lostUi = { forId: null, confirm: false, busy: false };
 const wonUi = { forId: null, confirm: false, busy: false };
 const deleteUi = { forId: null, confirm: false, busy: false };
+let deleteNotice = '';
+window.addEventListener('nwd-delete-failed', (ev) => {
+  deleteNotice = ev.detail?.message || "Couldn't delete this estimate. It is back in your list.";
+});
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 function statusLabel(status) {
   if (status === 'signed') return 'Signed';
@@ -279,10 +283,11 @@ export function render(root) {
       e.status === 'presented' ? h('button', { type: 'button', class: 'btn primary', id: 'btn-won', disabled: wonUi.busy ? true : null, onclick: () => { wonUi.confirm = true; rerender(); } }, 'Won') : null,
       e.status === 'presented' ? h('button', { type: 'button', class: 'btn danger', id: 'btn-lost', disabled: lostUi.busy ? true : null, onclick: () => { lostUi.confirm = true; rerender(); } }, 'Lost') : null,
       (e.status === 'won' || e.status === 'lost') && isAdmin() ? h('button', { type: 'button', class: 'btn', id: 'btn-reopen', onclick: () => reopenEstimate(e) }, 'Reopen') : null,
-      canDelete(e, userId()) ? h('button', { type: 'button', class: 'btn danger', id: 'btn-delete', onclick: () => { deleteUi.forId = e.id; deleteUi.confirm = true; rerender(); } }, 'Delete') : null,
+      canDelete(e, userId()) ? h('button', { type: 'button', class: 'btn danger', id: 'btn-delete', onclick: () => { deleteNotice = ''; deleteUi.forId = e.id; deleteUi.confirm = true; rerender(); } }, 'Delete') : null,
       h('a', { class: 'btn', id: 'btn-contract', href: '#/estimate/contract' }, 'Agreement'),
       h('a', { class: 'btn', id: 'btn-print', href: '#/estimate/print' }, 'Print / PDF'))));
   wrap.append(h('a', { class: 'btn primary xl', id: 'btn-present', href: '#/estimate/present' }, 'Present'));
+  if (deleteNotice) wrap.append(h('p', { class: 'warn', id: 'delete-error' }, deleteNotice));
   const picker = hubspotPicker(e, rerender);
   if (picker) wrap.append(picker);
 
@@ -633,8 +638,9 @@ export function renderList(root, sub) {
     h('a', { class: 'seg-btn on', href: '#/saved' }, 'Estimates'),
     h('a', { class: 'seg-btn', href: '#/saved/sales' }, 'Sales')),
   h('div', { class: 'row between wrap gap' }, h('h1', {}, seeAll ? 'Estimates' : 'My estimates'), h('div', { class: 'row gap' },
-    h('button', { class: 'btn', id: 'btn-refresh-estimates', onclick: async () => { await refreshEstimates(); renderList(root); } }, 'Refresh'),
+    h('button', { class: 'btn', id: 'btn-refresh-estimates', onclick: async () => { deleteNotice = ''; await refreshEstimates(); renderList(root); } }, 'Refresh'),
     h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate'))));
+  if (deleteNotice) wrap.append(h('p', { class: 'warn', id: 'delete-error' }, deleteNotice));
   wrap.append(h('p', { class: 'fine' }, seeAll
     ? 'Each estimate shows the rep who owns it. You can open another rep’s estimate. Changes still save only on your own.'
     : 'Every estimate and signed agreement saves on this device and to your account, including when you are offline. Open one here on any device after you sign in.'));
@@ -652,7 +658,7 @@ export function renderList(root, sub) {
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { estimates.open(x.id); location.hash = '#/estimate'; } }, 'Open'), h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
         x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm primary', id: 'btn-won-' + x.id, onclick: () => { wonUi.forId = x.id; wonUi.confirm = true; renderList(root); } }, 'Won') : null,
         x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-lost-' + x.id, onclick: () => { lostUi.forId = x.id; lostUi.confirm = true; renderList(root); } }, 'Lost') : null,
-        mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-delete-' + x.id, onclick: () => { deleteUi.forId = x.id; deleteUi.confirm = true; renderList(root); } }, 'Delete') : null)));
+        mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-delete-' + x.id, onclick: () => { deleteNotice = ''; deleteUi.forId = x.id; deleteUi.confirm = true; renderList(root); } }, 'Delete') : null)));
   });
   if (lostUi.confirm) {
     const target = all.find((x) => x.id === lostUi.forId && x.status === 'presented');

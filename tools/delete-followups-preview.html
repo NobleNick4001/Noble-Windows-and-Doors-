@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<base href="/">
+<title>Delete and follow-ups preview</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/calculator"><img src="assets/noble-logo-trim.png" alt="Noble Windows &amp; Doors LLC"></a>
+  <nav id="nav"></nav>
+  <div id="account"></div>
+</header>
+<main id="app"></main>
+<script type="module">
+import { h, loadData, store } from '../js/core.js';
+import { icon } from '../js/icons.js';
+import { DELETE_FAILED_MESSAGE } from '../js/cloud.js';
+import { renderList } from '../js/pages/estimate.js';
+import { followUpsPage } from '../js/pages/followups.js';
+
+const shot = new URLSearchParams(location.search).get('shot') || 'confirm';
+const nav = [
+  ['calculator', 'Calculator', 'calculator'],
+  ['doors', 'Doors', 'door'],
+  ['estimate', 'Estimate', 'estimate'],
+  ['saved', 'Mine', 'folder'],
+  ['followups', 'Follow-ups', 'followups'],
+  ['options', 'Options', 'options'],
+  ['gallery', 'Gallery', 'gallery'],
+  ['brochures', 'Brochures', 'brochures'],
+];
+const on = shot === 'empty' || shot === 'note' ? 'followups' : 'saved';
+document.getElementById('nav').replaceChildren(...nav.map(([id, label, ico]) => h('a', { href: '#/' + id, class: id === on ? 'on' : '' }, icon(ico, 'ico'), h('span', { class: 'nl' }, label))));
+document.getElementById('account').replaceChildren(h('span', { class: 'who' }, 'Alex Rivera'));
+document.body.dataset.route = on;
+
+const app = document.getElementById('app');
+if (shot === 'confirm' || shot === 'error') {
+  await loadData();
+  const estimate = {
+    id: 'est-avery',
+    number: 'NWD-20261118-014',
+    created: Date.parse('2026-11-18T15:00:00Z'),
+    updated: Date.parse('2026-11-18T16:30:00Z'),
+    status: 'presented',
+    customer: { name: 'Avery Chen', address: '1842 W Palmaire Ave, Phoenix, AZ 85021', phone: '(602) 555-0148', email: 'avery.chen.example@example.com' },
+    lines: [{ id: 'l1', qty: 3, unit: 1280, label: 'Living room', install: { override: 0, surcharges: [] } }],
+    extras: [],
+    stuccoRepair: { on: false, qty: null },
+    notes: 'White frames on the front of the house.',
+    promoCode: '',
+    percentDiscount: 0,
+  };
+  store.set('nwd.estimates', { 'est-avery': estimate });
+  store.set('nwd.currentId', null);
+  if (shot === 'error') {
+    window.dispatchEvent(new CustomEvent('nwd-delete-failed', { detail: { message: DELETE_FAILED_MESSAGE } }));
+  }
+  renderList(app);
+  if (shot === 'confirm') document.getElementById('btn-delete-est-avery')?.click();
+} else if (shot === 'note') {
+  const now = new Date('2026-11-18T18:00:00.000Z');
+  app.replaceChildren(followUpsPage({
+    rows: [{
+      id: 'fu-avery',
+      due_at: '2026-11-19T00:00:00.000Z',
+      status: 'open',
+      note: 'Presented $4,280.00 estimate on Nov 18, 2026\nWhite frames on the front of the house.',
+      estimates: { customer_name: 'Avery Chen', total_amount: 4280, customer_phone: '(602) 555-0148' },
+    }],
+    statusLine: 'Updated just now · 1 open follow-up',
+    now,
+    onRefresh() {},
+    onDone() {},
+  }));
+} else {
+  app.replaceChildren(followUpsPage({
+    rows: [],
+    statusLine: 'Updated just now · 0 open follow-ups',
+    onRefresh() {},
+  }));
+}
+document.body.dataset.ready = '1';
+</script>
+</body>
+</html>

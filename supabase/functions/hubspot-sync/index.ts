@@ -6,9 +6,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   customerQuery, normEmail, parseName, phoneFormats, rankCandidates, resolveContactChoice, pickDeal,
 } from './match.js';
-import { followUpDue, followUpTitle, matchOwner, resolveTaskOwner, shouldCreateFollowUp } from './followup.js';
+import { followUpDue, followUpTitle, matchOwner, presentedFollowUpNote, resolveTaskOwner, shouldCreateFollowUp } from './followup.js';
 import { hubspotBodyAllowed, lostDealNote, snoozeDue } from '../_shared/assistant.js';
 import { pullHubspot } from './pull.js';
+import { backfillPresentedFollowUps } from './backfill-followups.js';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -300,7 +301,7 @@ async function taskOwnerFor(token: string, admin: any, ownerProfileId: string) {
 
 async function ensureFollowUp(admin: any, token: string, estimate: any, contactId: string, dealId: string, actorId: string) {
   const { data: existing, error: readErr } = await admin.from('follow_ups')
-    .select('id, hubspot_task_id, due_at, status')
+    .select('id, hubspot_task_id, due_at, status, note')
     .eq('estimate_id', estimate.id)
     .eq('status', 'open')
     .maybeSingle();
@@ -321,15 +322,21 @@ async function ensureFollowUp(admin: any, token: string, estimate: any, contactI
       ownerId: owner.resolved.ownerId,
       ownerEmail: owner.email,
     }, audit);
+    const note = presentedFollowUpNote(estimate);
     const row = {
       estimate_id: estimate.id,
       owner_id: estimate.owner_id,
       hubspot_task_id: task.id,
       due_at: taskDue,
       status: 'open',
+      note,
     };
     const saved = existing
-      ? await admin.from('follow_ups').update({ hubspot_task_id: task.id, due_at: taskDue }).eq('id', existing.id)
+      ? await admin.from('follow_ups').update({
+        hubspot_task_id: task.id,
+        due_at: taskDue,
+        ...(String(existing.note || '').trim() ? {} : { note }),
+      }).eq('id', existing.id)
       : await admin.from('follow_ups').insert(row);
     if (saved.error) return { taskId: task.id, taskDue, taskError: saved.error.message, existing: false };
     return { taskId: task.id, taskDue, taskError: null, existing: false };
@@ -572,6 +579,17 @@ Deno.serve(async (req) => {
       : [profile].filter(Boolean);
     const summary = await pullHubspot({ admin, token, profiles });
     return json(200, { ok: !summary.error, ...summary, last_synced_at: new Date().toISOString() });
+  }
+  if (payload.action === 'backfill-followups') {
+    const profiles = profile?.role === 'admin'
+      ? (await admin.from('profiles').select('id, full_name, email, role, hubspot_owner_id')).data || []
+      : [profile].filter(Boolean);
+    const summary = await backfillPresentedFollowUps({
+      admin,
+      profiles,
+      get: (path: string) => hubspot(token, path),
+    });
+    return json(200, { ok: !summary.error, ...summary });
   }
 
   const estimateId = String(payload.estimateId || '');
