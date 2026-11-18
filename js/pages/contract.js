@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine } from '../core.js';
+import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine, isAx650Line, rowAmountText } from '../core.js';
 import { migratePrehungEstimate } from '../prehung.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
@@ -9,7 +9,7 @@ import { icon } from '../icons.js';
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function isDoor(l) {
-  if (isPrehungLine(l)) return true;
+  if (isPrehungLine(l) || isAx650Line(l)) return true;
   const name = `${typeName(l.type)} ${l.series || ''}`.toLowerCase();
   return name.includes('door');
 }
@@ -17,7 +17,8 @@ function colorPhrase(id) {
   const name = colorName(id) || 'selected';
   return name.split('/')[0].trim().toLowerCase() + ' frames';
 }
-function installPhrase(inst) {
+function installPhrase(inst, line) {
+  if (isAx650Line(line)) return 'AX650 installation';
   const frame = frameTypeById(inst?.frameType);
   const raw = (frame?.name || installType(inst?.type)?.name || 'install').toLowerCase();
   if (raw.includes('retrofit')) return 'retrofit install';
@@ -36,7 +37,7 @@ export function buildSpec(e) {
     for (const l of lines) {
       const brand = brandById(l.brand)?.name || l.brand || 'windows';
       const series = brandById(l.brand)?.series?.find((s) => s.id === l.series)?.name || l.series || '';
-      const key = [brand, series, colorPhrase(l.color), installPhrase(l.install)].join('|');
+      const key = [brand, series, colorPhrase(l.color), installPhrase(l.install, l)].join('|');
       groups.set(key, (groups.get(key) || 0) + (Number(l.qty) || 0));
     }
     const bits = [...groups.entries()].filter(([, n]) => n > 0).map(([key, n]) => {
@@ -143,7 +144,7 @@ export function render(root) {
     (e.lines || []).length ? h('div', { id: 'agreement-windows' }, h('div', { class: 'ag-lbl' }, (e.lines || []).some(isPrehungLine) ? 'Windows & doors' : 'Windows'), compactWindowList(e.lines, { always: true, id: 'agreement-window-lines' })) : null,
     field('Estimated completion date:', c.completionDate, { id: 'ag-complete', edit: true, type: 'date', oninput: (ev) => { c.completionDate = ev.target.value; save(); } }),
     h('div', { class: 'ag-money', id: 'contract-money' },
-      ...summaryLines(totals(e)).map((row) => h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: 'contract-' + row.id }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))),
+      ...summaryLines(totals(e)).flatMap((row) => [h('div', { class: 'line' + (row.discount ? ' discount' : ''), id: 'contract-' + row.id }, h('span', {}, row.label), h('b', {}, rowAmountText(row))), row.note ? h('p', { class: 'fine', id: 'contract-labor-note' }, row.note) : null].filter(Boolean)),
       h('div', { class: 'line' }, h('span', {}, 'Project Total Cost'), h('b', { id: 'contract-total' }, fmt(pay().total))),
       h('div', { class: 'line' }, h('span', {}, a.depositLabel), h('b', { id: 'contract-deposit' }, fmt(pay().deposit))),
       h('div', { class: 'line' }, h('span', {}, a.balanceLabel), h('b', { id: 'contract-balance' }, fmt(pay().balance)))),

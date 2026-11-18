@@ -1,4 +1,5 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE, rowAmountText } from '../core.js';
+import { parseInches, inchField } from '../ax650.js';
 import { renderMilgard, roomLabelProps } from './milgard-ui.js';
 import { frameSVG } from '../frames.js';
 import { drawingEl } from '../drawings.js';
@@ -27,6 +28,7 @@ function normalize() {
   if (!(Number(calc.unitsPerLine) > 0)) calc.unitsPerLine = 1;
   if (isIntegralType(calc) || ARCH_OVER[calc.type]) calc.unitsPerLine = 1;
   if (!b.series.length) return b;
+  if (calc.brand === 'milgard' && calc.series === 'AX650') return b;
   let s = b.series.find((x) => x.id === calc.series); if (!s) { s = b.series[0]; calc.series = s.id; }
   const archOver = calc.brand === 'andersen' && s.id === '100' && ARCH_OVER[calc.type];
   if (calc.type !== 'custom_supplier' && !archOver && !s.types.includes(calc.type)) calc.type = s.types[0];
@@ -134,14 +136,19 @@ function decimalText(raw) {
   const i = cleaned.indexOf('.');
   return i < 0 ? cleaned : cleaned.slice(0, i + 1) + cleaned.slice(i + 1).replace(/\./g, '');
 }
-export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', id, pattern } = {}) {
-  const input = h('input', { type: 'text', inputmode: 'decimal', pattern: pattern || null, id, value: value ?? '', placeholder: '0', 'aria-label': label,
+export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', id, pattern, inches = false } = {}) {
+  const input = h('input', { type: 'text', inputmode: inches ? 'text' : 'decimal', pattern: pattern || null, id, value: value ?? '', placeholder: '0', 'aria-label': label,
     oninput: (e) => {
-      const cleaned = decimalText(e.target.value);
+      const cleaned = inches ? inchField(e.target.value) : decimalText(e.target.value);
       if (e.target.value !== cleaned) e.target.value = cleaned;
       onChange(cleaned);
     } });
-  const bump = (d) => { const v = Math.max(min, (parseFloat(input.value) || 0) + d); input.value = Math.round(v * 100) / 100; onChange(String(input.value)); };
+  const bump = (d) => {
+    const current = inches ? parseInches(input.value) : parseFloat(input.value);
+    const v = Math.max(min, (Number.isFinite(current) ? current : 0) + d);
+    input.value = Math.round(v * 1000) / 1000;
+    onChange(String(input.value));
+  };
   return h('label', { class: 'field stepper' }, h('span', { class: 'lbl' }, label, unit && h('em', {}, ' ' + unit)),
     h('div', { class: 'row nowrap' }, h('button', { type: 'button', class: 'btn sq', 'aria-label': 'Decrease ' + label, onclick: () => bump(-step) }, uiIcon('minus')), input, h('button', { type: 'button', class: 'btn sq', 'aria-label': 'Increase ' + label, onclick: () => bump(step) }, uiIcon('plus'))));
 }
@@ -362,7 +369,7 @@ export function render(root) {
   function miniEstimate() {
     const e = estimates.current(); const t = totals(e);
     return h('div', { class: 'card mini' }, h('div', { class: 'row between' }, h('b', {}, 'Current estimate'), h('span', { class: 'muted' }, e.number)),
-      e.lines.length ? h('div', {}, ...quoteTotalRows(t).map((row) => h('div', { class: 'line' + (row.strong ? ' strong' : '') + (row.discount ? ' discount' : '') }, h('span', {}, row.label), h('b', {}, fmt(row.amount)))), h('div', { class: 'line strong' }, h('span', {}, 'Total'), h('b', {}, fmt(t.total))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
+      e.lines.length ? h('div', {}, ...quoteTotalRows(t).flatMap((row) => [h('div', { class: 'line' + (row.strong ? ' strong' : '') + (row.discount ? ' discount' : '') }, h('span', {}, row.label), h('b', {}, rowAmountText(row))), row.note ? h('p', { class: 'fine', id: 'install-tbd-note' }, row.note) : null].filter(Boolean)), h('div', { class: 'line strong' }, h('span', {}, 'Total'), h('b', {}, fmt(t.total))), h('a', { class: 'btn', href: '#/estimate', id: 'btn-open-est' }, 'Open estimate →')) : h('p', { class: 'muted' }, 'No windows added yet.'));
   }
   const rerender = () => render(root);
   update();
