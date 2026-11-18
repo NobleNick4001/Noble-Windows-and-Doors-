@@ -1,0 +1,188 @@
+{
+  "_readme": "Facts for the estimate spec line, keyed by series id. Frame and name sources are the brochure or data file that states them. Nick, Nov 17 2026 set argon on every window and patio-door line, the high-heat glazing bead on V300 and V400 only, the Milgard glass phrase, and the warranty lines. Prehung doors are not in this file. Do not add New construction to nail fin. IWC frame material stays unconfirmed.",
+  "argonAll": {
+    "label": "Argon gas",
+    "appliesTo": "every window and patio-door line",
+    "source": "Nick, Nov 17 2026"
+  },
+  "series": {
+    "V250": {
+      "name": "Milgard V250 Style Line",
+      "frame": "Vinyl",
+      "glassDefault": "SunCoatMAX / Cardinal 340+ Low-E",
+      "lifetimeWarranty": "Limited lifetime warranty",
+      "argon": true,
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-v250-style-line.pdf",
+        "glassDefault": "Nick, Nov 17 2026",
+        "lifetimeWarranty": "Nick, Nov 17 2026",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "V300": {
+      "name": "Milgard V300 Trinsic",
+      "frame": "Vinyl",
+      "glassDefault": "SunCoatMAX / Cardinal 340+ Low-E",
+      "highHeatBead": "High-heat glazing bead",
+      "lifetimeWarranty": "Full lifetime warranty",
+      "argon": true,
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-v300-trinsic.pdf",
+        "glassDefault": "Nick, Nov 17 2026",
+        "highHeatBead": "Nick, Nov 17 2026",
+        "lifetimeWarranty": "Nick, Nov 17 2026",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "V400": {
+      "name": "Milgard V400 Tuscany",
+      "frame": "Vinyl",
+      "glassDefault": "SunCoatMAX / Cardinal 340+ Low-E",
+      "highHeatBead": "High-heat glazing bead",
+      "lifetimeWarranty": "Full lifetime warranty",
+      "argon": true,
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-v400-tuscany.pdf",
+        "glassDefault": "Nick, Nov 17 2026",
+        "highHeatBead": "Nick, Nov 17 2026",
+        "lifetimeWarranty": "Nick, Nov 17 2026",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "A250": {
+      "name": "Milgard A250 Aluminum",
+      "frame": "Thermally improved aluminum",
+      "glassDefault": "SunCoatMAX / Cardinal 340+ Low-E",
+      "lifetimeWarranty": "Lifetime limited warranty",
+      "argon": true,
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-a250-aluminum.pdf",
+        "glassDefault": "Nick, Nov 17 2026",
+        "lifetimeWarranty": "brochures/milgard-a250-aluminum.pdf",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "AX650": {
+      "name": "Milgard AX650",
+      "frame": "Aluminum",
+      "glass": "Tempered SunCoatMAX",
+      "argon": true,
+      "sources": {
+        "name": "js/pages/brochures.js",
+        "frame": "brochures/milgard-ax650-bifold.pdf",
+        "glass": "data/milgard-ax650.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "ultra": {
+      "name": "Ultra Series fiberglass",
+      "frame": "Fiberglass",
+      "argon": true,
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "100": {
+      "name": "Andersen 100 Series",
+      "frame": "Fibrex",
+      "argon": true,
+      "sources": {
+        "name": "data/rates.json",
+        "frame": "brochures/andersen-100-series.pdf",
+        "argon": "Nick, Nov 17 2026"
+      },
+      "types": {
+        "patio_door_2p": {
+          "glass": "Tempered glass",
+          "sources": {
+            "glass": "data/variable-rates.json"
+          }
+        }
+      }
+    },
+    "200": {
+      "name": "Andersen 200 Series",
+      "frame": "Perma-Shield vinyl exterior",
+      "argon": true,
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "400": {
+      "name": "Andersen 400 Series",
+      "frame": "Wood core, Perma-Shield exterior",
+      "argon": true,
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "A": {
+      "name": "Andersen A-Series",
+      "frame": "Solid wood interior, Fibrex exterior",
+      "argon": true,
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "E": {
+      "name": "Andersen E-Series",
+      "frame": "Extruded aluminum exterior",
+      "argon": true,
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "8200": {
+      "name": "IWC 8200",
+      "argon": true,
+      "sources": {
+        "name": "data/rates.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "8900": {
+      "name": "IWC 8900 Doors",
+      "glass": "Tempered glass",
+      "argon": true,
+      "sources": {
+        "name": "data/rates.json",
+        "glass": "data/variable-rates.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    },
+    "8800": {
+      "name": "IWC 8800 Series Ambassador",
+      "frame": "Aluminum",
+      "glass": "Low-E",
+      "argon": true,
+      "sources": {
+        "name": "data/options.json",
+        "frame": "data/options.json",
+        "glass": "data/options.json",
+        "argon": "Nick, Nov 17 2026"
+      }
+    }
+  },
+  "_gaps": [
+    {"series": "8200", "feature": "frame", "why": "Unchanged. data/variable-rates.json frame is block, the install frame, not the material. Aluminum in data/options.json is on series 8800."},
+    {"series": "8900", "feature": "frame", "why": "Unchanged. data/variable-rates.json frame is block_deluxe, not a material."},
+    {"series": "install", "feature": "newConstruction", "why": "Unchanged. Nail fin is named Nail fin and Nail Fin RnR Stucco. Neither name says New construction, so the spec does not add it."},
+    {"series": "ultra", "feature": "glass", "why": "Nick's glass phrase is for V250, V300, V400, and A250. ultra has no confirmed package."},
+    {"series": "ultra", "feature": "lifetimeWarranty", "why": "Nick set warranty text for V250, V300, V400, and A250 only. The C700 brochure is not copied onto ultra."},
+    {"series": "100", "feature": "glass", "why": "No default package. The 2-panel patio door still includes tempered glass from data/variable-rates.json. A selected tempered, laminated, or obscured option is still printed."}
+  ]
+}
