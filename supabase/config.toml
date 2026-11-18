@@ -24,3 +24,6 @@ verify_jwt = false
 
 [functions.hubspot-webhook]
 verify_jwt = false
+
+[functions.lead-sla]
+verify_jwt = false

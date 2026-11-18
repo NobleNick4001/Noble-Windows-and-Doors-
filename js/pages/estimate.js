@@ -1,4 +1,5 @@
 import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText, syncCustomerName, joinCustomerName } from '../core.js';
+import { mineTabs } from '../mine-tabs.js';
 import { prehungEstimateRow } from './prehung-ui.js';
 import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
@@ -688,9 +689,7 @@ export function renderList(root, sub) {
     return hay.includes(q);
   });
   const cur = estimates.currentId();
-  const wrap = h('div', { class: 'page' }, h('div', { class: 'tabs seg', id: 'mine-tabs' },
-    h('a', { class: 'seg-btn on', href: '#/saved' }, 'Estimates'),
-    h('a', { class: 'seg-btn', href: '#/saved/sales' }, 'Sales')),
+  const wrap = h('div', { class: 'page' }, mineTabs('estimates'),
   h('div', { class: 'row between wrap gap' }, h('h1', {}, seeAll ? 'Estimates' : 'My estimates'), h('div', { class: 'row gap' },
     h('button', { class: 'btn', id: 'btn-refresh-estimates', onclick: async () => { deleteNotice = ''; await refreshEstimates(); renderList(root); } }, 'Refresh'),
     h('button', { class: 'btn primary', onclick: () => { estimates.startNew(); location.hash = '#/estimate'; } }, '+ New estimate'))));

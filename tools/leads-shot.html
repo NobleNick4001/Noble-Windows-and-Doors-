@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads screenshots</title>
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#leads"><img src="../assets/noble-logo-trim.png" alt="Noble Windows &amp; Doors LLC"></a>
+  <nav class="primary" id="nav"></nav>
+  <div id="account"><span class="syncdot"></span><span class="who">Eric</span></div>
+</header>
+<main id="app"></main>
+<script type="module">
+import { h } from '../js/core.js';
+import { adminLeadsPage, repLeadsPage, leadDetailPage, dueWhen } from '../js/pages/leads.js';
+import { assignmentText, overdueText } from '../supabase/functions/_shared/quo.js';
+
+const NAV = [
+  ['#quote', 'Quote'], ['#doors', 'Doors'], ['#brochures', 'Brochures'],
+  ['#estimate', 'Estimate'], ['#leads', 'Mine'], ['#more', 'More'],
+];
+
+function paint(active, who) {
+  document.getElementById('nav').innerHTML = NAV.map(([href, label]) => {
+    const on = (active === 'leads' && label === 'Mine') || (active !== 'leads' && label === 'More');
+    const badge = label === 'Mine' ? '<span class="nav-badge">2</span>' : '';
+    return `<a href="${href}" class="${on ? 'on' : ''}"><span class="nl">${label}</span>${badge}</a>`;
+  }).join('');
+  document.querySelector('#account .who').textContent = who;
+}
+
+const reps = [
+  { id: 'eric', full_name: 'Eric Havins', role: 'sales', phone: '(480) 555-0101', hubspot_owner_id: '2044' },
+  { id: 'george', full_name: 'George Piekarski', role: 'sales', phone: '(480) 555-0108', hubspot_owner_id: '3001' },
+  { id: 'mike', full_name: 'Mike', role: 'sales', phone: '', hubspot_owner_id: '' },
+];
+
+const priya = {
+  id: 'priya', owner_id: null, name: 'Priya Shah', phone: '(602) 555-0190', email: 'priya.shah@example.com',
+  address: '85251', notes: 'Example: form said patio doors.', source: 'ProofPilot · example', stage: 'new',
+};
+const sam = {
+  id: 'sam', owner_id: 'eric', name: 'Sam Ortiz', phone: '(480) 555-0177', email: 'sam.ortiz@example.com',
+  address: '123 W Example St, Phoenix, AZ 85016', notes: 'Example: asked for a Saturday visit.',
+  source: 'Website · example', stage: 'new', call_window: 'weekday', call_due_at: '2026-11-17T21:00:00.000Z',
+};
+const jordanWeekday = {
+  id: 'jordan', owner_id: 'eric', name: 'Jordan Hale', phone: '(480) 555-0142', email: 'jordan.hale@example.com',
+  address: '1842 E Example Ln, Phoenix, AZ 85016',
+  notes: 'Example: weekday, assigned Fri 5:30 PM.',
+  source: 'Meta · example', stage: 'new', call_window: 'weekday', call_due_at: '2026-11-21T17:30:00.000Z',
+};
+const weekendLead = {
+  id: 'weekend', owner_id: 'eric', name: 'Alex Nguyen', phone: '(480) 555-0164', email: 'alex.nguyen@example.com',
+  address: '85251',
+  notes: 'Example: weekend, assigned Sat 10:00 AM.',
+  source: 'Website · example', stage: 'new', call_window: 'weekend', call_due_at: '2026-11-21T21:00:00.000Z',
+};
+const saturday = new Date('2026-11-21T17:12:00.000Z');
+const tuesday = new Date('2026-11-17T21:17:42.000Z');
+
+const app = document.getElementById('app');
+const name = (location.hash || '#leads').slice(1);
+
+if (name === 'admin') {
+  paint('more', 'Nicholas');
+  app.append(adminLeadsPage({ rows: [priya, sam], reps, repId: 'eric', now: tuesday }));
+} else if (name === 'detail') {
+  paint('leads', 'Eric');
+  const lead = { ...jordanWeekday, call_due_at: '2026-11-17T22:00:00.000Z', notes: 'Example: wants quotes on 8 windows, west side.' };
+  app.append(leadDetailPage({ lead, now: tuesday }));
+} else if (name === 'texts') {
+  paint('more', 'Nicholas');
+  const page = h('div', { class: 'page', id: 'sample-texts' },
+    h('h1', {}, 'Sample texts'),
+    h('p', { class: 'fine' }, 'Example wording from the company Quo line. Customers are not texted.'),
+    h('div', { class: 'lead-split' },
+      h('div', { class: 'sms' }, h('b', {}, 'To the rep · weekday'), h('div', { class: 'fine' }, 'Eric Havins · example'), h('pre', {}, assignmentText({
+        name: priya.name, phone: priya.phone, address: priya.address, note: priya.notes, callWindow: 'weekday',
+      }))),
+      h('div', { class: 'sms' }, h('b', {}, 'To the rep · weekend'), h('div', { class: 'fine' }, 'Eric Havins · example'), h('pre', {}, assignmentText({
+        name: 'Alex Nguyen', phone: '(480) 555-0164', address: '85251', note: 'Example: patio door quote.', callWindow: 'weekend',
+      }))),
+      h('div', { class: 'sms' }, h('b', {}, 'To the admin · overdue'), h('div', { class: 'fine' }, 'Nicholas Sommer · example · sent once'), h('pre', {}, overdueText({
+        name: sam.name, phone: sam.phone, address: sam.address, repName: 'Eric Havins', callWindow: 'weekday',
+      })))));
+  app.append(page);
+} else {
+  paint('leads', 'Eric');
+  app.append(repLeadsPage({ rows: [jordanWeekday, weekendLead], now: saturday }));
+  app.append(h('p', { class: 'fine' }, 'Example clock is Saturday 10:12 AM Phoenix. Jordan keeps a weekday 1-hour budget that spilled past Friday 6 PM. Alex is a Saturday 4-hour deadline, due ' + dueWhen(weekendLead.call_due_at) + '.'));
+}
+</script>
+</body>
+</html>

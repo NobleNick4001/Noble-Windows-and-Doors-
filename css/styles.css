@@ -431,3 +431,32 @@ button.metric,button.sales-box{text-align:left;width:100%}
   #toast{top:calc(70px + env(safe-area-inset-top));bottom:auto}
   body[data-route="estimate-print"] main,body[data-route="estimate-contract"] main{padding-bottom:1.2rem}
 }
+.tabs.seg.mine{display:flex;flex-wrap:nowrap;width:100%}
+.tabs.seg.mine .seg-btn{flex:1 1 0;white-space:nowrap}
+button.more-box{font:inherit;font-weight:800;text-align:left;width:100%;cursor:pointer}
+button.more-box:disabled{opacity:.55;cursor:not-allowed}
+.more-box.on,.stages .btn.on,.stages a.on{border-color:var(--orange);background:var(--orange);color:var(--on-orange)}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.sla{background:var(--orange-soft);border:1.5px solid var(--orange);border-radius:14px;padding:.7rem .8rem}
+.sla .time{display:block;font-size:2rem;line-height:1.05;color:var(--orange-d);font-weight:800}
+.sla.over{background:#fde8e6;border-color:var(--bad)}
+.sla.over .time{color:var(--bad)}
+.sms{border:1.5px solid var(--navy);border-radius:16px;background:#fff;padding:.85rem 1rem;margin:.5rem 0}
+.sms pre{margin:.4rem 0 0;white-space:pre-wrap;font:inherit;font-weight:700;color:var(--navy)}
+.stages{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.stages .btn{width:100%}
+.when{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}
+.when label{display:flex;flex-direction:column;gap:.15rem}
+.when input{width:100%;min-height:48px;border:1.5px solid #b7cfe2;border-radius:12px;padding:.4rem .6rem;font:inherit;background:#fff;color:var(--ink)}
+.lead-split{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;align-items:start}
+#lead-detail .btn.xl{min-height:48px;font-size:1rem}
+#lead-detail .sla{padding:.4rem .65rem}
+#lead-detail .sla .time{font-size:1.55rem}
+#lead-detail h3{margin-bottom:.3rem}
+#lead-detail .stages{gap:.35rem}
+#lead-detail .stages .btn{min-height:40px}
+@media (max-width:760px){
+  .tabs.seg.mine .seg-btn{flex:1 1 0;padding:.55rem .15rem;font-size:.78rem}
+  .lead-split{grid-template-columns:1fr}
+  #lead-detail .stage-card{order:-1}
+}

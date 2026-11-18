@@ -10,6 +10,7 @@ import { followUpDue, followUpTitle, matchOwner, presentedFollowUpNote, resolveT
 import { hubspotBodyAllowed, lostDealNote, snoozeDue } from '../_shared/assistant.js';
 import { pullHubspot } from './pull.js';
 import { backfillPresentedFollowUps } from './backfill-followups.js';
+import { assignLead, loseLeadDeal, pullUnassigned, pushLeadAppointment, retryLeadText } from './leads.js';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -573,6 +574,40 @@ Deno.serve(async (req) => {
   if (payload.action === 'snooze-followup') return snoozeFollowUp(admin, token, user, profile, payload);
   if (payload.action === 'log-note') return logNote(admin, token, user, profile, payload);
   if (payload.action === 'push-appointment') return pushAppointment(admin, token, user, profile, payload);
+  if (payload.action === 'pull-unassigned' || payload.action === 'assign-lead' || payload.action === 'retry-lead-text' || payload.action === 'lead-appointment' || payload.action === 'lead-lost') {
+    const env = {
+      QUO_API_KEY: Deno.env.get('QUO_API_KEY') ?? '',
+      QUO_FROM_NUMBER: Deno.env.get('QUO_FROM_NUMBER') ?? '',
+    };
+    try {
+      if (payload.action === 'pull-unassigned') {
+        if (profile?.role !== 'admin') return json(403, { ok: false, error: 'Only an admin can refresh leads.' });
+        const summary = await pullUnassigned({
+          admin,
+          token,
+          inboxOwnerId: Deno.env.get('HUBSPOT_INBOX_OWNER_ID') ?? '',
+          stageLabel: Deno.env.get('HUBSPOT_INBOX_STAGE_LABEL') ?? '',
+        });
+        return json(summary.ok ? 200 : 502, summary);
+      }
+      if (payload.action === 'assign-lead') {
+        const result = await assignLead({ admin, token, actor: profile, leadId: String(payload.leadId || ''), repId: String(payload.repId || ''), env });
+        return json(result.status || 200, result);
+      }
+      if (payload.action === 'retry-lead-text') {
+        const result = await retryLeadText({ admin, actor: profile, leadId: String(payload.leadId || ''), env });
+        return json(result.status || 200, result);
+      }
+      if (payload.action === 'lead-appointment') {
+        const result = await pushLeadAppointment({ admin, token, actor: profile, leadId: String(payload.leadId || '') });
+        return json(result.status || 200, result);
+      }
+      const result = await loseLeadDeal({ admin, token, actor: profile, leadId: String(payload.leadId || '') });
+      return json(result.status || 200, result);
+    } catch (err) {
+      return json(502, { ok: false, error: err instanceof Error ? err.message : 'Lead request failed' });
+    }
+  }
   if (payload.action === 'pull') {
     const profiles = profile?.role === 'admin'
       ? (await admin.from('profiles').select('id, full_name, email, role, hubspot_owner_id')).data || []
