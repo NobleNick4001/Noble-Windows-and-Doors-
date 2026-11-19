@@ -3,11 +3,16 @@
 // Customers are never texted.
 
 import { plainEngagement } from './followup.js';
+import { invalidHubspotCopy } from '../_shared/lead-invalid.js';
 import { leadUpsertPlan } from '../_shared/lead-upsert.js';
 import { assignmentText, overdueText, quoEnv, sendStaffText } from '../_shared/quo.js';
 
-const CONTACT_PROPS = ['firstname', 'lastname', 'phone', 'mobilephone', 'email', 'address', 'city', 'state', 'zip', 'hubspot_owner_id', 'hs_analytics_source', 'hs_latest_source'];
-const DEAL_PROPS = ['dealname', 'dealstage', 'pipeline', 'hs_is_closed', 'hubspot_owner_id'];
+// Nick's rule: only leads created in HubSpot in the last 30 days.
+export const LEAD_PULL_MAX_AGE_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const CONTACT_PROPS = ['firstname', 'lastname', 'phone', 'mobilephone', 'email', 'address', 'city', 'state', 'zip', 'hubspot_owner_id', 'hs_analytics_source', 'hs_latest_source', 'createdate'];
+const DEAL_PROPS = ['dealname', 'dealstage', 'pipeline', 'hs_is_closed', 'hubspot_owner_id', 'createdate'];
 
 async function hubspot(token, path, init = {}) {
   const res = await fetch('https://api.hubapi.com' + path, {
@@ -71,6 +76,55 @@ function ownerFilters(inboxId) {
   return groups;
 }
 
+export function leadCreatedCutoffMs(now = Date.now()) {
+  return now - LEAD_PULL_MAX_AGE_DAYS * DAY_MS;
+}
+
+// HubSpot ANDs filters inside a group and ORs the groups.
+export function withCreatedSince(filterGroups, cutoffMs) {
+  const value = String(Math.trunc(cutoffMs));
+  return (filterGroups || []).map((group) => ({
+    filters: [
+      ...(group?.filters || []),
+      { propertyName: 'createdate', operator: 'GTE', value },
+    ],
+  }));
+}
+
+export function unassignedSearchFilters(inboxOwnerId, now = Date.now()) {
+  return withCreatedSince(ownerFilters(inboxOwnerId), leadCreatedCutoffMs(now));
+}
+
+export function createdAtMs(value) {
+  if (value == null || value === '') return null;
+  const text = String(value).trim();
+  if (/^\d+$/.test(text)) {
+    const n = Number(text);
+    if (!Number.isFinite(n)) return null;
+    return n < 1e12 ? n * 1000 : n;
+  }
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function createdWithinLeadWindow(value, now = Date.now()) {
+  const ms = createdAtMs(value);
+  if (ms == null) return false;
+  return ms >= leadCreatedCutoffMs(now);
+}
+
+export function pickClosedLostStage(pipelines) {
+  const list = pipelines?.results || pipelines || [];
+  const pipeline = list.find((item) => item.id === 'default') || list[0];
+  let stageId = 'closedlost';
+  const pipelineId = pipeline?.id || 'default';
+  if (pipeline) {
+    const match = (pipeline.stages || []).find((stage) => closedStage(stage.label, stage.id) && /lost/i.test(String(stage.label || '') + stage.id));
+    if (match) stageId = String(match.id);
+  }
+  return { stageId, pipelineId };
+}
+
 function contactAddress(props) {
   const street = String(props.address || '').trim();
   const city = [props.city, props.state].map((part) => String(part || '').trim()).filter(Boolean).join(', ');
@@ -122,8 +176,11 @@ export async function pullUnassigned({ admin, token, inboxOwnerId = '', stageLab
   try {
     const stages = await stageMap(token);
     const only = wantedStageIds(stages, stageLabel);
-    const contacts = await search(token, 'contacts', ownerFilters(inboxOwnerId), CONTACT_PROPS);
-    let deals = await search(token, 'deals', ownerFilters(inboxOwnerId), DEAL_PROPS);
+    const nowMs = Date.now();
+    const fresh = (record) => createdWithinLeadWindow(record?.properties?.createdate, nowMs);
+    const filters = unassignedSearchFilters(inboxOwnerId, nowMs);
+    const contacts = (await search(token, 'contacts', filters, CONTACT_PROPS)).filter(fresh);
+    let deals = (await search(token, 'deals', filters, DEAL_PROPS)).filter(fresh);
     deals = deals.filter((deal) => {
       const id = String(deal.properties?.dealstage || '');
       const label = stages.get(id) || '';
@@ -191,11 +248,11 @@ export async function pullUnassigned({ admin, token, inboxOwnerId = '', stageLab
 async function saveLead(admin, row, allowRetry = true) {
   let existing = null;
   if (row.hubspot_contact_id) {
-    const found = await admin.from('leads').select('id, owner_id, notes, hubspot_contact_id, hubspot_deal_id').eq('hubspot_contact_id', row.hubspot_contact_id).is('deleted_at', null).maybeSingle();
+    const found = await admin.from('leads').select('id, owner_id, stage, notes, hubspot_contact_id, hubspot_deal_id').eq('hubspot_contact_id', row.hubspot_contact_id).is('deleted_at', null).maybeSingle();
     existing = found.data;
   }
   if (!existing && row.hubspot_deal_id) {
-    const found = await admin.from('leads').select('id, owner_id, notes, hubspot_contact_id, hubspot_deal_id').eq('hubspot_deal_id', row.hubspot_deal_id).is('deleted_at', null).maybeSingle();
+    const found = await admin.from('leads').select('id, owner_id, stage, notes, hubspot_contact_id, hubspot_deal_id').eq('hubspot_deal_id', row.hubspot_deal_id).is('deleted_at', null).maybeSingle();
     existing = found.data;
   }
   const now = new Date().toISOString();
@@ -207,8 +264,9 @@ async function saveLead(admin, row, allowRetry = true) {
     if (error) throw new Error(error.message);
     return 'inserted';
   }
-  const { error } = await admin.from('leads').update(plan.values).eq('id', plan.id).is('owner_id', null);
+  const { data, error } = await admin.from('leads').update(plan.values).eq('id', plan.id).is('owner_id', null).neq('stage', 'invalid').select('id');
   if (error) throw new Error(error.message);
+  if (!data?.length) return 'skipped';
   return 'updated';
 }
 
@@ -358,26 +416,160 @@ export async function pushLeadAppointment({ admin, token, actor, leadId }) {
   return { ok: true, status: 200, hubspot_meeting_id: meetingId || null };
 }
 
+async function closedLostTarget(token) {
+  const pipelines = await hubspot(token, '/crm/v3/pipelines/deals');
+  return pickClosedLostStage(pipelines);
+}
+
 export async function loseLeadDeal({ admin, token, actor, leadId }) {
   const { data: lead } = await admin.from('leads').select('id, owner_id, hubspot_deal_id, stage').eq('id', leadId).maybeSingle();
   if (!lead) return { ok: false, status: 404, error: 'Lead not found.' };
   if (actor?.role !== 'admin' && actor?.id !== lead.owner_id) return { ok: false, status: 403, error: 'Not your lead.' };
   if (!lead.hubspot_deal_id) return { ok: true, status: 200, skipped: true };
-  let stageId = 'closedlost';
-  let pipelineId = 'default';
-  const pipelines = await hubspot(token, '/crm/v3/pipelines/deals');
-  const pipeline = (pipelines?.results || []).find((item) => item.id === 'default') || (pipelines?.results || [])[0];
-  if (pipeline) {
-    pipelineId = pipeline.id;
-    const match = (pipeline.stages || []).find((stage) => closedStage(stage.label, stage.id) && /lost/i.test(String(stage.label || '') + stage.id));
-    if (match) stageId = match.id;
-  }
+  const { stageId, pipelineId } = await closedLostTarget(token);
   await hubspot(token, `/crm/v3/objects/deals/${lead.hubspot_deal_id}`, {
     method: 'PATCH',
     body: JSON.stringify({ properties: { pipeline: pipelineId, dealstage: stageId } }),
   });
   await audit(admin, { actorId: actor?.id, action: 'deal.update', hubspotObject: 'deal', hubspotId: lead.hubspot_deal_id, detail: { lead_id: lead.id, stage: 'Closed Lost' } });
   return { ok: true, status: 200 };
+}
+
+function canMarkInvalid(actor, lead) {
+  if (!actor?.id) return false;
+  if (actor.role === 'admin') return true;
+  return !!lead?.owner_id && actor.id === lead.owner_id;
+}
+
+async function closeDealAsInvalid(token, dealId, marker) {
+  const { stageId, pipelineId } = await closedLostTarget(token);
+  const stage = { pipeline: pipelineId, dealstage: stageId };
+  try {
+    await hubspot(token, `/crm/v3/objects/deals/${dealId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ properties: { ...stage, closed_lost_reason: marker } }),
+    });
+    return { reasonSet: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'HubSpot deal was not closed.';
+    if (!/closed_lost_reason/i.test(message)) throw err;
+    await hubspot(token, `/crm/v3/objects/deals/${dealId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ properties: stage }),
+    });
+    return { reasonSet: false, reasonError: message };
+  }
+}
+
+async function writeInvalidNote(token, { dealId, contactId, body }) {
+  const note = await hubspot(token, '/crm/v3/objects/notes', {
+    method: 'POST',
+    body: JSON.stringify({
+      properties: { hs_timestamp: new Date().toISOString(), hs_note_body: body },
+    }),
+  });
+  const noteId = note?.id ? String(note.id) : '';
+  if (!noteId) return '';
+  if (dealId) {
+    await hubspot(token, `/crm/v4/objects/notes/${noteId}/associations/default/deals/${dealId}`, { method: 'PUT', body: '{}' });
+  }
+  if (contactId) {
+    await hubspot(token, `/crm/v4/objects/notes/${noteId}/associations/default/contacts/${contactId}`, { method: 'PUT', body: '{}' });
+  }
+  return noteId;
+}
+
+// Marks a lead invalid. Does not text anyone.
+// Admin, or the assigned rep. Same rule as public.lead_mark_invalid.
+export async function invalidateLead({ admin, token, actor, leadId, reason }) {
+  const copy = invalidHubspotCopy(reason);
+  if (!copy) return { ok: false, status: 400, error: 'Choose a reason from the list, or leave it blank.' };
+  const { data: lead, error: leadErr } = await admin.from('leads').select('*').eq('id', leadId).is('deleted_at', null).maybeSingle();
+  if (leadErr) return { ok: false, status: 500, error: leadErr.message };
+  if (!lead) return { ok: false, status: 404, error: 'Lead not found.' };
+  if (!canMarkInvalid(actor, lead)) return { ok: false, status: 403, error: 'Not your lead.' };
+
+  const now = new Date().toISOString();
+  if (lead.stage !== 'invalid') {
+    const { error: saveErr } = await admin.from('leads').update({
+      stage: 'invalid',
+      invalid_reason: copy.reason || null,
+      invalid_at: now,
+      invalid_by: actor.id,
+    }).eq('id', lead.id).is('deleted_at', null).neq('stage', 'invalid');
+    if (saveErr) return { ok: false, status: 500, error: saveErr.message };
+  }
+
+  let reasonSet = false;
+  let reasonError = '';
+  let noteError = '';
+  let leadStatus = 'skipped';
+  let leadStatusError = '';
+  try {
+    if (lead.hubspot_deal_id) {
+      const closed = await closeDealAsInvalid(token, lead.hubspot_deal_id, copy.marker);
+      reasonSet = closed.reasonSet;
+      reasonError = closed.reasonError || '';
+    }
+    if (lead.hubspot_deal_id || lead.hubspot_contact_id) {
+      try {
+        await writeInvalidNote(token, {
+          dealId: lead.hubspot_deal_id || '',
+          contactId: lead.hubspot_contact_id || '',
+          body: copy.note,
+        });
+      } catch (err) {
+        noteError = err instanceof Error ? err.message : 'The HubSpot note was not saved.';
+      }
+    }
+    if (lead.hubspot_contact_id) {
+      try {
+        await hubspot(token, `/crm/v3/objects/contacts/${lead.hubspot_contact_id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ properties: { hs_lead_status: 'UNQUALIFIED' } }),
+        });
+        leadStatus = 'UNQUALIFIED';
+      } catch (err) {
+        leadStatus = 'unavailable';
+        leadStatusError = err instanceof Error ? err.message : 'Lead status was not set.';
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'HubSpot was not updated.';
+    await audit(admin, {
+      actorId: actor.id,
+      action: 'lead.invalid',
+      hubspotObject: lead.hubspot_deal_id ? 'deal' : 'contact',
+      hubspotId: lead.hubspot_deal_id || lead.hubspot_contact_id || null,
+      detail: { lead_id: lead.id, reason: copy.reason || null, hubspot: 'failed', error: message },
+    });
+    return { ok: false, status: 502, error: message, invalid: true };
+  }
+
+  await audit(admin, {
+    actorId: actor.id,
+    action: 'lead.invalid',
+    hubspotObject: lead.hubspot_deal_id ? 'deal' : 'contact',
+    hubspotId: lead.hubspot_deal_id || lead.hubspot_contact_id || null,
+    detail: {
+      lead_id: lead.id,
+      reason: copy.reason || null,
+      closed_lost_reason: reasonSet ? copy.marker : null,
+      lead_status: leadStatus,
+      note: noteError ? 'failed' : 'saved',
+    },
+  });
+  return {
+    ok: true,
+    status: 200,
+    invalid: true,
+    reason: copy.reason || null,
+    closed_lost_reason: reasonSet ? copy.marker : null,
+    reason_error: reasonError,
+    note_error: noteError,
+    lead_status: leadStatus,
+    lead_status_error: leadStatusError,
+  };
 }
 
 export async function textOverdueAdmins({ admin, env }) {

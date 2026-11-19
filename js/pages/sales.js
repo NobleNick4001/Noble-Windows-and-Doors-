@@ -4,11 +4,11 @@ import {
   isAdmin, userId, loadFollowUps, loadSalesExtras, syncFromHubspot, completeFollowUp, snoozeFollowUp, logHubspotNote, loadAdminSales, setProfilePhone,
 } from '../cloud.js';
 import {
-  currentMonth, dueBucket, formatCloseRate, formatMonth, formatPhoenix, formatSyncedAgo, isDueOrOverdue, isStalledDeal, momChange, monthFromKey, monthKey, monthMetrics, shiftMonth,
+  currentMonth, dueBucket, formatCloseRate, formatMonth, formatPhoenix, formatSyncedAgo, invalidLeadIndex, isDueOrOverdue, isStalledDeal, momChange, monthFromKey, monthKey, monthMetrics, shiftMonth,
 } from '../../supabase/functions/_shared/assistant.js';
 
-function card(label, value, note) {
-  return h('div', { class: 'metric sales-box' },
+function card(label, value, note, id) {
+  return h('div', { class: 'metric sales-box', id: id || null },
     h('span', {}, label),
     h('b', {}, value),
     note ? h('small', {}, note) : null);
@@ -75,7 +75,8 @@ export function dashboardView(model, actions = {}) {
     card('Won', `${m.wonCount} · ${fmt(m.wonDollars)}`),
     card('Lost', `${m.lostCount} · ${fmt(m.lostDollars)}`),
     card('Close rate', formatCloseRate(m.closeRate)),
-    card('Open pipeline (current)', fmt(m.pipeline), 'Not limited to this month')));
+    card('Open pipeline (current)', fmt(m.pipeline), 'Not limited to this month'),
+    card('Invalid', String(m.invalidCount || 0), 'Not in close rate', 'invalid-count')));
   page.append(outcomeCard('sales-won', 'Won', m.won, 'won', 'No wins this month.'));
   page.append(outcomeCard('sales-lost', 'Lost', m.lost, 'lost', 'No losses this month.'));
   page.append(followHelp(model.help || {}, actions));
@@ -133,12 +134,14 @@ const METRICS = [
   ['lostDollars', 'Lost $', (m) => fmt(m.lostDollars)],
   ['closeRate', 'Close rate', (m) => formatCloseRate(m.closeRate)],
   ['pipeline', 'Open pipeline (current)', (m) => fmt(m.pipeline)],
+  ['invalidCount', 'Invalid', (m) => String(m.invalidCount || 0)],
 ];
 
-export function adminDashboardView({ month, reps, atCurrent }, actions = {}) {
+export function adminDashboardView({ month, reps, atCurrent, invalidTotal }, actions = {}) {
   const previous = reps.map((rep) => rep.previous);
   const team = fold(reps.map((rep) => rep.metrics));
   const teamPrev = fold(previous);
+  if (invalidTotal != null) team.invalidCount = invalidTotal;
   const page = h('div', { class: 'page', id: 'admin-dashboard' });
   page.append(h('div', { class: 'row between wrap gap' },
     h('div', {}, h('h1', {}, 'Team sales'), h('p', { class: 'fine', id: 'admin-month' }, formatMonth(month))),
@@ -152,10 +155,10 @@ export function adminDashboardView({ month, reps, atCurrent }, actions = {}) {
       h('td', {}, label),
       ...reps.map((rep) => h('td', {},
         read(rep.metrics),
-        h('div', { class: 'fine mom mom-' + momChange(numberOf(rep.metrics, key), numberOf(rep.previous, key)).direction }, changeText(momChange(numberOf(rep.metrics, key), numberOf(rep.previous, key)))))),
+        key === 'invalidCount' ? null : h('div', { class: 'fine mom mom-' + momChange(numberOf(rep.metrics, key), numberOf(rep.previous, key)).direction }, changeText(momChange(numberOf(rep.metrics, key), numberOf(rep.previous, key)))))),
       h('td', {},
         readMetric(team, key, read),
-        h('div', { class: 'fine mom mom-' + momChange(numberOf(team, key), numberOf(teamPrev, key)).direction }, changeText(momChange(numberOf(team, key), numberOf(teamPrev, key)))))));
+        key === 'invalidCount' ? null : h('div', { class: 'fine mom mom-' + momChange(numberOf(team, key), numberOf(teamPrev, key)).direction }, changeText(momChange(numberOf(team, key), numberOf(teamPrev, key)))))));
   }
   page.append(h('div', { class: 'card scroll sales-table-wrap' }, table));
   page.append(h('div', { class: 'rep-cards', id: 'rep-cards' }, ...reps.map((rep) => h('div', { class: 'card', id: 'rep-card-' + rep.id },
@@ -163,8 +166,9 @@ export function adminDashboardView({ month, reps, atCurrent }, actions = {}) {
     h('div', { class: 'line' }, h('span', {}, 'Won'), h('b', {}, `${rep.metrics.wonCount} · ${fmt(rep.metrics.wonDollars)}`)),
     h('div', { class: 'line' }, h('span', {}, 'Lost'), h('b', {}, `${rep.metrics.lostCount} · ${fmt(rep.metrics.lostDollars)}`)),
     h('div', { class: 'line' }, h('span', {}, 'Close rate'), h('b', {}, formatCloseRate(rep.metrics.closeRate))),
-    h('div', { class: 'line' }, h('span', {}, 'Open pipeline'), h('b', {}, fmt(rep.metrics.pipeline)))))));
-  page.append(h('p', { class: 'fine' }, 'Open pipeline is the current total of presented estimates, not this month. Arrows compare the selected month with the month before it.'));
+    h('div', { class: 'line' }, h('span', {}, 'Open pipeline'), h('b', {}, fmt(rep.metrics.pipeline))),
+    h('div', { class: 'line', id: 'rep-invalid-' + rep.id }, h('span', {}, 'Invalid'), h('b', {}, String(rep.metrics.invalidCount || 0)))))));
+  page.append(h('p', { class: 'fine' }, 'Open pipeline is the current total of presented estimates, not this month. Arrows compare the selected month with the month before it. Invalid is the current count and is not in the close rate. The team total includes unassigned invalid leads.'));
   return page;
 }
 
@@ -192,6 +196,7 @@ function fold(list) {
     lostDollars: rows.reduce((s, m) => s + m.lostDollars, 0),
     closeRate: wonCount + lostCount ? wonCount / (wonCount + lostCount) : null,
     pipeline: rows.reduce((s, m) => s + m.pipeline, 0),
+    invalidCount: rows.reduce((s, m) => s + (m.invalidCount || 0), 0),
   };
 }
 
@@ -266,12 +271,17 @@ export async function renderRep(root, monthToken) {
   const owned = isAdmin() ? mine : mine.filter((e) => !e.ownerId || e.ownerId === uid);
   root.replaceChildren(h('div', { class: 'page' }, h('h1', {}, 'Sales'), h('p', { class: 'muted' }, 'Loading this month…')));
   const [extras, follow] = await Promise.all([loadSalesExtras(), loadFollowUps()]);
-  const metricEstimates = owned.map((e) => ({ ...toMetricEstimate(e), total_amount: totals(e).total }));
-  const metrics = monthMetrics({ estimates: metricEstimates, appointments: extras.appointments || [], ownerId: isAdmin() ? null : uid, month });
+  const appLeads = extras.appLeads || [];
+  const invalid = invalidLeadIndex(appLeads);
+  const metricEstimates = owned
+    .filter((e) => !invalid.estimateIds.has(e.remoteId) && !invalid.estimateIds.has(e.id) && !(e.leadId && invalid.leadIds.has(e.leadId)))
+    .map((e) => ({ ...toMetricEstimate(e), total_amount: totals(e).total }));
+  const hubLeads = (extras.leads || []).filter((row) => !invalid.hubspotKeys.has(`${row.hubspot_object}:${row.hubspot_id}`));
+  const metrics = monthMetrics({ estimates: metricEstimates, appointments: extras.appointments || [], ownerId: isAdmin() ? null : uid, month, leads: appLeads });
   const stalled = metricEstimates.filter((e) => isStalledDeal(e, [e.presented_at, e.updated_at], now)).map((e) => ({
     id: e.id, customer_name: e.customer_name, total: e.total_amount,
   }));
-  const dueRows = (follow.rows || []).filter((row) => isDueOrOverdue(row.due_at, now, row.status)).map((row) => ({ ...row, bucket: dueBucket(row.due_at, now) }));
+  const dueRows = (follow.rows || []).filter((row) => !invalid.estimateIds.has(row.estimate_id) && isDueOrOverdue(row.due_at, now, row.status)).map((row) => ({ ...row, bucket: dueBucket(row.due_at, now) }));
   const go = (next) => { location.hash = '#/saved/sales/' + monthKey(next); };
   const actions = {
     onPrev: () => go(shiftMonth(month, -1)),
@@ -300,7 +310,7 @@ export async function renderRep(root, monthToken) {
     conflicts: extras.conflicts || [],
     notice: salesNotice,
     noticeOk: salesNoticeOk,
-    help: helpFrom(dueRows, stalled, extras.leads || []),
+    help: helpFrom(dueRows, stalled, hubLeads),
   }, actions);
   page.prepend(mineTabs('sales'));
   root.replaceChildren(page);
@@ -324,17 +334,19 @@ export async function renderAdmin(root, monthToken) {
   const profiles = res.bundle.profiles || [];
   const estimates = res.bundle.estimates || [];
   const appointments = res.bundle.appointments || [];
+  const leads = res.bundle.leads || [];
   const reps = profiles.filter((p) => p.role === 'sales').map((p) => ({
     id: p.id,
     name: p.full_name || p.email,
-    metrics: monthMetrics({ estimates, appointments, ownerId: p.id, month }),
-    previous: monthMetrics({ estimates, appointments, ownerId: p.id, month: shiftMonth(month, -1) }),
+    metrics: monthMetrics({ estimates, appointments, ownerId: p.id, month, leads }),
+    previous: monthMetrics({ estimates, appointments, ownerId: p.id, month: shiftMonth(month, -1), leads }),
   }));
   const go = (next) => { location.hash = '#/admin/dashboard/' + monthKey(next); };
   const page = adminDashboardView({
     month,
     atCurrent: monthKey(month) === monthKey(current),
     reps,
+    invalidTotal: leads.filter((lead) => lead.stage === 'invalid').length,
   }, {
     onPrev: () => go(shiftMonth(month, -1)),
     onNext: () => { if (monthKey(month) !== monthKey(current)) go(shiftMonth(month, 1)); },

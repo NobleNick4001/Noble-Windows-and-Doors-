@@ -33,7 +33,7 @@ if (calc.includes("calc.label = ''")) fail('other brands must keep the room loca
 if (!calc.includes("pattern: '[0-9]*[.]?[0-9]*'")) fail('other width and height inputs use the decimal pattern');
 if (!est.includes("'[0-9]*[.]?[0-9]*'")) fail('estimate width and height inputs use the decimal pattern');
 if (!css.includes('.room-size>.room-label{order:0}') || !css.includes('.room-label{scroll-margin-top:96px}')) fail('css should pin the room label above the size fields');
-if (!sw.includes("const CACHE = 'nwd-sales-v72-leads-autopull'")) fail('service worker cache should be nwd-sales-v72-leads-autopull');
+if (!sw.includes("const CACHE = 'nwd-sales-v73-invalid-leads'")) fail('service worker cache should be nwd-sales-v73-invalid-leads');
 if (!est.includes("id: 'room-' + l.id")) fail('each estimate line needs its own room field id');
 
 if (errs.length) {

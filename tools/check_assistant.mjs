@@ -201,7 +201,7 @@ eq(accounts.includes('Mike'), false, 'Accounts does not mention Mike');
 const nav = read('../js/app.js');
 has(nav, 'followup-badge', 'the nav has the follow-up badge');
 const sw = read('../sw.js');
-has(sw, "const CACHE = 'nwd-sales-v72-leads-autopull'", 'service worker cache was bumped');
+has(sw, "const CACHE = 'nwd-sales-v73-invalid-leads'", 'service worker cache was bumped');
 has(sw, 'js/ax650.js', 'AX650 stays precached');
 has(sw, 'js/vendor/supabase-js-2.119.0.mjs', 'vendored supabase-js stays precached');
 
@@ -233,6 +233,45 @@ eq(dash.lostCount, 1, 'lost count');
 eq(dash.lostDollars, 2000, 'lost dollars');
 eq(dash.closeRate, 2 / 3, 'close rate is won divided by won plus lost');
 eq(dash.pipeline, 9000, 'open pipeline is current and ignores the month and deleted rows');
+eq(dash.invalidCount, 0, 'a month with no invalid leads counts zero');
+const withInvalid = monthMetrics({
+  ownerId: 'eric',
+  month: november,
+  estimates: [
+    ...[
+      { id: 'w', owner_id: 'eric', customer_name: 'Ada Cole', status: 'won', total_amount: 5000, won_at: '2026-11-12T18:00:00.000Z', presented_at: '2026-11-02T18:00:00.000Z' },
+      { id: 's', owner_id: 'eric', customer_name: 'Signed Job', status: 'signed', total_amount: 1000, signed_at: '2026-11-20T18:00:00.000Z', presented_at: '2026-11-03T18:00:00.000Z' },
+      { id: 'l', owner_id: 'eric', customer_name: 'Bea Ortiz', status: 'lost', total_amount: 2000, lost_at: '2026-11-18T18:00:00.000Z', presented_at: '2026-11-04T18:00:00.000Z' },
+      { id: 'p', owner_id: 'eric', customer_name: 'Open Job', status: 'presented', total_amount: 9000, presented_at: '2026-10-02T18:00:00.000Z' },
+    ],
+    { id: 'spam-est', owner_id: 'eric', customer_name: 'Spam', status: 'lost', total_amount: 4000, lost_at: '2026-11-18T18:00:00.000Z', presented_at: '2026-11-04T18:00:00.000Z' },
+  ],
+  appointments: [
+    { owner_id: 'eric', estimate_id: 'spam-est', set_at: '2026-11-05T18:00:00.000Z', source: 'app' },
+    { owner_id: 'eric', set_at: '2026-11-06T18:00:00.000Z', source: 'hubspot' },
+  ],
+  leads: [
+    { id: 'spam-lead', owner_id: 'eric', stage: 'invalid', estimate_id: 'spam-est' },
+    { id: 'other', owner_id: 'nick', stage: 'invalid', estimate_id: 'nope' },
+  ],
+});
+eq(withInvalid.lostCount, 1, 'an invalid lead is not a lost job');
+eq(withInvalid.lostDollars, 2000, 'invalid dollars stay out of lost');
+eq(withInvalid.closeRate, 2 / 3, 'close rate ignores the invalid lead');
+eq(withInvalid.appointmentsSet, 1, 'an appointment on an invalid lead is not counted');
+eq(withInvalid.invalidCount, 1, 'invalid count is the rep’s own invalid leads');
+eq(withInvalid.pipeline, 9000, 'an invalid lead is not pipeline');
+const invalidDigest = digestPlan({
+  reps: [eric],
+  followUps: [
+    { id: 'keep', owner_id: 'eric', estimate_id: 'e1', due_at: '2026-11-18T00:00:00.000Z', status: 'open', estimates: { customer_name: 'Ada', total_amount: 1000 } },
+    { id: 'drop', owner_id: 'eric', estimate_id: 'spam-est', due_at: '2026-11-18T00:00:00.000Z', status: 'open', estimates: { customer_name: 'Spam', total_amount: 4000 } },
+  ],
+  leads: [{ id: 'spam-lead', stage: 'invalid', estimate_id: 'spam-est' }],
+  now,
+});
+eq(invalidDigest[0].items.length, 1, 'a digest skips a follow-up on an invalid lead');
+eq(invalidDigest[0].items[0].customerName, 'Ada', 'the real follow-up stays in the digest');
 eq(formatSyncedAgo(new Date(Date.now() - 3 * 60 * 1000).toISOString(), new Date()), 'Synced 3 min ago', 'sync label');
 
 const note = lostDealNote({

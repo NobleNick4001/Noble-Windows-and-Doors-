@@ -55,6 +55,13 @@ export async function pullHubspot({ admin, token, profiles }) {
   const summary = { owners: 0, conflicts: 0, leads: 0, error: '' };
   if (!token) return { ...summary, error: 'HUBSPOT_TOKEN is not set' };
   const targets = (profiles || []).filter((p) => String(p.hubspot_owner_id || '').trim());
+  const { data: invalidRows, error: invalidErr } = await admin.from('leads')
+    .select('hubspot_contact_id, hubspot_deal_id')
+    .eq('stage', 'invalid')
+    .is('deleted_at', null);
+  if (invalidErr) return { ...summary, error: invalidErr.message };
+  const invalidContacts = new Set((invalidRows || []).map((row) => row.hubspot_contact_id).filter(Boolean).map(String));
+  const invalidDeals = new Set((invalidRows || []).map((row) => row.hubspot_deal_id).filter(Boolean).map(String));
   for (const profile of targets) {
     const ownerHubspotId = String(profile.hubspot_owner_id).trim();
     const { data: state } = await admin.from('hubspot_sync_state').select('last_synced_at').eq('owner_id', profile.id).maybeSingle();
@@ -64,6 +71,7 @@ export async function pullHubspot({ admin, token, profiles }) {
       const { data: estimates } = await admin.from('estimates').select('id, owner_id, status, updated_at, hubspot_deal_id, deleted_at, won_at, lost_at').eq('owner_id', profile.id);
       const byDeal = new Map((estimates || []).filter((row) => row.hubspot_deal_id).map((row) => [String(row.hubspot_deal_id), row]));
       for (const deal of deals) {
+        if (invalidDeals.has(String(deal.id))) continue;
         const local = byDeal.get(String(deal.id));
         if (!local || local.deleted_at) continue;
         const next = stageToStatus('', deal.properties?.dealstage);
@@ -121,29 +129,31 @@ export async function pullHubspot({ admin, token, profiles }) {
       for (const contact of contacts.slice(0, 20)) {
         const engagements = await engagementCounts(token, 'contacts', contact.id);
         const name = [contact.properties?.firstname, contact.properties?.lastname].filter(Boolean).join(' ');
+        const contactId = String(contact.id);
         leadRows.push({
           owner_id: profile.id,
           hubspot_object: 'contact',
-          hubspot_id: String(contact.id),
+          hubspot_id: contactId,
           name: name || 'Contact',
           phone: contact.properties?.phone || '',
           email: contact.properties?.email || '',
           hubspot_owner_id: ownerHubspotId,
-          uncontacted: isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
+          uncontacted: !invalidContacts.has(contactId) && isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
           synced_at: new Date().toISOString(),
         });
       }
       for (const deal of openDeals) {
         const engagements = await engagementCounts(token, 'deals', deal.id);
+        const dealId = String(deal.id);
         leadRows.push({
           owner_id: profile.id,
           hubspot_object: 'deal',
-          hubspot_id: String(deal.id),
+          hubspot_id: dealId,
           name: deal.properties?.dealname || 'Deal',
           phone: '',
           email: '',
           hubspot_owner_id: ownerHubspotId,
-          uncontacted: isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
+          uncontacted: !invalidDeals.has(dealId) && isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
           synced_at: new Date().toISOString(),
         });
       }

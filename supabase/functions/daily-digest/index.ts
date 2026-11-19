@@ -40,14 +40,16 @@ Deno.serve(async (req) => {
     pull = { owners: 0, error: err instanceof Error ? err.message : 'HubSpot pull failed' };
   }
 
-  const [{ data: reps, error: repErr }, { data: followUps, error: fuErr }] = await Promise.all([
+  const [{ data: reps, error: repErr }, { data: followUps, error: fuErr }, { data: leads, error: leadErr }] = await Promise.all([
     admin.from('profiles').select('id, email, full_name, role'),
     admin.from('follow_ups').select('id, owner_id, estimate_id, due_at, status, estimates(customer_name, total_amount, deleted_at)').eq('status', 'open'),
+    admin.from('leads').select('id, estimate_id, stage').eq('stage', 'invalid').is('deleted_at', null),
   ]);
   if (repErr) return json(500, { ok: false, error: repErr.message });
   if (fuErr) return json(500, { ok: false, error: fuErr.message });
+  if (leadErr) return json(500, { ok: false, error: leadErr.message });
 
-  const plans = digestPlan({ reps: reps || [], followUps: followUps || [], now });
+  const plans = digestPlan({ reps: reps || [], followUps: followUps || [], leads: leads || [], now });
   const sent: string[] = [];
   const errors: { to: string; error: string }[] = [];
   for (const plan of plans) {
