@@ -897,6 +897,7 @@ export function markLeadCalled(id) { return leadRpc('lead_mark_called', { p_id: 
 export function setLeadAppointment(id, at) { return leadRpc('lead_set_appointment', { p_id: id, p_at: at }); }
 export function linkLeadEstimate(id, estimateId) { return leadRpc('lead_link_estimate', { p_id: id, p_estimate: estimateId }); }
 export function markLeadLost(id) { return leadRpc('lead_mark_lost', { p_id: id }); }
+export function dismissLead(id, reason) { return leadRpc('lead_dismiss', { p_id: id, p_reason: reason || '' }); }
 
 export async function leadAction(action, body) {
   const offline = needsConnection();

@@ -1,4 +1,6 @@
 import { h, fmt, toast, estimates, browserOffline, OFFLINE_MESSAGE } from '../core.js';
+import { mineTabs } from '../mine-tabs.js';
+import { registerAttention } from '../attention.js';
 import { isAdmin, loadFollowUps, completeFollowUp, snoozeFollowUp, syncFromHubspot } from '../cloud.js';
 import { dueBucket, formatPhoenix, isDueOrOverdue } from '../../supabase/functions/_shared/assistant.js';
 
@@ -27,6 +29,12 @@ export function dueCount() { return due; }
 export function countDue(list, now = new Date()) {
   return (list || []).filter((row) => isDueOrOverdue(row.due_at, now, row.status || 'open')).length;
 }
+
+export function countOverdue(list, now = new Date()) {
+  return (list || []).filter((row) => (row.status || 'open') === 'open' && dueBucket(row.due_at, now) === 'overdue').length;
+}
+
+export function overdueCount(now = new Date()) { return countOverdue(rows, now); }
 
 function phoneOf(row) {
   return String(row.estimates?.customer_phone || '').trim();
@@ -117,6 +125,7 @@ export function followUpCards(list, { now = new Date(), busyId = '', onDone, onS
 
 export function followUpsPage({ rows: list, refreshing = false, message = '', statusLine = '', busyId = '', now, onRefresh, onDone, onSnooze, onOpen } = {}) {
   return h('div', { class: 'page', id: 'followups-page' },
+    mineTabs('followups'),
     h('div', { class: 'row between wrap gap' },
       h('h1', {}, 'Follow-ups'),
       h('button', {
@@ -225,3 +234,6 @@ export async function render(root) {
   if (!message && lastError) message = lastError;
   draw();
 }
+
+registerAttention('followups', dueCount);
+registerAttention('followupsLate', overdueCount);

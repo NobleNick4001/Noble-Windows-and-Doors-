@@ -201,7 +201,7 @@ eq(accounts.includes('Mike'), false, 'Accounts does not mention Mike');
 const nav = read('../js/app.js');
 has(nav, 'followup-badge', 'the nav has the follow-up badge');
 const sw = read('../sw.js');
-has(sw, "const CACHE = 'nwd-sales-v74-presented-delete'", 'service worker cache was bumped');
+has(sw, "const CACHE = 'nwd-sales-v75-dismiss-leads'", 'service worker cache was bumped');
 has(sw, 'js/ax650.js', 'AX650 stays precached');
 has(sw, 'js/vendor/supabase-js-2.119.0.mjs', 'vendored supabase-js stays precached');
 

@@ -1,12 +1,13 @@
 // Decide how a HubSpot pull writes one lead.
-// An assigned lead is left alone. An invalid lead is left alone, so a later
-// pull cannot put it back on the list. A new HubSpot id is inserted.
+// An assigned lead is left alone. An invalid lead is left alone, and a
+// dismissed lead is left alone, so a later pull cannot put either back on
+// the list. A new HubSpot id is inserted.
 // An unassigned lead may refresh contact fields. Owner, stage, deadline, and
 // text columns are never part of a pull write.
 
 export function leadUpsertPlan(existing, row, syncedAt) {
   if (existing?.owner_id) return { action: 'skip' };
-  if (existing?.stage === 'invalid') return { action: 'skip' };
+  if (existing?.stage === 'invalid' || existing?.stage === 'dismissed') return { action: 'skip' };
   const synced_at = syncedAt;
   if (!existing) {
     return {

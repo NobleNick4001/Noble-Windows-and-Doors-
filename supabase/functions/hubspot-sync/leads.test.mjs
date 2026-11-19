@@ -75,7 +75,7 @@ test('the pull keeps assigned and invalid rows, and the schedule waits 60 second
   assert.match(lookup, /select\('id, owner_id, stage,/);
   assert.match(lookup, /\.is\('deleted_at', null\)/);
   assert.equal(lookup.includes(".neq('stage'"), false);
-  assert.match(save, /\.is\('owner_id', null\)\.neq\('stage', 'invalid'\)/);
+  assert.match(save, /\.is\('owner_id', null\)\.neq\('stage', 'invalid'\)\.neq\('stage', 'dismissed'\)/);
   const invalid = src.slice(src.indexOf('export async function invalidateLead'), src.indexOf('export async function textOverdueAdmins'));
   assert.equal(invalid.includes('sendStaffText'), false);
   assert.match(invalid, /hs_lead_status: 'UNQUALIFIED'/);
@@ -94,6 +94,8 @@ test('the pull keeps assigned and invalid rows, and the schedule waits 60 second
   assert.match(cleanup, /estimate_id is null/);
   assert.match(cleanup, /stage is distinct from 'invalid'/);
   assert.match(cleanup, /invalid_at is null/);
+  assert.match(cleanup, /stage is distinct from 'dismissed'/);
+  assert.match(cleanup, /dismissed_at is null/);
   assert.match(cleanup, /last 30 days/);
 
   const migration = readFileSync(new URL('../../migrations/010_invalid_leads.sql', import.meta.url), 'utf8');

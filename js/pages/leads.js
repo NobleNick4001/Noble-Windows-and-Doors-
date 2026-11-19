@@ -1,13 +1,15 @@
 import { h, toast, estimates, splitCustomerName, browserOffline, OFFLINE_MESSAGE } from '../core.js';
 import { mineTabs } from '../mine-tabs.js';
+import { registerAttention } from '../attention.js';
 import {
   isAdmin, userId, ensureRemote, flush,
   loadLeads, loadLeadReps, markLeadCalled, setLeadAppointment, linkLeadEstimate,
-  markLeadLost, leadAction, markWon, markLost,
+  markLeadLost, dismissLead, leadAction, markWon, markLost,
 } from '../cloud.js';
 import { assignmentText, overdueText } from '../../supabase/functions/_shared/quo.js';
 import { leadCallPlan } from '../../supabase/functions/_shared/lead-clock.js';
 import { INVALID_LEAD_REASONS } from '../../supabase/functions/_shared/lead-invalid.js';
+import { DISMISS_LEAD_REASONS } from '../../supabase/functions/_shared/lead-dismiss.js';
 
 let rows = [];
 let reps = [];
@@ -22,13 +24,30 @@ export function stop() {
   viewGen += 1;
 }
 
+function isUncalled(row, me = userId()) {
+  return row.owner_id === me && row.stage === 'new' && !row.called_at;
+}
+
 export function uncalledCount() {
   const me = userId();
-  return rows.filter((row) => row.owner_id === me && row.stage === 'new' && !row.called_at).length;
+  return rows.filter((row) => isUncalled(row, me)).length;
+}
+
+export function uncalledOverdueCount(now = new Date()) {
+  const me = userId();
+  return rows.filter((row) => isUncalled(row, me) && row.call_due_at && new Date(row.call_due_at).getTime() < now.getTime()).length;
 }
 
 export function waitingCount() {
-  return rows.filter((row) => !row.owner_id && row.stage !== 'invalid').length;
+  return rows.filter((row) => !row.owner_id && row.stage !== 'invalid' && row.stage !== 'dismissed').length;
+}
+
+export function dismissedLeadCount(list = rows) {
+  return (list || []).filter((row) => row.stage === 'dismissed').length;
+}
+
+function isListedLead(row) {
+  return row && row.stage !== 'invalid' && row.stage !== 'dismissed' && row.stage !== 'won' && row.stage !== 'lost';
 }
 
 export function invalidLeadCount(list = rows) {
@@ -94,11 +113,13 @@ function tickClocks() {
   });
 }
 
-function leadCountRow(list) {
-  const open = (list || []).filter((row) => row.stage !== 'invalid' && row.stage !== 'won' && row.stage !== 'lost').length;
+function leadCountRow(list, { showDismissed = false } = {}) {
+  const open = (list || []).filter(isListedLead).length;
+  const dismissed = dismissedLeadCount(list);
   return h('div', { class: 'metric-grid', id: 'lead-counts' },
     h('div', { class: 'metric', id: 'lead-open-count' }, h('span', {}, 'Leads'), h('b', {}, String(open))),
-    h('div', { class: 'metric', id: 'invalid-count' }, h('span', {}, 'Invalid'), h('b', {}, String(invalidLeadCount(list)))));
+    h('div', { class: 'metric', id: 'invalid-count' }, h('span', {}, 'Invalid'), h('b', {}, String(invalidLeadCount(list)))),
+    showDismissed && dismissed ? h('div', { class: 'metric', id: 'dismissed-count' }, h('span', {}, 'Dismissed'), h('b', {}, String(dismissed))) : null);
 }
 
 function reasonSlug(reason) {
@@ -121,14 +142,44 @@ function invalidPanel(row, reason, actions) {
       h('button', { type: 'button', class: 'btn', id: 'invalid-cancel-' + row.id, onclick: () => actions.onInvalidCancel?.() }, 'Cancel')));
 }
 
+function dismissPanel(row, reason, actions) {
+  return h('div', { class: 'invalid-panel', id: 'dismiss-panel-' + row.id },
+    h('h3', {}, 'Dismiss this lead?'),
+    h('p', { class: 'fine' }, 'It leaves the assign list and New Leads. HubSpot is not changed, and no text is sent.'),
+    h('div', { class: 'pick', id: 'dismiss-reasons-' + row.id },
+      ...DISMISS_LEAD_REASONS.map((label) => h('button', {
+        type: 'button',
+        class: 'more-box' + (reason === label ? ' on' : ''),
+        id: 'dismiss-reason-' + reasonSlug(label),
+        onclick: () => actions.onDismissReason?.(row, label),
+      }, h('b', {}, label)))),
+    h('div', { class: 'row gap wrap' },
+      h('button', { type: 'button', class: 'btn primary', id: 'dismiss-confirm-' + row.id, onclick: () => actions.onDismissConfirm?.(row, reason) }, 'Dismiss'),
+      h('button', { type: 'button', class: 'btn', id: 'dismiss-cancel-' + row.id, onclick: () => actions.onDismissCancel?.() }, 'Cancel')));
+}
+
+function mapsHref(address) {
+  const q = String(address || '').trim();
+  return q ? 'https://maps.apple.com/?q=' + encodeURIComponent(q) : '';
+}
+
 function personLine(row) {
-  return h('div', {},
+  const call = telHref(row.phone);
+  const maps = mapsHref(row.address);
+  return h('div', { class: 'lead-person' },
     h('div', { class: 'row between gap wrap' },
       h('b', {}, row.name || 'Customer'),
       row.source ? h('span', { class: 'pill ph' }, row.source) : null),
-    h('p', { class: 'muted' }, [row.phone, row.email].filter(Boolean).join(' · ') || 'No phone yet'),
-    row.address ? h('p', { class: 'fine' }, row.address) : null,
+    call ? h('a', { class: 'lead-link', id: 'lead-phone-' + row.id, href: call }, row.phone) : h('p', { class: 'muted' }, 'No phone yet'),
+    row.email ? h('p', { class: 'muted lead-email' }, row.email) : null,
+    maps ? h('a', { class: 'lead-link', id: 'lead-map-' + row.id, href: maps }, row.address) : null,
     row.notes ? h('p', { class: 'note' }, row.notes) : null);
+}
+
+function callButton(row, id) {
+  const call = telHref(row.phone);
+  if (!call) return null;
+  return h('a', { class: 'btn primary xl lead-call', id, href: call }, 'Call');
 }
 
 export function repLeadsPage({ rows: list, now = new Date(), onOpen, invalidId = '', invalidReason = '', onInvalid, onInvalidReason, onInvalidConfirm, onInvalidCancel }) {
@@ -137,19 +188,18 @@ export function repLeadsPage({ rows: list, now = new Date(), onOpen, invalidId =
     h('h1', {}, 'New Leads'),
     h('button', { type: 'button', class: 'btn', id: 'leads-refresh', onclick: () => onOpen?.({ refresh: true }) }, 'Refresh')));
   page.append(leadCountRow(list));
-  const open = (list || []).filter((row) => row.stage !== 'won' && row.stage !== 'lost' && row.stage !== 'invalid');
+  const open = (list || []).filter(isListedLead);
   if (!open.length) {
     page.append(h('div', { class: 'card', id: 'leads-empty' }, h('p', {}, 'No new leads. Assigned leads show up here.')));
     return page;
   }
   const grid = h('div', { class: 'lead-split', id: 'new-leads-list' });
   open.forEach((row) => {
-    const call = telHref(row.phone);
     grid.append(h('div', { class: 'card lead-card', id: 'lead-card-' + row.id },
       personLine(row),
       row.call_due_at && row.stage === 'new' && !row.called_at ? slaBox(row, now) : h('p', { class: 'fine' }, stageWord(row)),
+      callButton(row, 'lead-call-' + row.id),
       h('div', { class: 'row gap wrap' },
-        call ? h('a', { class: 'btn primary', id: 'lead-call-' + row.id, href: call }, 'Call') : h('button', { type: 'button', class: 'btn', disabled: true }, 'Call'),
         h('button', { type: 'button', class: 'btn', id: 'lead-open-' + row.id, onclick: () => onOpen?.(row) }, 'Open'),
         invalidId === row.id ? null : h('button', { type: 'button', class: 'btn', id: 'invalid-lead-' + row.id, onclick: () => onInvalid?.(row) }, 'Mark invalid')),
       invalidId === row.id ? invalidPanel(row, invalidReason, { onInvalidReason, onInvalidConfirm, onInvalidCancel }) : null));
@@ -166,14 +216,14 @@ function stageWord(row) {
   return row.stage || '';
 }
 
-export function adminLeadsPage({ rows: list, reps: people, repId, now = new Date(), onPick, onAssign, onRefresh, onRetry, refreshing, invalidId = '', invalidReason = '', onInvalid, onInvalidReason, onInvalidConfirm, onInvalidCancel }) {
+export function adminLeadsPage({ rows: list, reps: people, repId, now = new Date(), onPick, onAssign, onRefresh, onRetry, refreshing, invalidId = '', invalidReason = '', onInvalid, onInvalidReason, onInvalidConfirm, onInvalidCancel, dismissId = '', dismissReason = '', onDismiss, onDismissReason, onDismissConfirm, onDismissCancel }) {
   const page = h('div', { class: 'page', id: 'admin-leads-page' });
   page.append(h('div', { class: 'row between wrap gap' },
     h('h1', {}, 'Leads'),
     h('button', { type: 'button', class: 'btn', id: 'admin-leads-refresh', disabled: refreshing ? true : null, onclick: onRefresh }, refreshing ? 'Refreshing…' : 'Refresh')));
   page.append(h('p', { class: 'fine' }, 'Assign writes the HubSpot owner, then texts the rep from the company Quo line. The deadline uses Phoenix business hours.'));
-  page.append(leadCountRow(list));
-  const queue = (list || []).filter((row) => row.stage !== 'invalid' && (!row.owner_id || (row.stage === 'new' && !row.called_at)));
+  page.append(leadCountRow(list, { showDismissed: true }));
+  const queue = (list || []).filter((row) => isListedLead(row) && (!row.owner_id || (row.stage === 'new' && !row.called_at)));
   queue.sort((a, b) => {
     const rank = (row) => {
       if (!row.owner_id) return 0;
@@ -187,16 +237,22 @@ export function adminLeadsPage({ rows: list, reps: people, repId, now = new Date
   queue.forEach((row) => {
     const overdue = row.owner_id && row.call_due_at && new Date(row.call_due_at).getTime() < now.getTime();
     const card = h('div', { class: 'card', id: 'admin-lead-' + row.id }, personLine(row));
-    const confirming = invalidId === row.id;
-    if (!confirming) {
-      card.append(h('button', { type: 'button', class: 'btn', id: 'invalid-lead-' + row.id, onclick: () => onInvalid?.(row) }, 'Mark invalid'));
-    } else {
+    const confirmingInvalid = invalidId === row.id;
+    const confirmingDismiss = !row.owner_id && dismissId === row.id;
+    if (confirmingInvalid) {
       card.append(invalidPanel(row, invalidReason, { onInvalidReason, onInvalidConfirm, onInvalidCancel }));
-    }
-    if (confirming) {
       page.append(card);
       return;
     }
+    if (confirmingDismiss) {
+      card.append(dismissPanel(row, dismissReason, { onDismissReason, onDismissConfirm, onDismissCancel }));
+      page.append(card);
+      return;
+    }
+    card.append(callButton(row, 'admin-call-' + row.id));
+    card.append(h('div', { class: 'row gap wrap' },
+      h('button', { type: 'button', class: 'btn', id: 'invalid-lead-' + row.id, onclick: () => onInvalid?.(row) }, 'Mark invalid'),
+      !row.owner_id ? h('button', { type: 'button', class: 'btn', id: 'dismiss-lead-' + row.id, onclick: () => onDismiss?.(row) }, 'Dismiss') : null));
     if (!row.owner_id) {
       const plan = leadCallPlan(now);
       const picks = h('div', {},
@@ -259,6 +315,13 @@ export function leadDetailPage({ lead, now = new Date(), onBack, onCalled, onSav
       lead.invalid_reason ? h('p', { class: 'fine' }, lead.invalid_reason) : null));
     return page;
   }
+  if (lead.stage === 'dismissed') {
+    page.append(h('div', { class: 'card' },
+      h('h1', {}, lead.name || 'Customer'),
+      h('p', {}, 'This lead was dismissed. HubSpot was not changed.'),
+      lead.dismiss_reason ? h('p', { class: 'fine' }, lead.dismiss_reason) : null));
+    return page;
+  }
   const call = telHref(lead.phone);
   const showClock = lead.stage === 'new' && !lead.called_at && lead.call_due_at;
   const current = lead.stage;
@@ -277,7 +340,7 @@ export function leadDetailPage({ lead, now = new Date(), onBack, onCalled, onSav
       stageBtn('called', 'Called', onCalled),
       stageBtn('appointment', 'Appointment set', () => document.getElementById('appt-date')?.focus()),
       stageBtn('presented', 'Presented', onPresented),
-      h('a', { class: 'btn' + (current === 'follow_up' ? ' on' : ''), id: 'stage-follow_up', href: '#/followups' }, 'Follow-up'),
+      h('a', { class: 'btn' + (current === 'follow_up' ? ' on' : ''), id: 'stage-follow_up', href: '#/saved/followups' }, 'Follow-up'),
       stageBtn('won', 'Won', onWon),
       stageBtn('lost', 'Lost', onLost, ' danger')),
     h('h3', { style: 'margin-top:.7rem' }, 'Set appointment'),
@@ -320,6 +383,15 @@ async function confirmInvalid(row, reason, draw, reset) {
   draw();
 }
 
+async function confirmDismiss(row, reason, draw, reset) {
+  const res = await dismissLead(row.id, reason);
+  if (!res.ok) { toast(res.error || 'Not dismissed.'); return; }
+  toast('Dismissed. HubSpot was not changed.');
+  reset();
+  await refresh();
+  draw();
+}
+
 export async function renderRep(root) {
   const gen = viewGen;
   let invalidId = '';
@@ -327,7 +399,7 @@ export async function renderRep(root) {
   const draw = () => {
     if (gen !== viewGen) return;
     const me = userId();
-    const mine = byDue(rows.filter((row) => row.owner_id && row.owner_id === me && row.stage !== 'won' && row.stage !== 'lost'));
+    const mine = byDue(rows.filter((row) => row.owner_id && row.owner_id === me && isListedLead(row)));
     root.replaceChildren(repLeadsPage({
       rows: mine,
       invalidId,
@@ -453,6 +525,8 @@ export async function renderAdmin(root) {
   let refreshing = false;
   let invalidId = '';
   let invalidReason = '';
+  let dismissId = '';
+  let dismissReason = '';
   const draw = () => {
     const ready = reps.filter((person) => String(person.hubspot_owner_id || '').trim() && String(person.phone || '').trim());
     if (!repPick || !ready.some((person) => person.id === repPick)) repPick = ready[0]?.id || '';
@@ -463,10 +537,16 @@ export async function renderAdmin(root) {
       refreshing,
       invalidId,
       invalidReason,
-      onInvalid: (row) => { invalidId = row.id; invalidReason = ''; draw(); },
+      dismissId,
+      dismissReason,
+      onInvalid: (row) => { invalidId = row.id; invalidReason = ''; dismissId = ''; dismissReason = ''; draw(); },
       onInvalidReason: (_row, label) => { invalidReason = invalidReason === label ? '' : label; draw(); },
       onInvalidCancel: () => { invalidId = ''; invalidReason = ''; draw(); },
       onInvalidConfirm: (row, reason) => confirmInvalid(row, reason, draw, () => { invalidId = ''; invalidReason = ''; }),
+      onDismiss: (row) => { dismissId = row.id; dismissReason = ''; invalidId = ''; invalidReason = ''; draw(); },
+      onDismissReason: (_row, label) => { dismissReason = dismissReason === label ? '' : label; draw(); },
+      onDismissCancel: () => { dismissId = ''; dismissReason = ''; draw(); },
+      onDismissConfirm: (row, reason) => confirmDismiss(row, reason, draw, () => { dismissId = ''; dismissReason = ''; }),
       onPick: (id) => { repPick = id; draw(); },
       onRefresh: async () => {
         if (browserOffline()) { toast(OFFLINE_MESSAGE); return; }
@@ -505,3 +585,6 @@ export async function renderAdmin(root) {
   }
   draw();
 }
+
+registerAttention('leads', uncalledCount);
+registerAttention('leadsLate', uncalledOverdueCount);

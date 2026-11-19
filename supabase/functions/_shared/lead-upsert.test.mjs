@@ -22,6 +22,18 @@ test('a new HubSpot lead is inserted once and is not assigned', () => {
   assert.equal(plan.values.address, '85251');
 });
 
+test('a dismissed lead is not refreshed or inserted again', () => {
+  const plan = leadUpsertPlan({
+    id: 'lead-9',
+    owner_id: null,
+    stage: 'dismissed',
+    notes: 'handled outside the app',
+    hubspot_contact_id: 'c1',
+    hubspot_deal_id: 'd1',
+  }, { ...incoming, name: 'Changed' }, '2026-11-19T15:00:00.000Z');
+  assert.deepEqual(plan, { action: 'skip' });
+});
+
 test('an invalid lead is not refreshed or inserted again', () => {
   const plan = leadUpsertPlan({
     id: 'lead-3',

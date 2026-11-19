@@ -20,6 +20,7 @@ import * as report from './pages/report.js';
 import * as sales from './pages/sales.js';
 import * as more from './pages/more.js';
 import * as leads from './pages/leads.js';
+import { mineAttentionTotal } from './attention.js';
 
 const NAV = [
   ['calculator', 'Quote', 'calculator'],
@@ -36,7 +37,7 @@ const ROUTES = [
   ['doors', 'Doors', 'door', (r) => prehung.render(r)],
   ['brochures', 'Brochures', 'brochures', (r) => brochures.render(r)],
   ['estimate', 'Estimate', 'estimate', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'present' ? estimate.renderPresent(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
-  ['saved', 'Mine', 'folder', (r, sub, extra) => (sub === 'sales' ? sales.renderRep(r, extra) : sub === 'leads' ? (extra ? leads.renderDetail(r, extra) : leads.renderRep(r)) : estimate.renderList(r))],
+  ['saved', 'Mine', 'folder', (r, sub, extra) => (sub === 'sales' ? sales.renderRep(r, extra) : sub === 'leads' ? (extra ? leads.renderDetail(r, extra) : leads.renderRep(r)) : sub === 'followups' ? followups.render(r) : estimate.renderList(r))],
   ['more', 'More', 'grid', (r) => more.render(r)],
   ['leads', 'Leads', 'followups', (r) => leads.renderAdmin(r)],
   ['followups', 'Follow-ups', 'followups', (r) => followups.render(r)],
@@ -76,9 +77,17 @@ function paintNav(active) {
       link.append(h('span', { class: 'nav-badge', id: 'followup-badge' }, String(followups.dueCount())));
       link.setAttribute('aria-label', `More, ${followups.dueCount()} follow-ups due`);
     }
-    if (id === 'saved' && leads.uncalledCount() > 0) {
-      link.append(h('span', { class: 'nav-badge', id: 'lead-badge' }, String(leads.uncalledCount())));
-      link.setAttribute('aria-label', `Mine, ${leads.uncalledCount()} new leads`);
+    if (id === 'saved') {
+      const leadsN = leads.uncalledCount();
+      const dueN = followups.dueCount();
+      const mineN = mineAttentionTotal(leadsN, dueN);
+      if (mineN > 0) {
+        link.append(h('span', { class: 'nav-badge' + (leads.uncalledOverdueCount() > 0 ? ' late' : ''), id: 'lead-badge' }, String(mineN)));
+        const parts = [];
+        if (leadsN) parts.push(`${leadsN} new lead${leadsN === 1 ? '' : 's'}`);
+        if (dueN) parts.push(`${dueN} follow-up${dueN === 1 ? '' : 's'} due`);
+        link.setAttribute('aria-label', `Mine, ${parts.join(', ')}`);
+      }
     }
     return link;
   }));

@@ -409,7 +409,8 @@ button.metric,button.sales-box{text-align:left;width:100%}
 .sync-word{font-size:.75rem;font-weight:800;color:#fff;white-space:nowrap}
 .auth-logo{height:64px;width:auto;display:block;margin:0 0 .35rem}
 .more-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
-.more-box{display:flex;flex-direction:column;justify-content:center;gap:.2rem;min-height:84px;padding:.8rem;border:1.5px solid var(--navy);border-radius:14px;background:#fff;color:var(--navy);text-decoration:none;font-weight:800}
+.more-box{position:relative;display:flex;flex-direction:column;justify-content:center;gap:.2rem;min-height:84px;padding:.8rem;border:1.5px solid var(--navy);border-radius:14px;background:#fff;color:var(--navy);text-decoration:none;font-weight:800}
+.more-box .nav-badge{top:8px;right:8px;box-shadow:0 0 0 2px #fff}
 .more-box span{font-weight:600;color:var(--mut);font-size:.82rem}
 .more-box .pill{align-self:flex-start;margin-top:.2rem}
 .more-admin{grid-column:1/-1;margin:.4rem 0 0}
@@ -431,8 +432,11 @@ button.metric,button.sales-box{text-align:left;width:100%}
   #toast{top:calc(70px + env(safe-area-inset-top));bottom:auto}
   body[data-route="estimate-print"] main,body[data-route="estimate-contract"] main{padding-bottom:1.2rem}
 }
-.tabs.seg.mine{display:flex;flex-wrap:nowrap;width:100%}
-.tabs.seg.mine .seg-btn{flex:1 1 0;white-space:nowrap}
+.tabs.seg.mine{display:flex;flex-wrap:wrap;width:100%}
+.tabs.seg.mine .seg-btn{position:relative;flex:1 1 45%;min-height:44px;white-space:normal}
+.tabs.seg.mine .nav-badge{top:2px;right:4px;box-shadow:0 0 0 2px #fff}
+.tabs.seg.mine .seg-btn.on .nav-badge{background:#14171a;color:#fff;box-shadow:0 0 0 2px var(--orange)}
+.nav-badge.late,.tabs.seg.mine .seg-btn.on .nav-badge.late{background:var(--bad);color:#fff}
 button.more-box{font:inherit;font-weight:800;text-align:left;width:100%;cursor:pointer}
 button.more-box:disabled{opacity:.55;cursor:not-allowed}
 .more-box.on,.stages .btn.on,.stages a.on{border-color:var(--orange);background:var(--orange);color:var(--on-orange)}
@@ -456,9 +460,20 @@ button.more-box:disabled{opacity:.55;cursor:not-allowed}
 #lead-detail .sla .time{font-size:1.55rem}
 #lead-detail h3{margin-bottom:.3rem}
 #lead-detail .stages{gap:.35rem}
-#lead-detail .stages .btn{min-height:40px}
+#lead-detail .stages .btn{min-height:44px}
+.lead-person,.lead-person b,.lead-person p,.lead-person a,.pick .more-box,.sms pre{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+.lead-link{display:flex;align-items:center;min-height:44px;padding:.35rem 0;color:var(--blue);font-weight:700;text-decoration:underline}
+.lead-call{width:100%;margin:.35rem 0}
+.pick .more-box{min-height:44px}
+#admin-leads-page .card,#new-leads-page .card,#lead-detail .card,#followups-page .card{min-width:0;max-width:100%}
 @media (max-width:760px){
-  .tabs.seg.mine .seg-btn{flex:1 1 0;padding:.55rem .15rem;font-size:.78rem}
+  .tabs.seg.mine .seg-btn{flex:1 1 45%;padding:.45rem .4rem;font-size:.78rem;min-height:44px}
   .lead-split{grid-template-columns:1fr}
   #lead-detail .stage-card{order:-1}
+  body[data-route="leads"] main,
+  body[data-route="saved-leads"] main,
+  body[data-route="saved-followups"] main,
+  body[data-route="followups"] main{
+    padding-bottom:calc(148px + env(safe-area-inset-bottom));
+  }
 }
