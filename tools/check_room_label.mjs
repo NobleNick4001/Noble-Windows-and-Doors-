@@ -25,15 +25,19 @@ if (!mil.includes("getElementById('in-label')")) fail('adding a line should focu
 if (mil.includes("calc.label = ''")) fail('adding a line must keep the room location');
 if (!mil.includes("calc.w = ''") || !mil.includes("calc.h = ''")) fail('width and height still clear after add');
 if (!mil.includes('Enter a location (e.g. Kitchen)')) fail('blank location needs the inline message');
-if (!mil.includes("pattern: '[0-9]*[.]?[0-9]*'")) fail('width and height use the decimal pattern');
+if (!mil.includes("pattern: '[0-9]*'")) fail('width and height use the decimal pattern');
 if (!mil.includes("inputmode: 'decimal'")) fail('width and height use a decimal keypad');
+if (!mil.includes("enterkeyhint: 'next'")) fail('width and height use the next key');
+if (!mil.includes("inputmode: 'text'")) fail('AX650 fraction sizes keep a keyboard that can type a slash');
 if (!mil.includes('setSelectionRange')) fail('focusing the location selects the text');
 if (!calc.includes('Enter a location (e.g. Kitchen)')) fail('other brands require a location too');
 if (calc.includes("calc.label = ''")) fail('other brands must keep the room location');
-if (!calc.includes("pattern: '[0-9]*[.]?[0-9]*'")) fail('other width and height inputs use the decimal pattern');
-if (!est.includes("'[0-9]*[.]?[0-9]*'")) fail('estimate width and height inputs use the decimal pattern');
+if (!calc.includes("pattern: inches ? null : (measurement ? '[0-9]*' : (pattern || null))")) fail('other width and height inputs use the decimal pattern');
+if (!calc.includes("enterkeyhint: measurement ? 'next' : null")) fail('inch fields set enterkeyhint next');
+if (!calc.includes("inputmode: inches ? 'text' : 'decimal'")) fail('fraction sizes stay on the text keyboard');
+if (!est.includes('inches: isAx650Line(l)')) fail('estimate AX650 lines keep fraction entry');
 if (!css.includes('.room-size>.room-label{order:0}') || !css.includes('.room-label{scroll-margin-top:96px}')) fail('css should pin the room label above the size fields');
-if (!sw.includes("const CACHE = 'nwd-sales-v73-invalid-leads'")) fail('service worker cache should be nwd-sales-v73-invalid-leads');
+if (!sw.includes("const CACHE = 'nwd-sales-v74-presented-delete'")) fail('service worker cache should be nwd-sales-v74-presented-delete');
 if (!est.includes("id: 'room-' + l.id")) fail('each estimate line needs its own room field id');
 
 if (errs.length) {
