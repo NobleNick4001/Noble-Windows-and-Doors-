@@ -10,7 +10,7 @@ import { followUpDue, followUpTitle, matchOwner, presentedFollowUpNote, resolveT
 import { hubspotBodyAllowed, lostDealNote, snoozeDue } from '../_shared/assistant.js';
 import { pullHubspot } from './pull.js';
 import { backfillPresentedFollowUps } from './backfill-followups.js';
-import { assignLead, loseLeadDeal, pullUnassigned, pushLeadAppointment, retryLeadText } from './leads.js';
+import { assignLead, invalidateLead, loseLeadDeal, pullUnassigned, pushLeadAppointment, retryLeadText } from './leads.js';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -574,7 +574,7 @@ Deno.serve(async (req) => {
   if (payload.action === 'snooze-followup') return snoozeFollowUp(admin, token, user, profile, payload);
   if (payload.action === 'log-note') return logNote(admin, token, user, profile, payload);
   if (payload.action === 'push-appointment') return pushAppointment(admin, token, user, profile, payload);
-  if (payload.action === 'pull-unassigned' || payload.action === 'assign-lead' || payload.action === 'retry-lead-text' || payload.action === 'lead-appointment' || payload.action === 'lead-lost') {
+  if (payload.action === 'pull-unassigned' || payload.action === 'assign-lead' || payload.action === 'retry-lead-text' || payload.action === 'lead-appointment' || payload.action === 'lead-lost' || payload.action === 'lead-invalid') {
     const env = {
       QUO_API_KEY: Deno.env.get('QUO_API_KEY') ?? '',
       QUO_FROM_NUMBER: Deno.env.get('QUO_FROM_NUMBER') ?? '',
@@ -600,6 +600,16 @@ Deno.serve(async (req) => {
       }
       if (payload.action === 'lead-appointment') {
         const result = await pushLeadAppointment({ admin, token, actor: profile, leadId: String(payload.leadId || '') });
+        return json(result.status || 200, result);
+      }
+      if (payload.action === 'lead-invalid') {
+        const result = await invalidateLead({
+          admin,
+          token,
+          actor: profile,
+          leadId: String(payload.leadId || ''),
+          reason: payload.reason,
+        });
         return json(result.status || 200, result);
       }
       const result = await loseLeadDeal({ admin, token, actor: profile, leadId: String(payload.leadId || '') });

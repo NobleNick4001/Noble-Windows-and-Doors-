@@ -443,6 +443,8 @@ button.more-box:disabled{opacity:.55;cursor:not-allowed}
 .sla.over .time{color:var(--bad)}
 .sms{border:1.5px solid var(--navy);border-radius:16px;background:#fff;padding:.85rem 1rem;margin:.5rem 0}
 .sms pre{margin:.4rem 0 0;white-space:pre-wrap;font:inherit;font-weight:700;color:var(--navy)}
+.invalid-panel{margin-top:.55rem}
+.invalid-panel .pick{margin:.45rem 0}
 .stages{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
 .stages .btn{width:100%}
 .when{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}

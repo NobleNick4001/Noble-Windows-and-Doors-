@@ -97,7 +97,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v72-leads-autopull'" in sw, 'service worker cache should be nwd-sales-v72-leads-autopull')
+check("const CACHE = 'nwd-sales-v73-invalid-leads'" in sw, 'service worker cache should be nwd-sales-v73-invalid-leads')
 check('js/vendor/supabase-js-2.119.0.mjs' in sw, 'vendored supabase-js should be precached')
 check(os.path.isfile('js/vendor/supabase-js-2.119.0.mjs'), 'vendored supabase-js bundle missing')
 cloud = open('js/cloud.js').read()

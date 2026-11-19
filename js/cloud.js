@@ -797,15 +797,17 @@ export async function syncFromHubspot() {
 export async function loadSalesExtras() {
   const sb = await getSupabase();
   if (!sb) return { appointments: [], leads: [], syncedAt: null, conflicts: [] };
-  const [appointments, leads, state, conflicts] = await Promise.all([
-    sb.from('appointments').select('id, owner_id, estimate_id, set_at, source'),
+  const [appointments, leads, appLeads, state, conflicts] = await Promise.all([
+    sb.from('appointments').select('id, owner_id, estimate_id, lead_id, set_at, source'),
     sb.from('hubspot_leads').select('id, owner_id, hubspot_object, hubspot_id, name, phone, email, uncontacted').eq('uncontacted', true),
+    sb.from('leads').select('id, owner_id, stage, estimate_id, hubspot_contact_id, hubspot_deal_id').is('deleted_at', null),
     sb.from('hubspot_sync_state').select('last_synced_at').maybeSingle(),
     sb.from('hubspot_conflicts').select('id, field, estimates(customer_name)').is('resolved_at', null),
   ]);
   return {
     appointments: appointments.data || [],
     leads: leads.data || [],
+    appLeads: appLeads.data || [],
     syncedAt: state.data?.last_synced_at || null,
     conflicts: (conflicts.data || []).map((row) => ({
       id: row.id,
@@ -826,14 +828,15 @@ export async function loadAdminSales() {
 export async function loadReportSource() {
   const sb = await getSupabase();
   if (!sb) return { error: 'Sign in to open the weekly report.' };
-  const [profiles, estimates, followUps, appointments, activity] = await Promise.all([
+  const [profiles, estimates, followUps, appointments, activity, leads] = await Promise.all([
     sb.from('profiles').select('id, email, full_name, role, hubspot_owner_id'),
     sb.from('estimates').select('id, owner_id, customer_name, status, total_amount, presented_at, signed_at, won_at, lost_at, updated_at, created_at, deleted_at'),
     sb.from('follow_ups').select('id, estimate_id, owner_id, due_at, status, completed_at, created_at, updated_at'),
-    sb.from('appointments').select('id, estimate_id, owner_id, set_at, source'),
+    sb.from('appointments').select('id, estimate_id, lead_id, owner_id, set_at, source'),
     sb.from('assistant_audit').select('estimate_id, created_at'),
+    sb.from('leads').select('id, owner_id, stage, estimate_id, hubspot_contact_id, hubspot_deal_id').is('deleted_at', null),
   ]);
-  const err = profiles.error || estimates.error || followUps.error || appointments.error || activity.error;
+  const err = profiles.error || estimates.error || followUps.error || appointments.error || activity.error || leads.error;
   if (err) return { error: err.message };
   return {
     reps: profiles.data || [],
@@ -841,6 +844,7 @@ export async function loadReportSource() {
     followUps: followUps.data || [],
     appointments: appointments.data || [],
     activity: activity.data || [],
+    leads: leads.data || [],
   };
 }
 

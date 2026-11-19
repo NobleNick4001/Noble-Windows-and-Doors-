@@ -88,13 +88,14 @@ Deno.serve(async (req) => {
   if (profileErr) return json(500, { ok: false, error: profileErr.message });
 
   const ingest = await ingestMeetings(admin, Deno.env.get('HUBSPOT_TOKEN') ?? '', week, profiles || []);
-  const [estimates, followUps, appointments, activity] = await Promise.all([
+  const [estimates, followUps, appointments, activity, leads] = await Promise.all([
     admin.from('estimates').select('id, owner_id, customer_name, status, total_amount, presented_at, signed_at, lost_at, updated_at, created_at, deleted_at'),
     admin.from('follow_ups').select('id, estimate_id, owner_id, due_at, status, completed_at, created_at, updated_at'),
     admin.from('appointments').select('id, estimate_id, owner_id, set_at, source, created_at'),
     admin.from('assistant_audit').select('estimate_id, created_at'),
+    admin.from('leads').select('id, owner_id, stage, estimate_id, hubspot_contact_id, hubspot_deal_id').eq('stage', 'invalid').is('deleted_at', null),
   ]);
-  const readErr = estimates.error || followUps.error || appointments.error || activity.error;
+  const readErr = estimates.error || followUps.error || appointments.error || activity.error || leads.error;
   if (readErr) return json(500, { ok: false, error: readErr.message });
 
   const reps = reportReps(profiles || [], estimates.data || [], followUps.data || [], appointments.data || []);
@@ -104,6 +105,7 @@ Deno.serve(async (req) => {
     followUps: followUps.data || [],
     appointments: appointments.data || [],
     activity: activity.data || [],
+    leads: leads.data || [],
   }, week);
   const recipients = weeklyRecipients({
     WEEKLY_REPORT_TO: Deno.env.get('WEEKLY_REPORT_TO') ?? '',

@@ -17,7 +17,10 @@ export function reportPage(report, { onPrev, onNext } = {}) {
     h('div', { class: 'row gap wrap' },
       h('button', { type: 'button', class: 'btn', id: 'report-prev', onclick: onPrev }, 'Previous week'),
       h('button', { type: 'button', class: 'btn', id: 'report-next', onclick: onNext }, 'Next week'))));
-  page.append(h('p', { class: 'fine' }, 'Close rate is signed divided by signed plus lost. Overdue follow-ups were still open past their due time at the end of Sunday. Pipeline is the estimate total of presented jobs that were still open.'));
+  page.append(h('p', { class: 'fine' }, 'Close rate is signed divided by signed plus lost. Invalid leads are not in that rate. Overdue follow-ups were still open past their due time at the end of Sunday. Pipeline is the estimate total of presented jobs that were still open.'));
+  page.append(h('div', { class: 'metric', id: 'report-invalid-count' },
+    h('span', {}, 'Invalid'),
+    h('b', {}, String(report.invalidCount || 0))));
   if (!report.reps.length) page.append(h('div', { class: 'card' }, h('p', { class: 'muted' }, 'No reps for this week.')));
   report.reps.forEach((rep) => {
     const card = h('div', { class: 'card report-rep', id: 'report-' + rep.id },
@@ -31,7 +34,8 @@ export function reportPage(report, { onPrev, onNext } = {}) {
         metric('Follow-ups due', String(rep.followUpsDue)),
         metric('Follow-ups done', String(rep.followUpsDone)),
         metric('Follow-ups overdue', String(rep.followUpsOverdue)),
-        metric('Pipeline', fmt(rep.pipelineValue))));
+        metric('Pipeline', fmt(rep.pipelineValue)),
+        metric('Invalid', String(rep.invalidCount || 0))));
     if (rep.stalled?.length) {
       card.append(h('h3', {}, 'Stalled'), ...rep.stalled.map((deal) => h('div', { class: 'line', id: 'stalled-' + deal.id },
         h('span', {}, deal.customerName), h('b', {}, money(deal.total)))));

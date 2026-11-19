@@ -157,6 +157,34 @@ export function closeRate(signed, lost) {
   return (Number(signed) || 0) / denom;
 }
 
+// Invalid leads stay out of close rate, pipeline, follow-ups, and appointments.
+export function invalidLeadIndex(leads) {
+  const estimateIds = new Set();
+  const leadIds = new Set();
+  const hubspotKeys = new Set();
+  let count = 0;
+  for (const lead of leads || []) {
+    if (lead?.stage !== 'invalid') continue;
+    count += 1;
+    if (lead.id) leadIds.add(lead.id);
+    if (lead.estimate_id) estimateIds.add(lead.estimate_id);
+    if (lead.hubspot_contact_id) hubspotKeys.add('contact:' + lead.hubspot_contact_id);
+    if (lead.hubspot_deal_id) hubspotKeys.add('deal:' + lead.hubspot_deal_id);
+  }
+  return { count, estimateIds, leadIds, hubspotKeys };
+}
+
+export function tiedToInvalidLead(row, index) {
+  if (!row || !index) return false;
+  if (row.estimate_id && index.estimateIds.has(row.estimate_id)) return true;
+  if (row.lead_id && index.leadIds.has(row.lead_id)) return true;
+  return false;
+}
+
+export function invalidCountFor(leads, ownerId) {
+  return (leads || []).filter((lead) => lead?.stage === 'invalid' && (!ownerId || lead.owner_id === ownerId)).length;
+}
+
 export function formatCloseRate(rate) {
   if (rate == null || !Number.isFinite(rate)) return '—';
   return `${Math.round(rate * 100)}%`;
@@ -173,12 +201,13 @@ export function reportReps(profiles, estimates, followUps, appointments) {
     .sort((a, b) => String(a.full_name || a.email || '').localeCompare(String(b.full_name || b.email || '')));
 }
 
-export function buildWeeklyReport({ reps, estimates = [], followUps = [], appointments = [], activity = [] }, week) {
+export function buildWeeklyReport({ reps, estimates = [], followUps = [], appointments = [], activity = [], leads = [] }, week) {
   const asOf = week.end;
+  const invalid = invalidLeadIndex(leads);
   const people = reportReps(reps, estimates, followUps, appointments);
   const rows = people.map((rep) => {
-    const mine = (row) => row.owner_id === rep.id && !row.deleted_at;
-    const jobs = estimates.filter((row) => row.owner_id === rep.id && !row.deleted_at);
+    const mine = (row) => row.owner_id === rep.id && !row.deleted_at && !tiedToInvalidLead(row, invalid);
+    const jobs = estimates.filter((row) => row.owner_id === rep.id && !row.deleted_at && !invalid.estimateIds.has(row.id));
     const signed = jobs.filter((row) => inRange(wonStamp(row), week)).length;
     const lost = jobs.filter((row) => inRange(row.lost_at, week)).length;
     const held = jobs.filter((row) => inRange(row.presented_at, week)).length;
@@ -208,15 +237,18 @@ export function buildWeeklyReport({ reps, estimates = [], followUps = [], appoin
       followUpsOverdue: overdue,
       pipelineValue,
       stalled,
+      invalidCount: invalidCountFor(leads, rep.id),
     };
   });
-  return { week, reps: rows };
+  return { week, reps: rows, invalidCount: invalid.count };
 }
 
-export function digestPlan({ reps, followUps, estimates = [], now = new Date() }) {
+export function digestPlan({ reps, followUps, estimates = [], leads = [], now = new Date() }) {
+  const invalid = invalidLeadIndex(leads);
   const jobs = new Map(estimates.map((row) => [row.id, row]));
   const byOwner = new Map();
   for (const row of followUps || []) {
+    if (tiedToInvalidLead(row, invalid)) continue;
     if (!isDueOrOverdue(row.due_at, now, row.status)) continue;
     if (!byOwner.has(row.owner_id)) byOwner.set(row.owner_id, []);
     const job = jobs.get(row.estimate_id) || row.estimates || {};
@@ -341,7 +373,7 @@ function metricRow(label, value) {
   return `<tr><td style="padding:4px 0;color:#5c6770;">${esc(label)}</td><td style="padding:4px 0;text-align:right;font-weight:700;">${esc(value)}</td></tr>`;
 }
 
-export function buildWeeklyHtml({ week, reps }) {
+export function buildWeeklyHtml({ week, reps, invalidCount = 0 }) {
   const blocks = (reps || []).map((rep) => {
     const stalled = (rep.stalled || []).length
       ? `<p style="margin:8px 0 0;"><b>Stalled</b></p><ul style="margin:4px 0 0;padding-left:18px;">${rep.stalled.map((deal) => `<li>${esc(deal.customerName)} · ${esc(money(deal.total))}</li>`).join('')}</ul>`
@@ -356,12 +388,14 @@ export function buildWeeklyHtml({ week, reps }) {
         ${metricRow('Follow-ups done', String(rep.followUpsDone))}
         ${metricRow('Follow-ups overdue', String(rep.followUpsOverdue))}
         ${metricRow('Pipeline', money(rep.pipelineValue))}
+        ${metricRow('Invalid', String(rep.invalidCount || 0))}
       </table>
       ${stalled}
     </div>`;
   }).join('');
   const body = `
-    <p style="margin:0 0 12px;">Monday through Sunday, Phoenix time. Close rate is signed divided by signed plus lost. Overdue follow-ups were still open past their due time at the end of Sunday. Pipeline is the estimate total of presented jobs that were still open. Amounts are the estimate total.</p>
+    <p style="margin:0 0 12px;">Monday through Sunday, Phoenix time. Close rate is signed divided by signed plus lost. Invalid leads are not in that rate. Overdue follow-ups were still open past their due time at the end of Sunday. Pipeline is the estimate total of presented jobs that were still open. Amounts are the estimate total.</p>
+    <p style="margin:0 0 12px;">Invalid leads: ${esc(String(invalidCount))}. They are not in the close rate.</p>
     ${blocks || '<p>No reps.</p>'}
     <p style="margin:16px 0 0;color:#5c6770;font-size:13px;">Sent to the manager and the chief of staff. Customers are not copied.</p>`;
   return shell(weeklySubject(week), body);
@@ -412,14 +446,15 @@ export function isCurrentPipeline(estimate) {
   return estimate.status === 'presented';
 }
 
-export function monthMetrics({ estimates = [], appointments = [], ownerId, month }) {
+export function monthMetrics({ estimates = [], appointments = [], ownerId, month, leads = [] }) {
+  const invalid = invalidLeadIndex(leads);
   const mine = (row) => !ownerId || row.owner_id === ownerId;
-  const jobs = estimates.filter((row) => mine(row) && !row.deleted_at);
+  const jobs = estimates.filter((row) => mine(row) && !row.deleted_at && !invalid.estimateIds.has(row.id));
   const won = jobs.filter((row) => inRange(wonStamp(row), month));
   const lost = jobs.filter((row) => inRange(row.lost_at, month));
   const presented = jobs.filter((row) => inRange(row.presented_at, month));
-  const set = appointments.filter((row) => mine(row) && inRange(row.set_at, month) && (row.source === 'app' || row.source === 'hubspot') && !row.deleted_estimate);
-  const pipeline = estimates.filter((row) => mine(row) && isCurrentPipeline(row));
+  const set = appointments.filter((row) => mine(row) && inRange(row.set_at, month) && (row.source === 'app' || row.source === 'hubspot') && !row.deleted_estimate && !tiedToInvalidLead(row, invalid));
+  const pipeline = jobs.filter((row) => isCurrentPipeline(row));
   return {
     appointmentsSet: set.length,
     appointmentsHeld: presented.length,
@@ -430,6 +465,7 @@ export function monthMetrics({ estimates = [], appointments = [], ownerId, month
     lostDollars: sumAmounts(lost),
     closeRate: closeRate(won.length, lost.length),
     pipeline: sumAmounts(pipeline),
+    invalidCount: invalidCountFor(leads, ownerId),
     won,
     lost,
   };

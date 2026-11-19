@@ -8,6 +8,8 @@
 --   Mon–Fri 7:00 AM–6:00 PM and Sat–Sun 10:00 AM–4:00 PM, close exclusive.
 -- Inside that window it pulls unassigned HubSpot leads. It does not text from the pull.
 -- On every run it texts admins once after a lead's call_due_at has passed.
+-- The HTTP call waits up to 60 seconds. The default 5 seconds times out on the
+-- caller side while the function is still finishing.
 
 do $$
 begin
@@ -29,7 +31,8 @@ select cron.schedule(
         select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret' limit 1
       )
     ),
-    body := '{}'::jsonb
+    body := '{}'::jsonb,
+    timeout_milliseconds := 60000
   ) as request_id;
   $$
 );

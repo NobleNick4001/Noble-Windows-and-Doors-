@@ -16,6 +16,7 @@
 <script type="module">
 import { h } from '../js/core.js';
 import { adminLeadsPage, repLeadsPage, leadDetailPage, dueWhen } from '../js/pages/leads.js';
+import { dashboardView } from '../js/pages/sales.js';
 import { assignmentText, overdueText } from '../supabase/functions/_shared/quo.js';
 
 const NAV = [
@@ -65,7 +66,79 @@ const tuesday = new Date('2026-11-17T21:17:42.000Z');
 const app = document.getElementById('app');
 const name = (location.hash || '#leads').slice(1);
 
-if (name === 'admin') {
+function liveInvalid(kind) {
+  paint(kind === 'rep' ? 'leads' : 'more', kind === 'rep' ? 'Eric' : 'Nicholas');
+  const waiting = {
+    id: 'priya', owner_id: kind === 'rep' ? 'eric' : null, name: 'Priya Shah', phone: '(602) 555-0190',
+    email: 'priya.shah@example.com', address: '85251', notes: 'Example: form said patio doors.',
+    source: 'Website · example', stage: 'new', call_window: 'weekday', call_due_at: '2026-11-17T22:00:00.000Z',
+  };
+  const already = {
+    id: 'old', owner_id: kind === 'rep' ? 'eric' : null, name: 'Old Form', phone: '(480) 555-0100',
+    email: '', address: '85001', notes: '', source: 'Website · example', stage: 'invalid',
+  };
+  const state = { invalidId: '', invalidReason: '', rows: [waiting, already] };
+  const draw = () => {
+    app.replaceChildren();
+    const handlers = {
+      rows: state.rows,
+      now: tuesday,
+      invalidId: state.invalidId,
+      invalidReason: state.invalidReason,
+      onInvalid: (row) => { state.invalidId = row.id; state.invalidReason = ''; draw(); },
+      onInvalidReason: (_row, label) => { state.invalidReason = state.invalidReason === label ? '' : label; draw(); },
+      onInvalidCancel: () => { state.invalidId = ''; state.invalidReason = ''; draw(); },
+      onInvalidConfirm: (row) => {
+        row.stage = 'invalid';
+        state.invalidId = '';
+        state.invalidReason = '';
+        draw();
+      },
+    };
+    if (kind === 'rep') {
+      app.append(repLeadsPage({
+        ...handlers,
+        onOpen: () => {},
+      }));
+    } else {
+      app.append(adminLeadsPage({
+        ...handlers,
+        reps,
+        repId: 'eric',
+      }));
+    }
+  };
+  draw();
+}
+
+if (name === 'sales') {
+  paint('leads', 'Eric');
+  const month = { start: new Date('2026-11-01T07:00:00.000Z'), end: new Date('2026-12-01T07:00:00.000Z'), year: 2026, month: 10 };
+  app.append(dashboardView({
+    month,
+    atCurrent: true,
+    metrics: {
+      appointmentsSet: 4,
+      appointmentsHeld: 3,
+      presented: 3,
+      wonCount: 1,
+      wonDollars: 5000,
+      lostCount: 1,
+      lostDollars: 2000,
+      closeRate: 0.5,
+      pipeline: 9000,
+      invalidCount: 2,
+      won: [{ id: 'w', customer_name: 'Ada Cole', total_amount: 5000, won_at: '2026-11-12T18:00:00.000Z' }],
+      lost: [{ id: 'l', customer_name: 'Bea Ortiz', total_amount: 2000, lost_at: '2026-11-18T18:00:00.000Z' }],
+    },
+    synced: 'Synced just now',
+    help: { followUps: [], stalled: [], leads: [] },
+  }));
+} else if (name === 'invalid') {
+  liveInvalid('admin');
+} else if (name === 'invalid-rep') {
+  liveInvalid('rep');
+} else if (name === 'admin') {
   paint('more', 'Nicholas');
   app.append(adminLeadsPage({ rows: [priya, sam], reps, repId: 'eric', now: tuesday }));
 } else if (name === 'detail') {
