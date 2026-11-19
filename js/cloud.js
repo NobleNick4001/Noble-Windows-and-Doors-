@@ -847,9 +847,52 @@ export async function loadReportSource() {
 export async function loadHubspotOwners() {
   const sb = await getSupabase();
   if (!sb) return { error: 'Needs a connection.', people: [] };
-  const { data, error } = await sb.from('profiles').select('email, hubspot_owner_id');
+  const { data, error } = await sb.from('profiles').select('email, hubspot_owner_id, phone');
   if (error) return { error: error.message, people: [] };
   return { people: data || [] };
+}
+
+const LEAD_COLUMNS = 'id, owner_id, name, phone, email, address, notes, source, stage, assigned_at, call_due_at, call_window, called_at, appointment_at, estimate_id, hubspot_contact_id, hubspot_deal_id, rep_text_at, rep_text_error, created_at';
+
+export async function loadLeads() {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Sign in to see leads.', rows: [] };
+  const { data, error } = await sb.from('leads').select(LEAD_COLUMNS).is('deleted_at', null);
+  if (error) return { error: error.message, rows: [] };
+  return { rows: data || [] };
+}
+
+export async function loadLeadReps() {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.', people: [] };
+  const { data, error } = await sb.from('profiles').select('id, full_name, email, role, hubspot_owner_id, phone');
+  if (error) return { error: error.message, people: [] };
+  return { people: data || [] };
+}
+
+async function leadRpc(name, args) {
+  const offline = needsConnection();
+  if (offline) return { ok: false, error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'Sign in required.' };
+  const { data, error } = await sb.rpc(name, args);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data };
+}
+
+export function markLeadCalled(id) { return leadRpc('lead_mark_called', { p_id: id }); }
+export function setLeadAppointment(id, at) { return leadRpc('lead_set_appointment', { p_id: id, p_at: at }); }
+export function linkLeadEstimate(id, estimateId) { return leadRpc('lead_link_estimate', { p_id: id, p_estimate: estimateId }); }
+export function markLeadLost(id) { return leadRpc('lead_mark_lost', { p_id: id }); }
+
+export async function leadAction(action, body) {
+  const offline = needsConnection();
+  if (offline) return { ok: false, error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, error: 'Sign in required.' };
+  const { data, error } = await sb.functions.invoke('hubspot-sync', { body: { action, ...body } });
+  if (error || data?.ok === false) return { ok: false, error: data?.error || data?.message || 'HubSpot sync is not available yet.', data };
+  return { ok: true, data };
 }
 
 export async function setHubspotOwner(email, ownerId) {
@@ -863,6 +906,19 @@ export async function setHubspotOwner(email, ownerId) {
   });
   if (error) return { error: error.message };
   return { ok: true };
+}
+
+export async function setProfilePhone(email, phone) {
+  const offline = needsConnection();
+  if (offline) return { error: offline };
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Needs a connection.' };
+  const { data, error } = await sb.rpc('admin_set_profile_phone', {
+    p_email: String(email || '').trim().toLowerCase(),
+    p_phone: String(phone || '').trim(),
+  });
+  if (error) return { error: error.message };
+  return { ok: true, phone: data?.phone || '' };
 }
 
 export async function sendEstimateEmail(e, pdfBase64) {

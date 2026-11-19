@@ -1,6 +1,7 @@
 import { h } from '../core.js';
 import { isAdmin } from '../cloud.js';
 import { dueCount } from './followups.js';
+import { waitingCount } from './leads.js';
 
 const LINKS = [
   ['followups', 'Follow-ups', 'Open jobs that need a call'],
@@ -15,6 +16,7 @@ const ADMIN_LINKS = [
   ['accounts', 'Accounts', 'Passwords and HubSpot owners'],
   ['admin/dashboard', 'Team sales', 'This month by rep'],
   ['admin/report', 'Weekly report', 'Close rate and pipeline'],
+  ['leads', 'Leads', 'Assign new HubSpot leads'],
 ];
 
 export function render(root) {
@@ -31,9 +33,11 @@ export function render(root) {
   if (isAdmin()) {
     grid.append(h('h2', { class: 'more-admin', id: 'more-admin-label' }, 'Admin'));
     for (const [id, label, note] of ADMIN_LINKS) {
-      grid.append(h('a', { class: 'more-box', id: 'more-' + id.replace(/\//g, '-'), href: '#/' + id },
+      const box = h('a', { class: 'more-box', id: 'more-' + id.replace(/\//g, '-'), href: '#/' + id },
         h('b', {}, label),
-        h('span', {}, note)));
+        h('span', {}, note));
+      if (id === 'leads' && waitingCount() > 0) box.append(h('span', { class: 'pill', id: 'more-lead-count' }, waitingCount() + ' waiting'));
+      grid.append(box);
     }
   }
   page.append(grid);

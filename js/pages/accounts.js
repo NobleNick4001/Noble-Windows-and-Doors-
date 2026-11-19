@@ -1,6 +1,6 @@
 import { h, toast } from '../core.js';
 import { icon } from '../icons.js';
-import { isAdmin, currentProfile, listAccounts, sendPasswordReset, setTemporaryPassword, loadHubspotOwners, setHubspotOwner } from '../cloud.js';
+import { isAdmin, currentProfile, listAccounts, sendPasswordReset, setTemporaryPassword, loadHubspotOwners, setHubspotOwner, setProfilePhone } from '../cloud.js';
 import { generateTempPassword, passwordError, PASSWORD_HINT } from '../../supabase/functions/account-passwords/password.js';
 
 const fdate = (t) => t ? new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
@@ -27,12 +27,16 @@ export async function render(root) {
       const res = await listAccounts();
       if (res?.error) return res;
       const owners = await loadHubspotOwners();
-      const byEmail = new Map((owners.people || []).map((row) => [String(row.email || '').toLowerCase(), row.hubspot_owner_id || '']));
+      const byEmail = new Map((owners.people || []).map((row) => [String(row.email || '').toLowerCase(), row]));
       return {
-        people: (res.people || []).map((person) => ({
-          ...person,
-          hubspot_owner_id: byEmail.get(String(person.email || '').toLowerCase()) || '',
-        })),
+        people: (res.people || []).map((person) => {
+          const match = byEmail.get(String(person.email || '').toLowerCase()) || {};
+          return {
+            ...person,
+            hubspot_owner_id: match.hubspot_owner_id || '',
+            phone: match.phone || '',
+          };
+        }),
         ownerError: owners.error || '',
       };
     },
@@ -59,7 +63,7 @@ export function mountAccounts(root, api) {
       h('h1', {}, 'Accounts'),
       h('button', { type: 'button', class: 'btn', id: 'accounts-refresh', onclick: () => reload() }, 'Refresh')));
     page.append(h('p', { class: 'fine' }, 'Passwords are stored as one-way hashes. They cannot be viewed. Send a reset email, or set a temporary password and give it to the rep yourself. A temporary password is shown once on this screen, is not emailed, and must be changed at the next sign-in.'));
-    page.append(h('p', { class: 'fine' }, 'HubSpot owner id is used for follow-up tasks. Leave it blank to show not set.'));
+    page.append(h('p', { class: 'fine' }, 'HubSpot owner id is used for follow-up tasks and for assigning leads. The mobile is where lead texts go. Leave either blank to show not set. Customers are never texted.'));
     if (notice) page.append(h('p', { class: 'fine', id: 'accounts-notice' }, notice));
     if (ownerError) page.append(h('p', { class: 'warn', id: 'owner-error' }, ownerError));
     if (loading) page.append(h('p', { class: 'muted' }, 'Loading accounts…'));
@@ -107,6 +111,7 @@ export function mountAccounts(root, api) {
         person.revoked ? h('div', { class: 'warn' }, 'Revoked. Restore them on the Admin page or they still cannot sign in.') : null,
         person.must_change_password ? h('div', { class: 'fine' }, 'Must set a new password at the next sign-in.') : null,
         ownerField(person, id),
+        phoneField(person, id),
         actions));
     });
     return box;
@@ -140,6 +145,35 @@ export function mountAccounts(root, api) {
     }
     person.hubspot_owner_id = value.trim();
     toast(value.trim() ? 'HubSpot owner saved.' : 'HubSpot owner cleared.');
+    draw();
+  }
+
+  const phoneField = (person, id) => {
+    const value = String(person.phone || '').trim();
+    return h('div', { class: 'owner-field' },
+      h('label', { class: 'field' },
+        h('span', { class: 'lbl' }, 'Mobile for lead texts'),
+        h('input', {
+          type: 'tel',
+          id: 'profile-phone-' + id,
+          value,
+          placeholder: 'not set',
+          autocomplete: 'tel',
+          'aria-label': 'Mobile for ' + (person.full_name || person.email),
+          disabled: person.signed_up ? null : true,
+        })),
+      h('div', { class: 'fine' + (value ? '' : ' owner-unset'), id: 'profile-phone-state-' + id }, value ? '' : 'not set'),
+      person.signed_up
+        ? h('button', { type: 'button', class: 'btn sm', id: 'save-phone-' + id, onclick: () => savePhone(person, id) }, 'Save mobile')
+        : null);
+  };
+
+  async function savePhone(person, id) {
+    const value = document.getElementById('profile-phone-' + id)?.value || '';
+    const res = await setProfilePhone(person.email, value);
+    if (res?.error) { toast(res.error); return; }
+    person.phone = res.phone || '';
+    toast(person.phone ? 'Mobile saved.' : 'Mobile cleared.');
     draw();
   }
 

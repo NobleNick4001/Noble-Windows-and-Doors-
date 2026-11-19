@@ -1,6 +1,7 @@
 import { h, fmt, estimates, totals, toast } from '../core.js';
+import { mineTabs } from '../mine-tabs.js';
 import {
-  isAdmin, userId, loadFollowUps, loadSalesExtras, syncFromHubspot, completeFollowUp, snoozeFollowUp, logHubspotNote, loadAdminSales,
+  isAdmin, userId, loadFollowUps, loadSalesExtras, syncFromHubspot, completeFollowUp, snoozeFollowUp, logHubspotNote, loadAdminSales, setProfilePhone,
 } from '../cloud.js';
 import {
   currentMonth, dueBucket, formatCloseRate, formatMonth, formatPhoenix, formatSyncedAgo, isDueOrOverdue, isStalledDeal, momChange, monthFromKey, monthKey, monthMetrics, shiftMonth,
@@ -291,7 +292,7 @@ export async function renderRep(root, monthToken) {
       toast(res.ok ? 'Note logged.' : (res.error || 'Note was not saved.'));
     },
   };
-  root.replaceChildren(dashboardView({
+  const page = dashboardView({
     month,
     atCurrent: monthKey(month) === monthKey(current),
     metrics,
@@ -300,7 +301,9 @@ export async function renderRep(root, monthToken) {
     notice: salesNotice,
     noticeOk: salesNoticeOk,
     help: helpFrom(dueRows, stalled, extras.leads || []),
-  }, actions));
+  }, actions);
+  page.prepend(mineTabs('sales'));
+  root.replaceChildren(page);
 }
 
 export async function renderAdmin(root, monthToken) {
@@ -328,12 +331,45 @@ export async function renderAdmin(root, monthToken) {
     previous: monthMetrics({ estimates, appointments, ownerId: p.id, month: shiftMonth(month, -1) }),
   }));
   const go = (next) => { location.hash = '#/admin/dashboard/' + monthKey(next); };
-  root.replaceChildren(adminDashboardView({
+  const page = adminDashboardView({
     month,
     atCurrent: monthKey(month) === monthKey(current),
     reps,
   }, {
     onPrev: () => go(shiftMonth(month, -1)),
     onNext: () => { if (monthKey(month) !== monthKey(current)) go(shiftMonth(month, 1)); },
-  }));
+  });
+  page.append(textMobiles(profiles, () => renderAdmin(root, monthToken)));
+  root.replaceChildren(page);
+}
+
+function textMobiles(profiles, redraw) {
+  const box = h('div', { class: 'card', id: 'team-phones' },
+    h('h3', {}, 'Text mobiles'),
+    h('p', { class: 'fine' }, 'Lead texts go to these numbers. Customers are never texted. The same mobile is on Accounts.'));
+  (profiles || []).forEach((person) => {
+    const id = String(person.id || person.email || '').slice(0, 8);
+    box.append(h('div', { class: 'owner-field', id: 'team-phone-' + id },
+      h('label', { class: 'field' },
+        h('span', { class: 'lbl' }, (person.full_name || person.email || 'Person') + ' mobile'),
+        h('input', {
+          type: 'tel',
+          id: 'team-phone-input-' + id,
+          value: person.phone || '',
+          placeholder: 'not set',
+          autocomplete: 'tel',
+        })),
+      h('button', {
+        type: 'button',
+        class: 'btn sm',
+        id: 'save-team-phone-' + id,
+        onclick: async () => {
+          const value = document.getElementById('team-phone-input-' + id)?.value || '';
+          const res = await setProfilePhone(person.email, value);
+          toast(res.error || (value.trim() ? 'Mobile saved.' : 'Mobile cleared.'));
+          if (!res.error) redraw();
+        },
+      }, 'Save mobile')));
+  });
+  return box;
 }

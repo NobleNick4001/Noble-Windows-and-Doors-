@@ -19,6 +19,7 @@ import * as followups from './pages/followups.js';
 import * as report from './pages/report.js';
 import * as sales from './pages/sales.js';
 import * as more from './pages/more.js';
+import * as leads from './pages/leads.js';
 
 const NAV = [
   ['calculator', 'Quote', 'calculator'],
@@ -28,15 +29,16 @@ const NAV = [
   ['saved', 'Mine', 'folder'],
   ['more', 'More', 'grid'],
 ];
-const MORE_ROUTES = new Set(['more', 'followups', 'options', 'gallery', 'preview', 'settings', 'admin', 'accounts']);
+const MORE_ROUTES = new Set(['more', 'followups', 'options', 'gallery', 'preview', 'settings', 'admin', 'accounts', 'leads']);
 
 const ROUTES = [
   ['calculator', 'Quote', 'calculator', (r) => calculator.render(r)],
   ['doors', 'Doors', 'door', (r) => prehung.render(r)],
   ['brochures', 'Brochures', 'brochures', (r) => brochures.render(r)],
   ['estimate', 'Estimate', 'estimate', (r, sub) => (sub === 'print' ? estimate.renderPrint(r) : sub === 'present' ? estimate.renderPresent(r) : sub === 'contract' ? contract.render(r) : estimate.render(r))],
-  ['saved', 'Mine', 'folder', (r, sub, extra) => (sub === 'sales' ? sales.renderRep(r, extra) : estimate.renderList(r))],
+  ['saved', 'Mine', 'folder', (r, sub, extra) => (sub === 'sales' ? sales.renderRep(r, extra) : sub === 'leads' ? (extra ? leads.renderDetail(r, extra) : leads.renderRep(r)) : estimate.renderList(r))],
   ['more', 'More', 'grid', (r) => more.render(r)],
+  ['leads', 'Leads', 'followups', (r) => leads.renderAdmin(r)],
   ['followups', 'Follow-ups', 'followups', (r) => followups.render(r)],
   ['options', 'Options', 'options', (r, sub) => options.render(r, sub || 'glass')],
   ['gallery', 'Gallery', 'gallery', (r) => gallery.render(r)],
@@ -74,6 +76,10 @@ function paintNav(active) {
       link.append(h('span', { class: 'nav-badge', id: 'followup-badge' }, String(followups.dueCount())));
       link.setAttribute('aria-label', `More, ${followups.dueCount()} follow-ups due`);
     }
+    if (id === 'saved' && leads.uncalledCount() > 0) {
+      link.append(h('span', { class: 'nav-badge', id: 'lead-badge' }, String(leads.uncalledCount())));
+      link.setAttribute('aria-label', `Mine, ${leads.uncalledCount()} new leads`);
+    }
     return link;
   }));
 }
@@ -93,6 +99,7 @@ function route() {
   const routes = allRoutes();
   const r = routes.find((x) => x[0] === name) || routes[0];
   gallery.stop();
+  leads.stop();
   brochures.stop();
   obscure.stop();
   stopFrameTypes();
@@ -125,16 +132,18 @@ function boot() {
     window.addEventListener('nwd-synced', () => {
       if (!unlocked) return;
       const name = location.hash.split('/')[1] || '';
-      if (name === 'saved' || name === 'admin') route();
+      if (name === 'saved' || name === 'admin' || name === 'leads') route();
     });
     window.addEventListener('nwd-access', () => { if (unlocked) route(); });
     window.addEventListener('nwd-followups', () => { if (unlocked) paintNav(navActive()); });
+    window.addEventListener('nwd-leads', () => { if (unlocked) paintNav(navActive()); });
     window.addEventListener('online', () => paintConnection());
     window.addEventListener('offline', () => paintConnection());
   }
   mountAccount(document.getElementById('account'));
   route();
   followups.refresh().catch(() => {});
+  leads.refresh().catch(() => {});
 }
 
 (async () => {
