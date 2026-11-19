@@ -264,7 +264,7 @@ async function saveLead(admin, row, allowRetry = true) {
     if (error) throw new Error(error.message);
     return 'inserted';
   }
-  const { data, error } = await admin.from('leads').update(plan.values).eq('id', plan.id).is('owner_id', null).neq('stage', 'invalid').select('id');
+  const { data, error } = await admin.from('leads').update(plan.values).eq('id', plan.id).is('owner_id', null).neq('stage', 'invalid').neq('stage', 'dismissed').select('id');
   if (error) throw new Error(error.message);
   if (!data?.length) return 'skipped';
   return 'updated';
@@ -292,6 +292,8 @@ export async function assignLead({ admin, token, actor, leadId, repId, env }) {
   const { data: lead, error: leadErr } = await admin.from('leads').select('*').eq('id', leadId).is('deleted_at', null).maybeSingle();
   if (leadErr) return { ok: false, status: 500, error: leadErr.message };
   if (!lead) return { ok: false, status: 404, error: 'Lead not found.' };
+  if (lead.stage === 'dismissed') return { ok: false, status: 409, error: 'This lead was dismissed.' };
+  if (lead.stage === 'invalid') return { ok: false, status: 409, error: 'This lead is invalid.' };
   if (lead.owner_id) return { ok: false, status: 409, error: 'This lead is already assigned.' };
   const { data: rep, error: repErr } = await admin.from('profiles').select('id, full_name, email, role, hubspot_owner_id, phone').eq('id', repId).maybeSingle();
   if (repErr) return { ok: false, status: 500, error: repErr.message };

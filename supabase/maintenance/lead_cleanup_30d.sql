@@ -5,6 +5,8 @@
 -- Hard-delete the unassigned backlog that was never worked:
 -- no owner, never assigned, never called, and no estimate.
 -- Invalid leads are kept (stage invalid, or invalid_at set).
+-- Dismissed leads are kept (stage dismissed, or dismissed_at set).
+-- They are not the same bucket. Neither is deleted here.
 -- The next HubSpot pull re-adds only leads created in the last 30 days.
 -- public.leads refuses ordinary deletes. This script turns that off for
 -- this statement and turns it back on.
@@ -17,6 +19,8 @@ where owner_id is null
   and called_at is null
   and estimate_id is null
   and stage is distinct from 'invalid'
-  and invalid_at is null;
+  and invalid_at is null
+  and stage is distinct from 'dismissed'
+  and dismissed_at is null;
 
 alter table public.leads enable trigger leads_no_delete;

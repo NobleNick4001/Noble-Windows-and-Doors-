@@ -55,13 +55,18 @@ export async function pullHubspot({ admin, token, profiles }) {
   const summary = { owners: 0, conflicts: 0, leads: 0, error: '' };
   if (!token) return { ...summary, error: 'HUBSPOT_TOKEN is not set' };
   const targets = (profiles || []).filter((p) => String(p.hubspot_owner_id || '').trim());
-  const { data: invalidRows, error: invalidErr } = await admin.from('leads')
-    .select('hubspot_contact_id, hubspot_deal_id')
-    .eq('stage', 'invalid')
+  const { data: quietRows, error: quietErr } = await admin.from('leads')
+    .select('hubspot_contact_id, hubspot_deal_id, stage')
+    .in('stage', ['invalid', 'dismissed'])
     .is('deleted_at', null);
-  if (invalidErr) return { ...summary, error: invalidErr.message };
-  const invalidContacts = new Set((invalidRows || []).map((row) => row.hubspot_contact_id).filter(Boolean).map(String));
-  const invalidDeals = new Set((invalidRows || []).map((row) => row.hubspot_deal_id).filter(Boolean).map(String));
+  if (quietErr) return { ...summary, error: quietErr.message };
+  const invalidRows = (quietRows || []).filter((row) => row.stage === 'invalid');
+  const dismissedRows = (quietRows || []).filter((row) => row.stage === 'dismissed');
+  const idsOf = (rows, key) => new Set(rows.map((row) => row[key]).filter(Boolean).map(String));
+  const invalidContacts = idsOf(invalidRows, 'hubspot_contact_id');
+  const invalidDeals = idsOf(invalidRows, 'hubspot_deal_id');
+  const dismissedContacts = idsOf(dismissedRows, 'hubspot_contact_id');
+  const dismissedDeals = idsOf(dismissedRows, 'hubspot_deal_id');
   for (const profile of targets) {
     const ownerHubspotId = String(profile.hubspot_owner_id).trim();
     const { data: state } = await admin.from('hubspot_sync_state').select('last_synced_at').eq('owner_id', profile.id).maybeSingle();
@@ -138,7 +143,7 @@ export async function pullHubspot({ admin, token, profiles }) {
           phone: contact.properties?.phone || '',
           email: contact.properties?.email || '',
           hubspot_owner_id: ownerHubspotId,
-          uncontacted: !invalidContacts.has(contactId) && isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
+          uncontacted: !invalidContacts.has(contactId) && !dismissedContacts.has(contactId) && isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
           synced_at: new Date().toISOString(),
         });
       }
@@ -153,7 +158,7 @@ export async function pullHubspot({ admin, token, profiles }) {
           phone: '',
           email: '',
           hubspot_owner_id: ownerHubspotId,
-          uncontacted: !invalidDeals.has(dealId) && isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
+          uncontacted: !invalidDeals.has(dealId) && !dismissedDeals.has(dealId) && isUncontactedLead({ hubspot_owner_id: ownerHubspotId, closed: false, engagements }, ownerHubspotId),
           synced_at: new Date().toISOString(),
         });
       }

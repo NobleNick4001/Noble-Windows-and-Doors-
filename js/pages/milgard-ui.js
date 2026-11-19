@@ -295,9 +295,11 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     ...roomLabelProps(() => calc.label || '', setRoom),
   }), roomMsg);
 
+  // AX650 parses mixed fractions such as 35 1/2. inputmode=decimal has no space or slash,
+  // so that keypad would block fraction entry. Decimals (36.5) still price. Other sizes use the decimal keypad.
   const sizeAttrs = ax
-    ? { type: 'text', inputmode: 'text', placeholder: '0', autocomplete: 'off' }
-    : { type: 'text', inputmode: 'decimal', pattern: '[0-9]*[.]?[0-9]*', placeholder: '0' };
+    ? { type: 'text', inputmode: 'text', enterkeyhint: 'next', placeholder: '0', autocomplete: 'off' }
+    : { type: 'text', inputmode: 'decimal', pattern: '[0-9]*', enterkeyhint: 'next', placeholder: '0', autocomplete: 'off' };
   const onSize = (assign) => (e) => {
     const cleaned = ax ? inchField(e.target.value) : decimal(e.target.value);
     if (e.target.value !== cleaned) e.target.value = cleaned;

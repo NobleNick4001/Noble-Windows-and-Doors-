@@ -2,6 +2,7 @@
 // not wait on cdn.jsdelivr.net. That URL is only a fallback if the local file throws.
 // The publishable key is a client key.
 import { h, store, estimates, totals, summaryLines, toast, browserOffline, OFFLINE_MESSAGE } from './core.js';
+import { canDeleteEstimate, wasPresented } from './mine-rules.js';
 import { passwordError, publicPasswordFailure, recoveryFromHash, toPublicAccount } from '../supabase/functions/account-passwords/password.js';
 
 export const SUPABASE_URL = 'https://nmyatpcjqfokmfbssimc.supabase.co';
@@ -322,9 +323,13 @@ function restoreDeleted(remoteId) {
   return true;
 }
 
-function notifyDeleteFailed() {
-  toast(DELETE_FAILED_MESSAGE);
-  window.dispatchEvent(new CustomEvent('nwd-delete-failed', { detail: { message: DELETE_FAILED_MESSAGE } }));
+function notifyDeleteFailed(message) {
+  const specific = /only an admin can delete an estimate after it has been presented/i.test(String(message || ''));
+  const text = specific
+    ? 'Only an admin can delete an estimate after it has been presented.'
+    : DELETE_FAILED_MESSAGE;
+  toast(text);
+  window.dispatchEvent(new CustomEvent('nwd-delete-failed', { detail: { message: text } }));
 }
 
 function installSync() {
@@ -340,7 +345,11 @@ function installSync() {
   };
   estimates.remove = (id) => {
     const e = estimates.all()[id];
-    if (e?.ownerId && me && e.ownerId !== me && !isAdmin()) {
+    if (e && !canDeleteEstimate(e, { admin: isAdmin(), uid: me })) {
+      if (wasPresented(e) && !isAdmin()) {
+        notifyDeleteFailed('only an admin can delete an estimate after it has been presented');
+        return;
+      }
       toast('You can only delete your own estimates.');
       return;
     }
@@ -459,7 +468,7 @@ async function doFlush() {
         const msg = String(err?.message || err);
         if (item.ops.includes('delete')) {
           restoreDeleted(item.remoteId);
-          notifyDeleteFailed();
+          notifyDeleteFailed(msg);
           console.error('soft delete failed', msg);
           continue;
         }
@@ -888,6 +897,7 @@ export function markLeadCalled(id) { return leadRpc('lead_mark_called', { p_id: 
 export function setLeadAppointment(id, at) { return leadRpc('lead_set_appointment', { p_id: id, p_at: at }); }
 export function linkLeadEstimate(id, estimateId) { return leadRpc('lead_link_estimate', { p_id: id, p_estimate: estimateId }); }
 export function markLeadLost(id) { return leadRpc('lead_mark_lost', { p_id: id }); }
+export function dismissLead(id, reason) { return leadRpc('lead_dismiss', { p_id: id, p_reason: reason || '' }); }
 
 export async function leadAction(action, body) {
   const offline = needsConnection();

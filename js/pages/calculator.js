@@ -137,7 +137,15 @@ function decimalText(raw) {
   return i < 0 ? cleaned : cleaned.slice(0, i + 1) + cleaned.slice(i + 1).replace(/\./g, '');
 }
 export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', id, pattern, inches = false } = {}) {
-  const input = h('input', { type: 'text', inputmode: inches ? 'text' : 'decimal', pattern: pattern || null, id, value: value ?? '', placeholder: '0', 'aria-label': label,
+  // Width and height. AX650 accepts "35 1/2", and the decimal keypad has no space or slash,
+  // so those fields stay on the text keyboard. Every other inch field uses the decimal keypad.
+  const measurement = unit === 'in' || inches === true;
+  const input = h('input', {
+    type: 'text',
+    inputmode: inches ? 'text' : 'decimal',
+    pattern: inches ? null : (measurement ? '[0-9]*' : (pattern || null)),
+    enterkeyhint: measurement ? 'next' : null,
+    id, value: value ?? '', placeholder: '0', 'aria-label': label,
     oninput: (e) => {
       const cleaned = inches ? inchField(e.target.value) : decimalText(e.target.value);
       if (e.target.value !== cleaned) e.target.value = cleaned;
@@ -233,7 +241,7 @@ export function render(root) {
           autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false',
           ...roomLabelProps(() => calc.label || '', setRoom),
         }), roomMsg),
-        h('div', { class: 'grid3' }, stepper('Width', calc.w, (v) => { calc.w = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-w', pattern: '[0-9]*[.]?[0-9]*' }), stepper('Height', calc.h, (v) => { calc.h = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-h', pattern: '[0-9]*[.]?[0-9]*' }), stepper('Qty', calc.qty, (v) => { calc.qty = v; persist(); update(); }, { step: 1, min: 1, id: 'in-q' }))),
+        h('div', { class: 'grid3' }, stepper('Width', calc.w, (v) => { calc.w = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-w' }), stepper('Height', calc.h, (v) => { calc.h = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-h' }), stepper('Qty', calc.qty, (v) => { calc.qty = v; persist(); update(); }, { step: 1, min: 1, id: 'in-q' }))),
       h('p', { class: 'fine', id: 'size-limit' }, sizeLimitText(args())),
       h('p', { class: 'warn size-err', id: 'size-err', hidden: true }, ''),
       archOver

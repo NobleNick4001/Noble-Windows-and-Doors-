@@ -276,7 +276,13 @@ export async function renderRep(root, monthToken) {
   const metricEstimates = owned
     .filter((e) => !invalid.estimateIds.has(e.remoteId) && !invalid.estimateIds.has(e.id) && !(e.leadId && invalid.leadIds.has(e.leadId)))
     .map((e) => ({ ...toMetricEstimate(e), total_amount: totals(e).total }));
-  const hubLeads = (extras.leads || []).filter((row) => !invalid.hubspotKeys.has(`${row.hubspot_object}:${row.hubspot_id}`));
+  const dismissedKeys = new Set();
+  for (const lead of appLeads) {
+    if (lead?.stage !== 'dismissed') continue;
+    if (lead.hubspot_contact_id) dismissedKeys.add('contact:' + lead.hubspot_contact_id);
+    if (lead.hubspot_deal_id) dismissedKeys.add('deal:' + lead.hubspot_deal_id);
+  }
+  const hubLeads = (extras.leads || []).filter((row) => !invalid.hubspotKeys.has(`${row.hubspot_object}:${row.hubspot_id}`) && !dismissedKeys.has(`${row.hubspot_object}:${row.hubspot_id}`));
   const metrics = monthMetrics({ estimates: metricEstimates, appointments: extras.appointments || [], ownerId: isAdmin() ? null : uid, month, leads: appLeads });
   const stalled = metricEstimates.filter((e) => isStalledDeal(e, [e.presented_at, e.updated_at], now)).map((e) => ({
     id: e.id, customer_name: e.customer_name, total: e.total_amount,

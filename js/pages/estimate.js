@@ -6,6 +6,7 @@ import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../mil
 import { doorInstallEditor, milgardLineEditor, ax650LineEditor } from './milgard-ui.js';
 import { ax650Description, ax650Model, ax650Install } from '../ax650.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin, markLost, markWon, reopenEstimate, recordAppointment } from '../cloud.js';
+import { MINE_FILTERS, canDeleteEstimate, inMineFolder, mineCounts, mineSearchMatch } from '../mine-rules.js';
 import { lostConfirm, wonConfirm, deleteConfirm } from './lost.js';
 import { renderRep } from './sales.js';
 import { contractPay, makeEstimatePdf } from '../pdf.js';
@@ -41,7 +42,7 @@ async function confirmWon(e, rerender) {
   finally { wonUi.busy = false; rerender(); }
 }
 function canDelete(e, uid) {
-  return isAdmin() || !e?.ownerId || !uid || e.ownerId === uid;
+  return canDeleteEstimate(e, { admin: isAdmin(), uid });
 }
 async function confirmLost(e, rerender) {
   if (lostUi.busy) return;
@@ -380,7 +381,7 @@ export function render(root) {
               save();
             },
           })),
-          h('div', { class: 'grid3' }, stepper(isAx650Line(l) && ax650Model(data.ax650, l.type)?.width?.daylight ? 'Opening (daylight) width' : (isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame width' : 'Width'), l.w, (v) => { l.w = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: isAx650Line(l) ? null : '[0-9]*[.]?[0-9]*', inches: isAx650Line(l) }), stepper(isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', pattern: isAx650Line(l) ? null : '[0-9]*[.]?[0-9]*', inches: isAx650Line(l) }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
+          h('div', { class: 'grid3' }, stepper(isAx650Line(l) && ax650Model(data.ax650, l.type)?.width?.daylight ? 'Opening (daylight) width' : (isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame width' : 'Width'), l.w, (v) => { l.w = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', inches: isAx650Line(l) }), stepper(isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', inches: isAx650Line(l) }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
         sizeLimitText(l) ? h('p', { class: 'fine' }, sizeLimitText(l)) : null,
         h('p', { class: 'warn size-err', id: 'size-err-edit-' + l.id, hidden: l.sizeError ? null : true }, l.sizeError || ''),
         isIntegralType(l)
@@ -664,13 +665,6 @@ function ownerLine(x, uid) {
   return name || 'Another rep';
 }
 
-const MINE_FILTERS = [
-  ['all', 'All'],
-  ['draft', 'Draft'],
-  ['presented', 'Shown'],
-  ['won', 'Won'],
-  ['lost', 'Lost'],
-];
 let mineQuery = '';
 let mineFilter = 'all';
 
@@ -678,16 +672,12 @@ export function renderList(root, sub) {
   if (sub === 'sales') { renderRep(root, sub === 'sales' ? '' : sub); return; }
   const uid = userId();
   const seeAll = canSeeAllEstimates();
-  const all = estimates.list().filter((x) => {
+  const owned = estimates.list().filter((x) => {
     if (x.deletedAt) return false;
-    if (!(seeAll || !uid || !x.ownerId || x.ownerId === uid)) return false;
-    const status = x.status || 'draft';
-    if (mineFilter !== 'all' && status !== mineFilter) return false;
-    const q = mineQuery.trim().toLowerCase();
-    if (!q) return true;
-    const hay = [x.customer?.name, x.customer?.first, x.customer?.last, x.customer?.address, x.customer?.phone, x.number].join(' ').toLowerCase();
-    return hay.includes(q);
+    return seeAll || !uid || !x.ownerId || x.ownerId === uid;
   });
+  const counts = mineCounts(owned, mineQuery);
+  const all = owned.filter((x) => inMineFolder(x, mineFilter) && mineSearchMatch(x, mineQuery));
   const cur = estimates.currentId();
   const wrap = h('div', { class: 'page' }, mineTabs('estimates'),
   h('div', { class: 'row between wrap gap' }, h('h1', {}, seeAll ? 'Estimates' : 'My estimates'), h('div', { class: 'row gap' },
@@ -710,8 +700,14 @@ export function renderList(root, sub) {
   wrap.append(h('div', { class: 'chips', id: 'mine-filters' }, MINE_FILTERS.map(([id, label]) => h('button', {
     type: 'button', class: 'chip' + (mineFilter === id ? ' on' : ''), id: 'mine-filter-' + id,
     onclick: () => { mineFilter = id; renderList(root); },
-  }, label))));
-  if (!all.length) wrap.append(h('div', { class: 'card muted', id: 'mine-empty' }, mineQuery || mineFilter !== 'all' ? 'No estimates match.' : 'No estimates yet. They show up here as you build them.'));
+  }, label, h('span', { class: 'chip-n', id: 'mine-count-' + id }, String(counts[id] || 0))))));
+  if (!all.length) {
+    const empty = mineQuery ? 'No estimates match.'
+      : mineFilter === 'all' && counts.lost ? 'No open estimates. Lost estimates are under Lost.'
+      : mineFilter !== 'all' ? 'No estimates match.'
+      : 'No estimates yet. They show up here as you build them.';
+    wrap.append(h('div', { class: 'card muted', id: 'mine-empty' }, empty));
+  }
   all.forEach((x) => {
     const t = totals(x);
     const statusWord = statusLabel(x.status);
@@ -730,7 +726,7 @@ export function renderList(root, sub) {
         h('button', { class: 'btn sm', onclick: () => { estimates.duplicate(x.id); location.hash = '#/estimate'; } }, 'Duplicate'),
         x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm primary', id: 'btn-won-' + x.id, onclick: () => { wonUi.forId = x.id; wonUi.confirm = true; renderList(root); } }, 'Won') : null,
         x.status === 'presented' && mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-lost-' + x.id, onclick: () => { lostUi.forId = x.id; lostUi.confirm = true; renderList(root); } }, 'Lost') : null,
-        mine ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-delete-' + x.id, onclick: () => { deleteNotice = ''; deleteUi.forId = x.id; deleteUi.confirm = true; renderList(root); } }, 'Delete') : null)));
+        canDelete(x, uid) ? h('button', { type: 'button', class: 'btn sm danger', id: 'btn-delete-' + x.id, onclick: () => { deleteNotice = ''; deleteUi.forId = x.id; deleteUi.confirm = true; renderList(root); } }, 'Delete') : null)));
   });
   if (lostUi.confirm) {
     const target = all.find((x) => x.id === lostUi.forId && x.status === 'presented');
