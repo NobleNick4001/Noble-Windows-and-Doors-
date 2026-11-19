@@ -2,7 +2,7 @@
 // The browser never sends a destination number or a message body.
 // Customers are never texted.
 
-import { plainEngagement } from '../_shared/assistant.js';
+import { plainEngagement } from './followup.js';
 import { leadUpsertPlan } from '../_shared/lead-upsert.js';
 import { assignmentText, overdueText, quoEnv, sendStaffText } from '../_shared/quo.js';
 
