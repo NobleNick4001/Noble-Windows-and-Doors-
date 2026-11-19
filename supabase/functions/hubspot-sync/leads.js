@@ -3,6 +3,7 @@
 // Customers are never texted.
 
 import { plainEngagement } from '../_shared/assistant.js';
+import { leadUpsertPlan } from '../_shared/lead-upsert.js';
 import { assignmentText, overdueText, quoEnv, sendStaffText } from '../_shared/quo.js';
 
 const CONTACT_PROPS = ['firstname', 'lastname', 'phone', 'mobilephone', 'email', 'address', 'city', 'state', 'zip', 'hubspot_owner_id', 'hs_analytics_source', 'hs_latest_source'];
@@ -114,6 +115,7 @@ async function dealContactId(token, dealId) {
   }
 }
 
+// Reads HubSpot and upserts unassigned leads. Does not send a text.
 export async function pullUnassigned({ admin, token, inboxOwnerId = '', stageLabel = '' }) {
   const summary = { imported: 0, updated: 0, error: '' };
   if (!token) return { ...summary, ok: false, error: 'HUBSPOT_TOKEN is not set' };
@@ -186,7 +188,7 @@ export async function pullUnassigned({ admin, token, inboxOwnerId = '', stageLab
   }
 }
 
-async function saveLead(admin, row) {
+async function saveLead(admin, row, allowRetry = true) {
   let existing = null;
   if (row.hubspot_contact_id) {
     const found = await admin.from('leads').select('id, owner_id, notes, hubspot_contact_id, hubspot_deal_id').eq('hubspot_contact_id', row.hubspot_contact_id).is('deleted_at', null).maybeSingle();
@@ -197,22 +199,15 @@ async function saveLead(admin, row) {
     existing = found.data;
   }
   const now = new Date().toISOString();
-  if (!existing) {
-    const { error } = await admin.from('leads').insert({ ...row, stage: 'new', synced_at: now });
+  const plan = leadUpsertPlan(existing, row, now);
+  if (plan.action === 'skip') return 'skipped';
+  if (plan.action === 'insert') {
+    const { error } = await admin.from('leads').insert(plan.values);
+    if (error?.code === '23505' && allowRetry) return saveLead(admin, row, false);
     if (error) throw new Error(error.message);
     return 'inserted';
   }
-  const { error } = await admin.from('leads').update({
-    name: row.name,
-    phone: row.phone,
-    email: row.email,
-    address: row.address,
-    notes: row.notes || existing.notes,
-    source: row.source,
-    hubspot_contact_id: row.hubspot_contact_id || existing.hubspot_contact_id,
-    hubspot_deal_id: row.hubspot_deal_id || existing.hubspot_deal_id,
-    synced_at: now,
-  }).eq('id', existing.id);
+  const { error } = await admin.from('leads').update(plan.values).eq('id', plan.id).is('owner_id', null);
   if (error) throw new Error(error.message);
   return 'updated';
 }

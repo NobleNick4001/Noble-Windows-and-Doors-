@@ -54,6 +54,17 @@ function atPhoenix(y, m, d, minutes) {
   return new Date(Date.UTC(y, m - 1, d, hh + 7, mm, 0));
 }
 
+// True from the window open through the instant before close.
+// Mon–Fri 7:00 AM–6:00 PM, Sat–Sun 10:00 AM–4:00 PM, America/Phoenix.
+export function inLeadWindow(from = new Date()) {
+  const when = new Date(from);
+  if (Number.isNaN(when.getTime())) return false;
+  const here = parts(when);
+  const win = windowFor(here.y, here.m, here.d);
+  const localMs = ((here.hour * 60 + here.minute) * 60 + here.second) * 1000;
+  return localMs >= win.openMin * 60 * 1000 && localMs < win.closeMin * 60 * 1000;
+}
+
 export function leadCallPlan(from) {
   const startAt = new Date(from);
   if (Number.isNaN(startAt.getTime())) throw new Error('assigned time is not a date');
