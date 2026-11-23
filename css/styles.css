@@ -192,6 +192,8 @@ body[data-route="estimate-present"] main{max-width:none;padding:0 .35rem calc(96
 .calc-milgard .labor-box,.labor-box{flex:1 1 140px;border:1.5px solid var(--navy);background:#fff;color:var(--navy);border-radius:12px;padding:.65rem .55rem;min-height:48px;font:inherit;font-weight:700;font-size:.82rem;cursor:pointer;line-height:1.2;text-align:center}
 .calc-milgard .labor-box small,.labor-box small{display:block;font-weight:600;margin-top:.15rem}
 .calc-milgard .labor-box.on,.labor-box.on{background:var(--orange);border-color:var(--orange-d);color:var(--navy)}
+.calc-milgard .labor-box.hold,.labor-box.hold{border-style:dashed}
+.calc-milgard .labor-box.hold.on,.labor-box.hold.on{background:var(--navy);border-color:var(--navy);color:#fff}
 div.labor-box{cursor:default}
 .calc-milgard .labor-add.on{background:var(--orange);border-color:var(--orange-d);color:var(--navy)}
 .calc-milgard .size-err{color:var(--bad);font-size:.82rem;font-weight:700;min-height:1.1em;margin:.15rem 0 .4rem}
@@ -426,6 +428,7 @@ button.metric,button.sales-box{text-align:left;width:100%}
   .price-dock{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom));z-index:35;margin:0;border-radius:0;border-left:0;border-right:0;border-top:3px solid var(--orange);display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:.6rem;padding:.45rem .7rem;box-shadow:0 -4px 16px rgba(11,31,58,.12)}
   .price-dock h3,.price-dock .eyebrow,.price-dock .calc-drawing,.price-dock .calc-drawing-row,.price-dock .fine,.price-dock .note,.price-dock .math,.price-dock .link,.price-dock .line,.price-dock .warn{display:none}
   .price-dock .big{grid-column:1;grid-row:1;margin:0;font-size:1.7rem;text-align:left}
+  .price-dock .big.pending{font-size:1.15rem;line-height:1.2}
   .price-dock .sub{grid-column:1;grid-row:2;margin:0}
   .price-dock .btn{grid-column:2;grid-row:1 / span 2;width:auto;margin:0;min-height:48px}
   body[data-route="calculator"] main,body[data-route="doors"] main{padding-bottom:calc(160px + env(safe-area-inset-bottom))}

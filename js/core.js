@@ -2,7 +2,8 @@
 import { isMilgardDoorLine, milgardQuote, doorColorLabel } from './milgard.js';
 import { isPrehungLine, pricePrehung, prehungCompactLine, prehungQuoteLine } from './prehung.js';
 import { isAx650Line, ax650Description, ax650Quote, ax650Install } from './ax650.js';
-export { isMilgardDoorLine, isPrehungLine, isAx650Line };
+import { isPrlLine, prlDescription, prlQuote, prlQuoteMessage, prlInstall, PRL_QUOTE_LABEL } from './prl.js';
+export { isMilgardDoorLine, isPrehungLine, isAx650Line, isPrlLine };
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -72,6 +73,7 @@ export const PRICE_PENDING_LABEL = 'Price pending';
 export const NOT_AVAILABLE_LABEL = 'Not available';
 export const FLUSH_FIN_NOTE = 'Flush fin is only for installs into an existing aluminum frame with at least 3/8 inch of exterior surface. Not for tear-out replacements or openings over 3 stories above grade.';
 export function linePriceText(line) {
+  if (line?.quoteRequired) return PRL_QUOTE_LABEL;
   if (line?.unavailable) return NOT_AVAILABLE_LABEL;
   if (line?.pricePending) return PRICE_PENDING_LABEL;
   if (line?.unpriced) return 'Not priced';
@@ -79,7 +81,7 @@ export function linePriceText(line) {
 }
 
 // ---------- data ----------
-export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null, prehung: null, ax650: null };
+export const data = { rates: null, variableRates: null, options: null, gallery: null, settingsDefault: null, install: null, obscureGlass: null, frameTypes: null, promos: null, agreement: null, milgardOnelink: null, prehung: null, ax650: null, prl: null };
 export const OFFLINE_MESSAGE = "You're offline, try again when connected";
 export function browserOffline() { return typeof navigator !== 'undefined' && navigator.onLine === false; }
 export let settings = {};
@@ -87,8 +89,8 @@ export let settings = {};
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 
 export async function loadData() {
-  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement, data.milgardOnelink, data.prehung, data.ax650] = await Promise.all([
-    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'), getJSON('data/milgard-onelink.json'), getJSON('data/prehung-doors.json'), getJSON('data/milgard-ax650.json'),
+  [data.rates, data.variableRates, data.options, data.gallery, data.settingsDefault, data.install, data.obscureGlass, data.frameTypes, data.promos, data.agreement, data.milgardOnelink, data.prehung, data.ax650, data.prl] = await Promise.all([
+    getJSON('data/rates.json'), getJSON('data/variable-rates.json'), getJSON('data/options.json'), getJSON('assets/gallery/gallery.json'), getJSON('data/settings.default.json'), getJSON('data/install.json'), getJSON('data/obscure-glass.json'), getJSON('data/frame-types.json'), getJSON('data/promos.json'), getJSON('data/purchase-agreement.json'), getJSON('data/milgard-onelink.json'), getJSON('data/prehung-doors.json'), getJSON('data/milgard-ax650.json'), getJSON('data/prl.json'),
   ]);
   if (data.obscureGlass?.sections) {
     data.obscureGlass.patterns = data.obscureGlass.sections.flatMap((s) => (s.patterns || []).map((p) => ({ ...p, brand: p.brand || s.brand })));
@@ -111,10 +113,20 @@ export const colorName = (id) => colorById(id)?.name || id;
 
 // Stored p75/max already include this margin (customer = cost / 0.60). Selling margin is data/rates.json grossMargin.
 const QUOTED_MARGIN = 0.40;
-export function marginFactor() {
+function sellingMargin() {
   const g = Number(data.rates?.grossMargin);
-  const margin = Number.isFinite(g) && g >= 0 && g < 1 ? g : QUOTED_MARGIN;
-  return (1 - QUOTED_MARGIN) / (1 - margin);
+  return Number.isFinite(g) && g >= 0 && g < 1 ? g : QUOTED_MARGIN;
+}
+export function marginFactor() {
+  return (1 - QUOTED_MARGIN) / (1 - sellingMargin());
+}
+// Andersen iQ and Milgard OneLink both use customer = dealer / (1 - grossMargin).
+// At 45% that is dealer / 0.55. marginFactor() is only for the old stored $/inch
+// table, which already includes a 40% margin, so PRL must not use it.
+export function dealerToCustomer(cost) {
+  const n = Number(cost);
+  if (!Number.isFinite(n)) return 0;
+  return n / (1 - sellingMargin());
 }
 export function getRate(brandId, series, color, type, rateSet = settings.rateSet) {
   const b = brandById(brandId);
@@ -204,6 +216,7 @@ export function seriesColorIds(brand, seriesId, type) {
 function classifyLine(line) {
   if (!line || line.type === 'custom_supplier' || line.customSupplier) return { mode: 'custom' };
   if (isAx650Line(line)) return { mode: 'ax650' };
+  if (isPrlLine(line)) return { mode: 'prl' };
   const vr = data.variableRates;
   if (!vr) return { mode: 'fallback' };
   let brand = line.brand;
@@ -333,6 +346,19 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
       brandName,
     };
   }
+  if (isPrlLine(line)) {
+    const d = prlDescription(data.prl, line);
+    const qty = Number(line.qty) || 1;
+    const times = ascii ? 'x' : '×';
+    const priceText = line.quoteRequired ? PRL_QUOTE_LABEL : (line.unpriced ? 'Not priced' : '');
+    return {
+      title: `${line.label || 'Door'} — ${d.title}`.replace(/\s+/g, ' ').trim(),
+      detail: [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, d.details.join(', '), d.note, `Qty ${qty}`].filter(Boolean).join(' · '),
+      price: (Number(line.unit) || 0) * qty,
+      priceText,
+      brandName: 'PRL',
+    };
+  }
   line = line || {};
   const brandName = brandById(line.brand)?.name || line.brand || '';
   const custom = String(line.customDescription || '').trim();
@@ -383,6 +409,19 @@ export function quoteLine(line, { ascii = false } = {}) {
       qty: Number(line.qty) || 1,
       price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
       priceText: '',
+    };
+  }
+  if (isPrlLine(line)) {
+    const d = prlDescription(data.prl, line);
+    const times = ascii ? 'x' : '×';
+    return {
+      location: line.label || 'Door',
+      title: d.title,
+      details: [...d.details, d.note].filter(Boolean),
+      size: `${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`,
+      qty: Number(line.qty) || 1,
+      price: (Number(line.unit) || 0) * (Number(line.qty) || 0),
+      priceText: line.quoteRequired ? PRL_QUOTE_LABEL : (line.unpriced ? 'Not priced' : ''),
     };
   }
   line = line || {};
@@ -731,6 +770,23 @@ function buildMaterial(line) {
       pricePending: false, provisional: false, unavailable: false, notes: q.notes, errors: [],
     };
   }
+  if (isPrlLine(line)) {
+    const q = prlQuote(data.prl, line);
+    const blank = {
+      mode: 'prl', blocked: true, errors: q.errors, unit: null, unitBase: null, optionsEach: 0,
+      rate: null, estimated: false, wh: 0, fromQuotes: true, detail: null,
+      pricePending: false, provisional: false, unavailable: false, quoteRequired: !!q.quoteRequired,
+      quoteMessage: prlQuoteMessage(q), notes: q.notes,
+    };
+    if (q.unsized || q.errors.length || q.quoteRequired || q.cost == null) return blank;
+    const unit = roundMoney(dealerToCustomer(q.cost));
+    return {
+      mode: 'prl', unit, unitBase: unit, optionsEach: 0,
+      rate: null, estimated: false, wh: Number(line.w) + Number(line.h), fromQuotes: true, detail: null,
+      pricePending: false, provisional: false, unavailable: false, quoteRequired: false,
+      notes: q.notes, errors: [],
+    };
+  }
   const model = classifyLine(line);
   const w = finite(line.w), h = finite(line.h);
   if (model.mode === 'custom') {
@@ -808,6 +864,11 @@ const doorPanelKey = (line) => (data.install?.doors?.panels?.[line?.type] != nul
 export function installUnit(inst, line) {
   if (line && isPrehungLine(line)) return pricePrehung(data.prehung, line.prehung || line).labor;
   if (line && isAx650Line(line)) return ax650Install(data.ax650, line);
+  if (line && isPrlLine(line)) {
+    const q = prlQuote(data.prl, line);
+    if (!q || q.unsized || q.errors.length || q.quoteRequired || q.cost == null) return 0;
+    return prlInstall(data.ax650, line);
+  }
   inst = inst || defaultInstall();
   if (inst.override != null && inst.override !== '' && !isNaN(inst.override)) return roundMoney(Number(inst.override));
   if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
@@ -858,6 +919,7 @@ export function installLabel(inst, line) {
     const style = ax650Description(data.ax650, line).style;
     return style ? `${style} install` : 'AX650 install';
   }
+  if (line && isPrlLine(line)) return 'PRL installation';
   inst = inst || defaultInstall();
   if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
     const name = { '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel' }[line.type] || 'Patio door';

@@ -44,6 +44,15 @@
       "lines": [
         {"id":"8800","name":"8800 Series Ambassador","tag":"Aluminum","bullets":["The aluminum window installed in most homes","ThermoTech frames are fully thermally broken","Low-E glass is standard","The frame can be one color outside and another inside","Lifetime limited warranty for the original single-family homeowner while they own the home"]}
       ]
+    },
+    {
+      "id": "prl",
+      "name": "PRL",
+      "note": "Aluminum multi-slide and bifold doors. Bronze anodized is the finish this quote prices.",
+      "lines": [
+        {"id":"max","name":"Max multi-slide","tag":"Bottom-rolling","bullets":["3 to 5 panels","Max Thermal is optional","Nail-on screen is optional","Solarban 70, or Energy Advantage glass"]},
+        {"id":"bifold","name":"Bifold","tag":"Top-hung","bullets":["3 to 5 panels","Top-hung is the usual door","Bottom-rolling is optional","Solarban 70 glass"]}
+      ]
     }
   ],
   "warranty": {

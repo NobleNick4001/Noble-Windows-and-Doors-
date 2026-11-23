@@ -1,6 +1,7 @@
 import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE, rowAmountText } from '../core.js';
 import { parseInches, inchField } from '../ax650.js';
 import { renderMilgard, roomLabelProps } from './milgard-ui.js';
+import { renderPrl } from './prl-ui.js';
 import { frameSVG } from '../frames.js';
 import { drawingEl } from '../drawings.js';
 import { icon as uiIcon } from '../icons.js';
@@ -205,6 +206,10 @@ export function render(root) {
   const brand = normalize();
   if (brand.id === 'milgard') {
     renderMilgard(root, { calc, persist, rerender: () => render(root) });
+    return;
+  }
+  if (brand.id === 'prl') {
+    renderPrl(root, { calc, persist, rerender: () => render(root) });
     return;
   }
   const view = captureView();
