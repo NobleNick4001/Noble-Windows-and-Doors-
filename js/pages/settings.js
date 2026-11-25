@@ -38,11 +38,12 @@ export function render(root) {
       h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Rate set (admin)'), rateSet),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: s.roundToDollar ? 'checked' : null, onchange: (e) => { s.roundToDollar = e.target.checked; commit(); } }), h('span', {}, 'Round prices to whole dollars')),
       f('Estimate valid for (days)', () => s.validDays, (v) => (s.validDays = parseInt(v) || 30), 'number'),
-      h('p', { class: 'fine' }, 'Installation is one price. Shipping is $150. Sales tax is 9.1% of the materials.')));
+      h('p', { class: 'fine' }, 'Installation is one price. Shipping is $150. Sales tax is 9.1% of the materials.'),
+      h('p', { class: 'fine', id: 'prl-rate-note' }, 'PRL multi-slide and bifold prices are in data/prl.json. Bronze anodized, 3 to 5 panels, inside the sheet’s width and height. Anything else says Get a PRL quote or is left blank.')));
   }
   // rate table viewer (admin). Fitted cells are selling prices from the quote model.
   const trimNum = (n) => String(Math.round(Number(n) * 10000) / 10000);
-  const activeBrands = showRates ? data.rates.brands.filter((x) => x.status === 'active' && x.series?.length) : [];
+  const activeBrands = showRates ? data.rates.brands.filter((x) => x.status === 'active' && x.series?.length && x.id !== 'prl') : [];
   for (const b of activeBrands) {
     const typeIds = [...new Set(b.series.flatMap((se) => se.types))];
     const rows = [];

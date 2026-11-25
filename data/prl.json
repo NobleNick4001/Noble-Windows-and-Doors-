@@ -1,0 +1,40 @@
+{
+  "_readme": "PRL Max multi-slide and PRL bifold. Every dollar here is PRL's dealer amount to Noble, delivered to Arizona, bronze anodized, freight 0. The app prices the customer from data/rates.json grossMargin the same way Andersen and Milgard do (dealer / (1 - grossMargin)). Do not store the customer price in this file. Installation is the Milgard AX650 schedule in data/milgard-ax650.json and is not part of the product price. Energy Advantage is a multi-slide glass option only. A bifold with that glass, any finish other than bronze anodized, a pocket, a 90-degree corner, 6 or more panels, a bifold screen, or a thermal bifold is not priced.",
+  "source": "PRL multi-slide and bifold pricing sheet, 2026-11-23",
+  "pricesAre": "dealer",
+  "applyMargin": true,
+  "finishPriced": "bronze-anodized",
+  "glass": {
+    "sb70": { "id": "sb70", "name": "Solarban 70" },
+    "ea": { "id": "ea", "name": "Energy Advantage", "factor": 1.03, "products": ["multislide"] }
+  },
+  "products": {
+    "multislide": {
+      "id": "multislide",
+      "name": "Multi-slide",
+      "series": "max",
+      "system": "PRL Max, bottom-rolling",
+      "panels": { "min": 3, "max": 5 },
+      "width": { "min": 143, "max": 287.5 },
+      "height": { "min": 80, "max": 120 },
+      "perPanel": 1451.53,
+      "perSqFt": 30.81,
+      "constant": -1236.96,
+      "thermalFactor": 1.21,
+      "nailOnScreen": 455
+    },
+    "bifold": {
+      "id": "bifold",
+      "name": "Bifold",
+      "series": "bifold",
+      "system": "PRL, top-hung",
+      "panels": { "min": 3, "max": 5 },
+      "width": { "min": 95.5, "max": 168 },
+      "height": { "min": 80, "max": 119 },
+      "perPanel": 1392.99,
+      "perSqFt": 25.99,
+      "constant": 0,
+      "bottomRollingFactor": 1.0555
+    }
+  }
+}

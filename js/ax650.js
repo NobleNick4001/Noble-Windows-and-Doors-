@@ -8,12 +8,16 @@ const UNI = { '½': '1/2', '¼': '1/4', '¾': '3/4', '⅛': '1/8', '⅜': '3/8',
 export const AX650_SERIES = 'AX650';
 
 // Customer install price. applyMargin must stay false, so this is not marked up.
-export function ax650Install(cat, line) {
+// PRL doors use this same schedule, by panel count, through ax650PanelInstall.
+export function ax650PanelInstall(cat, panels) {
   const book = ax650Catalog(cat);
   const labor = book?.install;
-  const panels = Number(ax650Model(book, line?.type)?.panels) || 0;
-  if (!book || !labor || labor.applyMargin !== false || labor.pricesAre !== 'customer' || !panels) return 0;
-  return Math.round(((Number(labor.flat) || 0) + (Number(labor.perPanel) || 0) * panels) * 100) / 100;
+  const n = Number(panels) || 0;
+  if (!book || !labor || labor.applyMargin !== false || labor.pricesAre !== 'customer' || n < 1) return 0;
+  return Math.round(((Number(labor.flat) || 0) + (Number(labor.perPanel) || 0) * n) * 100) / 100;
+}
+export function ax650Install(cat, line) {
+  return ax650PanelInstall(cat, ax650Model(ax650Catalog(cat), line?.type)?.panels);
 }
 
 export function isAx650Line(line) {
