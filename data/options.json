@@ -34,7 +34,7 @@
         {"id":"400","name":"400 Series","tag":"Wood core","bullets":["Wood core, Perma-Shield exterior","Full glass menu and more sizes and shapes"]},
         {"id":"A","name":"A-Series","tag":"Architectural","bullets":["Architectural Collection","Solid wood interior, Fibrex exterior"]},
         {"id":"E","name":"E-Series","tag":"Built to order","bullets":["Wood interior, extruded aluminum exterior","Built to order"]},
-        {"id":"smartsun","name":"Low-E4 SmartSun","tag":"Glass","bullets":["The Andersen glass to ask for in Phoenix","About 95% of UV blocked on Andersen's published figures","Low-E4 Sun is the tinted glass for severe west sun only","PassiveSun is for cold climates, not Phoenix"]}
+        {"id":"smartsun","name":"Low-E SmartSun","tag":"Glass","bullets":["Thermal control similar to tinted glass, with visible light transmittance similar to Low-E","Low-E Sun is for southern climates where less solar heat gain is desired","PassiveSun is for northern passive-solar homes, where solar heat gain is wanted"]}
       ]
     },
     {

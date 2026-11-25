@@ -37,7 +37,7 @@ if (!calc.includes("enterkeyhint: measurement ? 'next' : null")) fail('inch fiel
 if (!calc.includes("inputmode: inches ? 'text' : 'decimal'")) fail('fraction sizes stay on the text keyboard');
 if (!est.includes('inches: isAx650Line(l)')) fail('estimate AX650 lines keep fraction entry');
 if (!css.includes('.room-size>.room-label{order:0}') || !css.includes('.room-label{scroll-margin-top:96px}')) fail('css should pin the room label above the size fields');
-if (!sw.includes("const CACHE = 'nwd-sales-v76-prl-doors'")) fail('service worker cache should be nwd-sales-v76-prl-doors');
+if (!sw.includes("const CACHE = 'nwd-sales-v77-andersen-100'")) fail('service worker cache should be nwd-sales-v77-andersen-100');
 if (!est.includes("id: 'room-' + l.id")) fail('each estimate line needs its own room field id');
 
 if (errs.length) {
