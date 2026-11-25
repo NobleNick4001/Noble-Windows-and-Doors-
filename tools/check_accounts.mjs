@@ -50,7 +50,7 @@ if (/for\s+delete/i.test(sql)) fail('schema must not grant a DELETE policy');
 if (!/before delete on public\.estimates/i.test(sql) || !/before delete on public\.contracts/i.test(sql)) fail('hard delete triggers missing');
 
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-if (!sw.includes("const CACHE = 'nwd-sales-v75-dismiss-leads'")) fail('service worker should be nwd-sales-v75-dismiss-leads');
+if (!sw.includes("const CACHE = 'nwd-sales-v76-andersen-100'")) fail('service worker should be nwd-sales-v76-andersen-100');
 for (const file of ['js/cloud.js', 'js/pages/auth.js', 'js/pages/admin.js', 'js/milgard.js', 'data/milgard-onelink.json']) {
   if (!sw.includes(file)) fail('precache missing ' + file);
 }

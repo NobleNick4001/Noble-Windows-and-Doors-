@@ -60,7 +60,9 @@ input[type=range]{width:100%;height:36px;accent-color:var(--orange)}
 .mini .btn{width:100%;margin-top:.5rem}
 .soon{text-align:center;padding:2.5rem 1rem}
 .lineitem{border:1px solid var(--line);border-radius:12px;padding:.7rem;margin:.5rem 0;display:flex;flex-direction:column;gap:.5rem;background:#fff}.card.lineitem{margin:0}.lineitem.current{border-color:var(--orange);box-shadow:inset 0 0 0 1px var(--orange)}
-.li-main{display:flex;gap:.8rem;align-items:center}.li-text{flex:1;min-width:0}.li-price{text-align:right;white-space:nowrap}
+.li-main{display:flex;gap:.8rem;align-items:center}.li-text{flex:1;min-width:0}.li-price{text-align:right;white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;gap:.2rem}
+.verify-iq{display:inline-block;background:#fff;color:var(--navy);border:1px solid var(--blue);border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.01em;padding:.1rem .5rem;margin:.3rem 0}
+.verify-iq[hidden]{display:none}
 .edit{border-top:1px dashed var(--line);padding-top:.7rem;display:flex;flex-direction:column;gap:.6rem}
 .extra input.amt{width:130px}.taxin{width:80px!important;min-height:40px!important;text-align:right}
 .promo-row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}.promo-row input{flex:1 1 160px;min-width:0;width:auto}.promo-row .btn{flex:none}

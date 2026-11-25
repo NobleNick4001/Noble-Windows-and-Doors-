@@ -190,6 +190,47 @@ function andersenColorAdder(A, typeId, color) {
   const n = andersenColorTable(A, typeId)?.[color];
   return typeof n === 'number' ? n : null;
 }
+// Colonial, prairie, and Andersen grilles-between-the-glass share one drawing.
+// GBG has no pattern picker, so it uses the same divided-lite grid as colonial.
+export function grilleKind(line) {
+  const ids = new Set([...(line?.options || []), ...(line?.addons || [])]);
+  if (ids.has('grids') || ids.has('grids-colonial') || ids.has('grilles_gbg')) return 'colonial';
+  if (ids.has('grids-prairie')) return 'prairie';
+  return '';
+}
+// Flush fin follows the frame, not a later labor override.
+// No install object at all (the iQ check lines) still follows the addon.
+function andersenFlushOn(line, typeDef) {
+  if (!typeDef?.flushFin) return false;
+  const inst = line?.install;
+  if (!inst) return (line?.addons || []).includes('flush_fin_trim');
+  return inst.frameType === 'zbar';
+}
+export function syncAndersenFlushAddon(line) {
+  if (line?.brand !== 'andersen' || !line.install) return;
+  const typeId = andersenTypeId(line.type);
+  const typeDef = andersenConfig()?.types?.[typeId];
+  const can = !!(typeDef?.flushFin) || !!ARCH_OVER[line.type];
+  setLineAddon(line, 'flush_fin_trim', can && line.install.frameType === 'zbar');
+}
+// Frame choice sets labor and flush fin together. A later install-type change sticks.
+export function chooseAndersenFrame(line, frameId) {
+  if (!line) return line;
+  line.install ||= { type: 'standard', surcharges: [], override: null, custom: null, frameType: null };
+  line.install.frameType = frameId || null;
+  line.install.installPicked = false;
+  const ft = frameTypeById(frameId);
+  if (ft?.installType) line.install.type = ft.installType;
+  syncAndersenFlushAddon(line);
+  return line;
+}
+export function chooseAndersenInstall(line, typeId) {
+  if (!line) return line;
+  line.install ||= { type: 'standard', surcharges: [], override: null, custom: null, frameType: null };
+  line.install.type = typeId;
+  line.install.installPicked = true;
+  return line;
+}
 // Colors the iQ sheet actually prices for this type. Patio doors are White, Black/White, and Black/Black.
 export function seriesColorIds(brand, seriesId, type) {
   const series = brandById(brand)?.series?.find((s) => s.id === seriesId);
@@ -503,11 +544,28 @@ export function sizeLimitText(line) {
   if (w) bits.push(`width ${w}`);
   if (h) bits.push(`height ${h}`);
   let text = `${typeDef.name}: ${bits.join(', ')}.`;
-  if (typeDef.limits.rule) text += ` ${typeDef.limits.rule}.`;
+  if (typeDef.limits.rule) {
+    const rule = String(typeDef.limits.rule).trim().replace(/\.$/, '');
+    text += ` ${rule}.`;
+  }
   if (typeDef.integral) text += ' Priced as one combined unit at this overall size.';
+  text += ' Sizes are in 1/8 inch steps.';
   return text;
 }
-function andersenSizeErrors(typeDef, w, h) {
+function onEighth(n) {
+  if (!Number.isFinite(n)) return false;
+  const scaled = n * 8;
+  return Math.abs(scaled - Math.round(scaled)) < 0.02;
+}
+function outsideIqSample(typeDef, w, h) {
+  const s = typeDef?.sampled;
+  if (!s?.w || !s?.h) return false;
+  const [w0, w1] = s.w;
+  const [h0, h1] = s.h;
+  if (w0 == null || h0 == null) return false;
+  return w < w0 - 1e-6 || w > w1 + 1e-6 || h < h0 - 1e-6 || h > h1 + 1e-6;
+}
+function andersenSizeErrors(typeDef, w, h, typeId, opts = {}) {
   const name = typeDef?.name || 'This unit';
   const L = typeDef?.limits || {};
   const errs = [];
@@ -517,17 +575,25 @@ function andersenSizeErrors(typeDef, w, h) {
   if (wmax != null && w > wmax + 1e-6) errs.push(`${name} width must be ${formatInches(wmax)} or less (Andersen 100 limit).`);
   if (hmin != null && h < hmin - 1e-6) errs.push(`${name} height must be at least ${formatInches(hmin)} (Andersen 100 limit).`);
   if (hmax != null && h > hmax + 1e-6) errs.push(`${name} height must be ${formatInches(hmax)} or less (Andersen 100 limit).`);
-  const rule = String(L.rule || '');
-  const maxH = /H max ([0-9.]+) when W>=([0-9.]+)/i.exec(rule);
-  if (maxH) {
-    const cap = Number(maxH[1]);
-    const at = Number(maxH[2]);
-    if (w >= at - 1e-9 && h > cap + 1e-6) errs.push(`${name} height must be ${formatInches(cap)} or less when the width is ${formatInches(at)} or more.`);
+  if (opts.eighth !== false && (!onEighth(w) || !onEighth(h))) {
+    errs.push(`${name} width and height must be in 1/8 inch steps (Andersen 100).`);
   }
-  const short = /short side >= ([0-9.]+)/i.exec(rule);
-  if (short) {
-    const minSide = Number(short[1]);
-    if (h < minSide - 1e-6) errs.push(`${name} short side must be at least ${formatInches(minSide)}, so the overall height has to be at least ${formatInches(minSide)}.`);
+  // Published picture rule: one side stays at 71 1/2 or less, including the gap between 71 1/2 and 72.
+  if (typeId === 'picture' && w > 71.5 + 1e-6 && h > 71.5 + 1e-6) {
+    errs.push(`${name} must keep one side at ${formatInches(71.5)} or less. Width and height cannot both be over ${formatInches(71.5)}.`);
+  }
+  if (opts.geometry !== false && (typeId === 'specialty_arch' || typeId === 'arch_sh')) {
+    const rise = w / 4;
+    const leg = h - rise;
+    if (typeId === 'specialty_arch') {
+      if (leg < 11.875 - 1e-6) errs.push(`${name} short side must be at least ${formatInches(11.875)}. With a rise of about 1/4 of the width (${formatInches(rise)}), this short side is ${formatInches(Math.max(0, leg))}.`);
+      if (leg > 83.875 + 1e-6) errs.push(`${name} short side must be ${formatInches(83.875)} or less (Andersen 100 limit).`);
+      const sq = w * h / 144;
+      if (sq > 56 + 1e-6) errs.push(`${name} must be 56 sq ft or less. This size is ${sq.toFixed(1)} sq ft.`);
+    }
+    if (typeId === 'arch_sh' && leg < 29.5 - 1e-6) {
+      errs.push(`${name} short side must be at least ${formatInches(29.5)}. With a rise of about 1/4 of the width (${formatInches(rise)}), the height has to be at least ${formatInches(29.5 + rise)}.`);
+    }
   }
   return errs;
 }
@@ -626,11 +692,13 @@ function andersenRaw(model, line) {
   const t = model.typeDef;
   const errors = [];
   if (!model.colorDef) errors.push(andersenColorError(t, model.typeId, line.color));
-  errors.push(...andersenSizeErrors(t, w, h));
+  // Arch-over stores the arch as a rise-only piece. Its height is width/4, not a full arch unit.
+  const archSegment = /rise about/i.test(String(line.customDescription || ''));
+  errors.push(...andersenSizeErrors(t, w, h, model.typeId, { eighth: !archSegment, geometry: !archSegment }));
   if (errors.length) return { blocked: true, errors };
   const ui = w + h, sqft = w * h / 144;
   const core = (t.base || 0) + (t.perUI || 0) * ui + (t.perSqFt || 0) * sqft;
-  const flushOn = !!(t.flushFin && (line.addons || []).includes('flush_fin_trim'));
+  const flushOn = andersenFlushOn(line, t);
   const afterFlush = flushOn ? core * t.flushFin.factor + (Number(t.flushFin.adder) || 0) : core;
   const colorAdder = model.colorDef.adder || 0;
   const colored = afterFlush + colorAdder;
@@ -670,6 +738,7 @@ function archOverLimitErrors(spec, w, h) {
   if (w > wmax + 1e-6) errs.push(`${name} width must be ${formatInches(wmax)} or less (Andersen 100 limit).`);
   if (h < hmin - 1e-6) errs.push(`${name} height must be at least ${formatInches(hmin)} (Andersen 100 limit).`);
   if (h > hmax + 1e-6) errs.push(`${name} height must be ${formatInches(hmax)} or less (Andersen 100 limit).`);
+  if (!onEighth(w) || !onEighth(h)) errs.push(`${name} width and height must be in 1/8 inch steps (Andersen 100).`);
   return errs;
 }
 function buildArchOver(line) {
@@ -702,7 +771,7 @@ function buildArchOver(line) {
     mode: 'arch-over', combo: true, blocked: false, errors: [], unit, unitBase: unit,
     optionsEach: r2((archBuilt.optionsEach || 0) + (baseBuilt.optionsEach || 0)),
     rate: null, estimated: false, wh: w + h, fromQuotes: true, detail: null, parts, note,
-    provisional: false, flush: hasFlushFin(line),
+    provisional: false, verifyIq: !!(archBuilt.verifyIq || baseBuilt.verifyIq), flush: hasFlushFin(line),
   };
 }
 // One material unit (factory-mull units included, quantity not included).
@@ -770,7 +839,8 @@ function buildMaterial(line) {
       const coreRounded = roundUpDollar(d.colored * d.units);
       return {
         mode: 'variable', unit: d.unit, unitBase: coreRounded, optionsEach: d.unit - coreRounded,
-        rate: null, estimated: false, wh: d.ui, fromQuotes: true, provisional: false, detail: d,
+        rate: null, estimated: false, wh: d.ui, fromQuotes: true, provisional: false,
+        verifyIq: outsideIqSample(model.typeDef, w, h), detail: d,
       };
     }
     const d = variableRaw(model, line);
@@ -803,6 +873,19 @@ export const frameTypeById = (id) => data.frameTypes?.types?.find((t) => t.id ==
 const surchargeDef = (id) => data.install?.surcharges?.find((x) => x.id === id);
 const doorAddonDef = (id) => data.install?.doors?.addons?.find((x) => x.id === id);
 const doorPanelKey = (line) => (data.install?.doors?.panels?.[line?.type] != null ? line.type : null);
+function doorLaborKey(line) {
+  if (isMilgardDoorLine(line)) return doorPanelKey(line);
+  if (line?.brand === 'andersen' && andersenTypeId(line.type) === 'patio_door_2p') return '2panel';
+  return null;
+}
+function doorLaborAmount(line) {
+  const key = doorLaborKey(line);
+  if (!key) return null;
+  const doors = data.install.doors;
+  const base = Number(doors.panels[key]) || 0;
+  const tall = Number(line.h) > (Number(doors.tallOverInches) || 84) ? Number(doors.tallAdd) || 0 : 0;
+  return roundMoney(base + tall);
+}
 // inst = {type, surcharges[], override, custom, headerFeet, writeIn:{description, amount}}
 // Labor only. Add-ons, including door header footage and the write-in, are addonUnit.
 export function installUnit(inst, line) {
@@ -810,18 +893,14 @@ export function installUnit(inst, line) {
   if (line && isAx650Line(line)) return ax650Install(data.ax650, line);
   inst = inst || defaultInstall();
   if (inst.override != null && inst.override !== '' && !isNaN(inst.override)) return roundMoney(Number(inst.override));
-  if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
-    const doors = data.install.doors;
-    const base = Number(doors.panels[line.type]) || 0;
-    const tall = Number(line.h) > (Number(doors.tallOverInches) || 84) ? Number(doors.tallAdd) || 0 : 0;
-    return roundMoney(base + tall);
-  }
+  const doorLabor = line ? doorLaborAmount(line) : null;
+  if (doorLabor != null) return doorLabor;
   const t = installType(inst.type);
   const base = t.custom && inst.custom != null && inst.custom !== '' ? Number(inst.custom) || 0 : t.price;
   return roundMoney(base);
 }
 export function addonNames(inst, line) {
-  if (line && isMilgardDoorLine(line)) {
+  if (line && doorLaborKey(line)) {
     const names = (inst?.surcharges || []).map((id) => {
       const def = doorAddonDef(id);
       if (!def) return '';
@@ -838,7 +917,7 @@ export function addonNames(inst, line) {
   return (inst?.surcharges || []).map((id) => surchargeDef(id)?.name).filter(Boolean);
 }
 export function addonUnit(inst, line) {
-  if (line && isMilgardDoorLine(line)) {
+  if (line && doorLaborKey(line)) {
     let sur = 0;
     for (const id of inst?.surcharges || []) {
       const def = doorAddonDef(id);
@@ -859,8 +938,9 @@ export function installLabel(inst, line) {
     return style ? `${style} install` : 'AX650 install';
   }
   inst = inst || defaultInstall();
-  if (line && isMilgardDoorLine(line) && doorPanelKey(line)) {
-    const name = { '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel' }[line.type] || 'Patio door';
+  if (line && doorLaborKey(line)) {
+    const key = doorLaborKey(line);
+    const name = { '2panel': '2-panel', '3panel': '3-panel', '4panel': '4-panel' }[key] || 'Patio door';
     const tall = Number(line.h) > (Number(data.install?.doors?.tallOverInches) || 84) ? ', over 7 ft' : '';
     return `${name} slider install${tall}`;
   }

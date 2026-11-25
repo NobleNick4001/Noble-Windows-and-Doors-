@@ -6,7 +6,7 @@
 //   Andersen arch single hung and specialty arch: rise = width / 4
 //   eyebrow: rise = width / 8
 //   an entered leg height or bottom-window height wins over those defaults
-import { h, formatInches, data } from './core.js';
+import { h, formatInches, data, grilleKind } from './core.js';
 import { DOOR_CONFIG } from './milgard.js';
 import { isPrehungLine } from './prehung.js';
 import { prehungFigureEl } from './door-figure.js';
@@ -369,6 +369,33 @@ export function windowDrawingSVG(line, opts = {}) {
   for (const p of model.panes) {
     if (p.w < 0.3 || p.h < 0.3) continue;
     parts.push(`<rect class="glass" x="${r1(X(p.x))}" y="${r1(Y(p.y))}" width="${r1(p.w * sx)}" height="${r1(p.h * sy)}" fill="${GLASS}" stroke="${INK}" stroke-width="${r1(Math.max(0.8, sw * 0.65))}"/>`);
+  }
+  const gridKind = grilleKind(line);
+  if (gridKind) {
+    for (const p of model.panes) {
+      if (p.w < 0.3 || p.h < 0.3) continue;
+      const px = X(p.x);
+      const py = Y(p.y);
+      const pw = p.w * sx;
+      const ph = p.h * sy;
+      if (pw < 8 || ph < 8) continue;
+      if (gridKind === 'prairie') {
+        const inset = Math.min(3.5 * ((sx + sy) / 2), pw * 0.28, ph * 0.28);
+        if (inset < 1 || pw - inset * 2 < 2 || ph - inset * 2 < 2) continue;
+        parts.push(`<rect class="grille prairie" x="${r1(px + inset)}" y="${r1(py + inset)}" width="${r1(pw - inset * 2)}" height="${r1(ph - inset * 2)}" fill="none" stroke="${INK}" stroke-width="${r1(Math.max(0.7, sw * 0.45))}"/>`);
+        continue;
+      }
+      const cols = Math.max(2, Math.round(p.w / 14));
+      const rows = Math.max(2, Math.round(p.h / 16));
+      for (let c = 1; c < cols; c++) {
+        const lx = px + (pw * c) / cols;
+        parts.push(`<line class="grille colonial" x1="${r1(lx)}" y1="${r1(py)}" x2="${r1(lx)}" y2="${r1(py + ph)}" stroke="${INK}" stroke-width="${r1(Math.max(0.7, sw * 0.4))}"/>`);
+      }
+      for (let r = 1; r < rows; r++) {
+        const ly = py + (ph * r) / rows;
+        parts.push(`<line class="grille colonial" x1="${r1(px)}" y1="${r1(ly)}" x2="${r1(px + pw)}" y2="${r1(ly)}" stroke="${INK}" stroke-width="${r1(Math.max(0.7, sw * 0.4))}"/>`);
+      }
+    }
   }
   for (const bar of model.rails) {
     if (bar.w <= 0 || bar.h <= 0) continue;

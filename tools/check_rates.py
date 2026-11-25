@@ -16,7 +16,7 @@ brand = next(b for b in rates['brands'] if b['id'] == 'andersen')
 check(brand.get('status') == 'active', 'Andersen should be active')
 series = brand['series'][0]
 check(series['id'] == '100', 'series id')
-check(series['colors'] == ['ww', 'sandtone', 'terratone', 'bw', 'dkbronze', 'dkbronze_dkbronze', 'bb'], 'Andersen colors ' + str(series['colors']))
+check(series['colors'] == ['ww', 'sandtone', 'sandtone_sandtone', 'terratone', 'bw', 'dkbronze', 'dkbronze_dkbronze', 'bb'], 'Andersen colors ' + str(series['colors']))
 check(series['types'] == ['hslider', 'xox', 'vslider', 'twin_vslider', 'picture', 'casement', 'twin_casement', 'awning', 'arch_sh', 'specialty_arch', 'patio_door_2p'], 'Andersen types ' + str(series['types']))
 check('3panel' not in series['types'] and '4panel' not in series['types'], 'no 3- or 4-panel Andersen door')
 color_ids = {c['id'] for c in rates['colors']}
@@ -24,6 +24,9 @@ type_ids = {t['id'] for t in rates['types']}
 names = {c['id']: c['name'] for c in rates['colors']}
 check({'sandtone', 'terratone', 'dkbronze', 'dkbronze_dkbronze'} <= color_ids, 'new colors missing from colors[]')
 check({'awning', 'xox', 'hvb', 'custom_supplier'} <= type_ids, 'new types missing from types[]')
+check(names.get('sandtone') == 'Sandtone / White', 'sandtone is exterior sandtone, white interior')
+check(names.get('sandtone_sandtone') == 'Sandtone / Sandtone', 'matching sandtone interior')
+check(names.get('terratone') == 'Terratone / White', 'terratone interior is not a separate color')
 check(names.get('dkbronze') == 'Dark Bronze / White', 'dkbronze display name')
 check(names.get('dkbronze_dkbronze') == 'Dark Bronze / Dark Bronze', 'same-color dark bronze')
 iwc = next(b for b in rates['brands'] if b['id'] == 'iwc')
@@ -49,7 +52,8 @@ check(set(A['types']) == set(series['types']), 'every Andersen type has an iQ fo
 window_colors = A['colorAdders']['window']
 check(window_colors['ww'] == 0, 'white is the base color')
 check(window_colors['sandtone'] == window_colors['terratone'] == window_colors['dkbronze'] == window_colors['bw'] == 90.57, 'non-white exterior adder')
-check(window_colors['bb'] == 181.13 and window_colors['dkbronze_dkbronze'] == 181.13, 'dark interior adder')
+check(window_colors['bb'] == 181.13 and window_colors['dkbronze_dkbronze'] == 181.13 and window_colors['sandtone_sandtone'] == 181.13, 'dark interior adder')
+check('terratone_terratone' not in window_colors, 'Terratone interior is not offered')
 check(window_colors['sandtone'] != window_colors['bb'], 'Sandtone is not the Black/Black price')
 door_colors = A['colorAdders']['patio_door_2p']
 check(set(k for k, v in door_colors.items() if isinstance(v, (int, float))) == {'ww', 'bw', 'bb'}, 'patio door colors')
@@ -97,7 +101,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v75-dismiss-leads'" in sw, 'service worker cache should be nwd-sales-v75-dismiss-leads')
+check("const CACHE = 'nwd-sales-v76-andersen-100'" in sw, 'service worker cache should be nwd-sales-v76-andersen-100')
 check('js/vendor/supabase-js-2.119.0.mjs' in sw, 'vendored supabase-js should be precached')
 check(os.path.isfile('js/vendor/supabase-js-2.119.0.mjs'), 'vendored supabase-js bundle missing')
 cloud = open('js/cloud.js').read()

@@ -60,7 +60,7 @@ d.pop('laborIncludedPerWindow', None); d.pop('marginIncludedPct', None)
 d['laborIncluded'] = False; d['version'] = 2
 d['grossMargin'] = d.get('grossMargin', 0.45)
 # This script only replaces Milgard (brands[0]) rates. Other brands, and colors/types added for them, stay.
-for cid in ('sandtone', 'terratone', 'dkbronze', 'dkbronze_dkbronze'):
+for cid in ('sandtone', 'sandtone_sandtone', 'terratone', 'dkbronze', 'dkbronze_dkbronze'):
     if not any(c['id'] == cid for c in d['colors']): raise SystemExit('missing color ' + cid)
 for tid in ('awning', 'xox', 'hvb', 'custom_supplier'):
     if not any(t['id'] == tid for t in d['types']): raise SystemExit('missing type ' + tid)
