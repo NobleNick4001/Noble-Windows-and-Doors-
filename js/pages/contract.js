@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine, isAx650Line, rowAmountText, splitCustomerName, joinCustomerName } from '../core.js';
+import { h, fmt, data, settings, saveSettings, brandById, typeName, colorName, installType, frameTypeById, addonNames, estimates, totals, summaryLines, stuccoState, toast, browserOffline, OFFLINE_MESSAGE, isPrehungLine, isAx650Line, isPrlLine, rowAmountText, splitCustomerName, joinCustomerName } from '../core.js';
 import { migratePrehungEstimate } from '../prehung.js';
 import { mountSignature } from '../sign.js';
 import { makeContractPdf, makeEstimatePdf, moneyWords, contractPay } from '../pdf.js';
@@ -9,7 +9,7 @@ import { icon } from '../icons.js';
 const fdate = (t) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function isDoor(l) {
-  if (isPrehungLine(l) || isAx650Line(l)) return true;
+  if (isPrehungLine(l) || isAx650Line(l) || isPrlLine(l)) return true;
   const name = `${typeName(l.type)} ${l.series || ''}`.toLowerCase();
   return name.includes('door');
 }
@@ -19,6 +19,7 @@ function colorPhrase(id) {
 }
 function installPhrase(inst, line) {
   if (isAx650Line(line)) return 'AX650 installation';
+  if (isPrlLine(line)) return 'PRL installation';
   const frame = frameTypeById(inst?.frameType);
   const raw = (frame?.name || installType(inst?.type)?.name || 'install').toLowerCase();
   if (raw.includes('retrofit')) return 'retrofit install';

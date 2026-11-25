@@ -35,6 +35,11 @@ const ARCH_BODY = {
 };
 
 export function canonicalType(line) {
+  if (line?.brand === 'prl') {
+    const n = Math.max(2, Math.min(5, Number(line.panels) || 3));
+    const bifold = line.series === 'bifold' || String(line.type || '').includes('bifold');
+    return (bifold ? 'bifold' : 'stack') + n;
+  }
   let t = String(line?.type || 'picture').trim().toLowerCase().replace(/\s+/g, '_');
   if (t === 'patio_door_2p' || t === 'patio' || t === 'patio_door') t = '2panel';
   if (t === 'twin_vslider' || t === 'double_single_hung' || t === 'twin') t = 'dshung';

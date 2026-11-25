@@ -140,6 +140,14 @@
   {
    "id": "custom_supplier",
    "name": "Custom unit (enter supplier price)"
+  },
+  {
+   "id": "multislide",
+   "name": "Multi-slide"
+  },
+  {
+   "id": "bifold",
+   "name": "Bifold"
   }
  ],
  "colors": [
@@ -1172,6 +1180,26 @@
       "2panel",
       "4panel"
      ]
+    }
+   ],
+   "rates": {}
+  },
+  {
+   "id": "prl",
+   "name": "PRL",
+   "status": "active",
+   "series": [
+    {
+     "id": "max",
+     "name": "Max multi-slide",
+     "colors": ["bronze-anodized"],
+     "types": ["multislide"]
+    },
+    {
+     "id": "bifold",
+     "name": "Bifold",
+     "colors": ["bronze-anodized"],
+     "types": ["bifold"]
     }
    ],
    "rates": {}

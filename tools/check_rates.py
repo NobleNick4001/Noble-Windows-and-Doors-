@@ -101,7 +101,7 @@ settings = json.load(open('data/settings.default.json'))
 check(settings.get('rateSet') == 'p75', 'default rate set is P75')
 
 sw = open('sw.js').read()
-check("const CACHE = 'nwd-sales-v76-andersen-100'" in sw, 'service worker cache should be nwd-sales-v76-andersen-100')
+check("const CACHE = 'nwd-sales-v77-andersen-100'" in sw, 'service worker cache should be nwd-sales-v77-andersen-100')
 check('js/vendor/supabase-js-2.119.0.mjs' in sw, 'vendored supabase-js should be precached')
 check(os.path.isfile('js/vendor/supabase-js-2.119.0.mjs'), 'vendored supabase-js bundle missing')
 cloud = open('js/cloud.js').read()
@@ -110,6 +110,7 @@ check('cdn.jsdelivr.net/npm/@supabase/supabase-js' in cloud, 'jsDelivr stays as 
 check("Couldn't load sign-in. Check your connection or reload the app." in cloud, 'a failed sign-in client should say to reload')
 check('Sign-in needs a connection' not in cloud, 'online sign-in should not claim it needs a connection')
 check('js/ax650.js' in sw and 'data/milgard-ax650.json' in sw, 'AX650 price file and engine should be precached')
+check('js/prl.js' in sw and 'js/pages/prl-ui.js' in sw and 'data/prl.json' in sw, 'PRL price file and picker should be precached')
 check('js/drawings.js' in sw, 'window drawings should be precached')
 check('data/variable-rates.json' in sw, 'variable rates should be precached')
 check('data/promos.json' in sw, 'promo config should be precached')
@@ -232,6 +233,22 @@ check([c['name'] for c in ax['colors']] == ['White', 'Warmtone', 'Bronze Anodize
 import subprocess
 ax_run = subprocess.run(['node', 'tools/check_ax650.mjs'], capture_output=True, text=True)
 check(ax_run.returncode == 0, 'AX650 engine\\n' + ax_run.stdout + ax_run.stderr)
+
+prl = json.load(open('data/prl.json'))
+check(prl.get('pricesAre') == 'dealer' and prl.get('applyMargin') is True, 'PRL file stores dealer amounts')
+ms = prl['products']['multislide']
+bf = prl['products']['bifold']
+check(ms['perPanel'] == 1451.53 and ms['perSqFt'] == 30.81 and ms['constant'] == -1236.96, 'multi-slide formula')
+check(ms['thermalFactor'] == 1.21 and ms['nailOnScreen'] == 455, 'multi-slide thermal and nail-on screen')
+check(ms['panels'] == {'min': 3, 'max': 5} and ms['width'] == {'min': 143, 'max': 287.5} and ms['height'] == {'min': 80, 'max': 120}, 'multi-slide range')
+check(bf['perPanel'] == 1392.99 and bf['perSqFt'] == 25.99 and bf['constant'] == 0 and bf['bottomRollingFactor'] == 1.0555, 'bifold formula')
+check(bf['panels'] == {'min': 3, 'max': 5} and bf['width'] == {'min': 95.5, 'max': 168} and bf['height'] == {'min': 80, 'max': 119}, 'bifold range')
+check(prl['glass']['ea']['factor'] == 1.03 and prl['glass']['ea']['products'] == ['multislide'], 'Energy Advantage is 3% on multi-slide only')
+prl_brand = next(b for b in rates['brands'] if b['id'] == 'prl')
+check(prl_brand.get('status') == 'active', 'PRL brand is active')
+check('Get a PRL quote' in open('js/prl.js').read(), 'unpriced PRL options say Get a PRL quote')
+prl_run = subprocess.run(['node', 'tools/check_prl.mjs'], capture_output=True, text=True)
+check(prl_run.returncode == 0, 'PRL engine\\n' + prl_run.stdout + prl_run.stderr)
 
 if errs:
     print('FAILED')

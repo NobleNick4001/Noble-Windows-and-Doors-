@@ -1,9 +1,11 @@
-import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, rowAmountText, syncCustomerName, joinCustomerName } from '../core.js';
+import { h, fmt, esc, data, settings, typeName, colorById, brandById, priceWindow, installUnit, addonNames, installLabel, defaultInstall, estimates, totals, summaryLines, stuccoState, windowCount, findPromo, parsePercentDiscount, toast, uid, lineOptionNames, compactWindowLine, windowSections, needsFrameWarning, FRAME_TYPE_WARNING, browserOffline, OFFLINE_MESSAGE, captureView, restoreView, linePriceText, PRICE_PENDING_LABEL, seriesColorIds, sizeLimitText, isIntegralType, FLUSH_FIN_NOTE, isPrehungLine, isAx650Line, isPrlLine, rowAmountText, syncCustomerName, joinCustomerName } from '../core.js';
 import { mineTabs } from '../mine-tabs.js';
 import { prehungEstimateRow } from './prehung-ui.js';
 import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
 import { doorInstallEditor, milgardLineEditor, ax650LineEditor } from './milgard-ui.js';
+import { prlLineEditor } from './prl-ui.js';
+import { prlInstall, prlDescription, PRL_QUOTE_LABEL } from '../prl.js';
 import { ax650Description, ax650Model, ax650Install } from '../ax650.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin, markLost, markWon, reopenEstimate, recordAppointment } from '../cloud.js';
 import { MINE_FILTERS, canDeleteEstimate, inMineFolder, mineCounts, mineSearchMatch } from '../mine-rules.js';
@@ -58,6 +60,10 @@ function lineDesc(l) {
     const d = ax650Description(data.ax650, l);
     return `Milgard AX650 ${d.style}, ${d.color} · ${d.glass}`;
   }
+  if (isPrlLine(l)) {
+    const d = prlDescription(data.prl, l);
+    return [d.title, ...d.details, d.note].filter(Boolean).join(', ');
+  }
   const custom = l.customDescription ? `${l.customDescription} — ` : '';
   const mull = Number(l.unitsPerLine) > 1 ? ` · ${l.unitsPerLine} units` : '';
   const color = isMilgardDoorLine(l) ? (doorColorLabel(l.series, l.color) || colorById(l.color)?.name || l.color) : (colorById(l.color)?.name || l.color);
@@ -101,17 +107,22 @@ function paintSize(l) {
   if (price) price.textContent = linePriceText(l);
 }
 function reprice(l) {
-  if (isIntegralType(l)) l.unitsPerLine = 1;
+  if (isIntegralType(l) || isPrlLine(l)) l.unitsPerLine = 1;
   const p = priceWindow(l);
   if (p && !p.blocked && p.unit != null) {
     l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; l.pricePending = !!p.pricePending;
-    l.provisional = !!p.provisional; l.verifyIq = !!p.verifyIq; l.unavailable = false;
+    l.provisional = !!p.provisional; l.verifyIq = !!p.verifyIq; l.unavailable = false; l.quoteRequired = false;
     l.unpriced = false; l.sizeError = '';
   } else {
     l.unitBase = 0; l.optionsEach = 0; l.unit = 0; l.pricePending = false; l.provisional = false; l.verifyIq = false;
     l.unavailable = !!(p && p.unavailable);
+    l.quoteRequired = !!(p && p.quoteRequired);
     l.unpriced = !!(p && p.blocked);
-    l.sizeError = p?.unavailable ? 'Not available' : (p?.blocked ? p.errors.join(' ') : '');
+    const bits = [];
+    if (p?.quoteRequired) bits.push(p.quoteMessage || PRL_QUOTE_LABEL);
+    else if (p?.unavailable) bits.push('Not available');
+    if (p?.errors?.length) bits.push(p.errors.join(' '));
+    l.sizeError = bits.join(' ');
   }
   l.installUnit = installUnit(l.install, l);
 }
@@ -335,10 +346,11 @@ export function render(root) {
       h('button', { type: 'button', class: 'btn sm', id: 'btn-appointment', onclick: () => recordAppointment(e) }, 'Appointment set'))));
 
   // lines
-  const doorLines = e.lines.filter(isPrehungLine).length;
-  const lines = h('div', { class: 'card' }, h('h3', {}, doorLines && doorLines === e.lines.length ? 'Prehung doors' : doorLines ? 'Windows & doors' : 'Windows'));
+  const doorLines = e.lines.filter((l) => isPrehungLine(l) || isPrlLine(l) || isAx650Line(l)).length;
+  const lines = h('div', { class: 'card' }, h('h3', {}, doorLines && doorLines === e.lines.length ? 'Doors' : doorLines ? 'Windows & doors' : 'Windows'));
   if (e.lines.some((l) => l.pricePending)) lines.append(h('p', { class: 'warn', id: 'price-pending-banner' }, 'One or more windows say Price pending. That is a placeholder, not a OneLink price, and it is left out of the total until a real rate is entered.'));
-  if (e.lines.some((l) => l.unpriced)) lines.append(h('p', { class: 'warn', id: 'size-block-banner' }, 'One or more Andersen sizes are outside the iQ limits and are not priced. Change the size before presenting this estimate.'));
+  if (e.lines.some((l) => l.unpriced && l.brand === 'andersen')) lines.append(h('p', { class: 'warn', id: 'size-block-banner' }, 'One or more Andersen sizes are outside the iQ limits and are not priced. Change the size before presenting this estimate.'));
+  if (e.lines.some((l) => isPrlLine(l) && (l.unpriced || l.quoteRequired))) lines.append(h('p', { class: 'warn', id: 'prl-block-banner' }, 'One or more PRL doors are outside the quoted range or need a PRL quote. They are not priced.'));
   if (!e.lines.length) lines.append(h('p', { class: 'muted' }, 'No windows yet. ', h('a', { href: '#/calculator' }, 'Add one from the calculator →')));
   e.lines.forEach((l, idx) => {
     if (isPrehungLine(l)) {
@@ -356,7 +368,7 @@ export function render(root) {
           addonNames(l.install, l).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install, l).join(', ')}`) : null,
           ...lineFlags(l)),
         h('div', { class: 'li-price' },
-          h('b', { id: 'li-price-' + l.id, class: (l.pricePending || l.unpriced || l.unavailable) ? 'pending-price' : '' }, linePriceText(l)),
+          h('b', { id: 'li-price-' + l.id, class: (l.pricePending || l.unpriced || l.unavailable || l.quoteRequired) ? 'pending-price' : '' }, linePriceText(l)),
           l.verifyIq ? h('div', { class: 'verify-iq', id: 'verify-iq-' + l.id }, 'Verify this size in iQ') : null)),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
@@ -365,8 +377,8 @@ export function render(root) {
       const upd = (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); };
       const seriesDef = brandById(l.brand)?.series?.find((s) => s.id === l.series);
       row.append(h('div', { class: 'edit' },
-        seriesDef && h('b', {}, 'Window type'),
-        seriesDef && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => {
+        seriesDef && !isPrlLine(l) && h('b', {}, 'Window type'),
+        seriesDef && !isPrlLine(l) && h('div', { class: 'chips' }, [...seriesDef.types, 'custom_supplier'].map((t) => h('button', { type: 'button', class: 'chip' + (t === l.type ? ' on' : ''), onclick: () => {
           l.type = t;
           const nextColors = seriesColorIds(l.brand, l.series, t);
           if (nextColors.length && !nextColors.includes(l.color)) l.color = nextColors[0];
@@ -386,19 +398,25 @@ export function render(root) {
           h('div', { class: 'grid3' }, stepper(isAx650Line(l) && ax650Model(data.ax650, l.type)?.width?.daylight ? 'Opening (daylight) width' : (isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame width' : 'Width'), l.w, (v) => { l.w = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', inches: isAx650Line(l) }), stepper(isMilgardDoorLine(l) || isAx650Line(l) ? 'Net frame height' : 'Height', l.h, (v) => { l.h = isAx650Line(l) ? v : (parseFloat(v) || 0); reprice(l); save(); refreshTotals(); paintSize(l); }, { unit: 'in', inches: isAx650Line(l) }), stepper('Qty', l.qty, (v) => { l.qty = parseInt(v) || 1; reprice(l); save(); refreshTotals(); syncStuccoQty(); }, { min: 1 }))),
         sizeLimitText(l) ? h('p', { class: 'fine' }, sizeLimitText(l)) : null,
         h('p', { class: 'warn size-err', id: 'size-err-edit-' + l.id, hidden: l.sizeError ? null : true }, l.sizeError || ''),
-        isIntegralType(l)
+        isPrlLine(l)
+          ? null
+          : isIntegralType(l)
           ? h('p', { class: 'fine' }, 'This twin is priced as one combined unit at the overall size. Use quantity for a second twin.')
           : stepper('Units in this line', l.unitsPerLine || 1, (v) => { l.unitsPerLine = parseInt(v, 10) || 1; reprice(l); save(); refreshTotals(); }, { min: 1 }),
         customPriceFields(l, () => { reprice(l); save(); refreshTotals(); }, 'li-' + l.id),
-        seriesDef && !isMilgardDoorLine(l) && h('b', {}, 'Frame color'),
-        seriesDef && !isMilgardDoorLine(l) && h('div', { class: 'swatches' }, seriesColorIds(l.brand, l.series, l.type).map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
-        isAx650Line(l)
+        seriesDef && !isMilgardDoorLine(l) && !isPrlLine(l) && h('b', {}, 'Frame color'),
+        seriesDef && !isMilgardDoorLine(l) && !isPrlLine(l) && h('div', { class: 'swatches' }, seriesColorIds(l.brand, l.series, l.type).map((c) => { const cd = colorById(c); return h('button', { type: 'button', class: 'swatch' + (c === l.color ? ' on' : ''), onclick: () => { l.color = c; upd(true); } }, h('i', { style: cd ? `background:${cd.swatch}` : '' }), h('span', {}, cd?.name || c)); })),
+        isPrlLine(l)
+          ? prlLineEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-')
+          : isAx650Line(l)
           ? ax650LineEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-')
           : usesMilgardEditor(l)
           ? milgardLineEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-')
           : upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
         h('b', {}, 'Installation'),
-        isAx650Line(l)
+        isPrlLine(l)
+          ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'prl-install-' + l.id }, 'Installation', h('small', {}, l.quoteRequired || l.unpriced ? 'Not quoted' : `${fmt(prlInstall(data.ax650, l))} / door`)))
+          : isAx650Line(l)
           ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax-install-' + l.id }, 'Installation', h('small', {}, `${fmt(ax650Install(data.ax650, l))} / door`)))
           : isMilgardDoorLine(l)
           ? doorInstallEditor(l, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id + '-')
@@ -596,7 +614,7 @@ function estimateSheet(e) {
   const tb = h('tbody'); e.lines.forEach((l) => {
     const door = isPrehungLine(l);
     const detail = door ? prehungSummary(data.prehung, l).detail : '';
-    tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), door && detail ? h('div', { class: 'fine' }, detail) : null, !door && optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, ...lineFlags(l), !door && l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, door ? prehungSizeText(data.prehung, l) : (isAx650Line(l) ? ax650Description(data.ax650, l).size : `${l.w}" × ${l.h}"`)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit)))), h('td', { class: 'r' }, linePriceText(l))));
+    tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), door && detail ? h('div', { class: 'fine' }, detail) : null, !door && optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.sizeError ? h('div', { class: 'warn' }, l.sizeError) : null, ...lineFlags(l), !door && l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, door ? prehungSizeText(data.prehung, l) : (isAx650Line(l) ? ax650Description(data.ax650, l).size : `${l.w}" × ${l.h}"`)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.quoteRequired ? PRL_QUOTE_LABEL : (l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit))))), h('td', { class: 'r' }, linePriceText(l))));
   });
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
