@@ -1,4 +1,4 @@
-import { h, fmt, data, estimates, toast, installUnit, installType, defaultInstall } from '../core.js';
+import { h, data, estimates, toast, installUnit, installType, defaultInstall } from '../core.js';
 import { applyFrameType, currentFrameType } from './calculator.js';
 
 /*
@@ -40,11 +40,6 @@ function latestLine() {
 function selectedId() {
   return latestLine()?.install?.frameType || currentFrameType();
 }
-function priceLabel(n) {
-  const text = fmt(n);
-  return text.endsWith('.00') ? text.slice(0, -3) : text;
-}
-
 const NS = 'http://www.w3.org/2000/svg';
 const STUCCO = '#e7d2aa';
 const SPECK = '#dcc296';
@@ -258,11 +253,10 @@ function facts(ft, labor) {
     ['Stucco', c.stucco || ''],
     ['Mess', c.mess || ''],
     ['Time', c.time || ''],
-    ['Price', priceLabel(labor.price)],
   ];
-  return h('div', { class: 'ft-facts', id: 'ft-facts-' + ft.id }, cells.map(([k, v], i) => {
-    const hot = i === 3 || v === 'Yes' || v === 'More' || v === 'Longer';
-    return h('div', { class: 'ft-fact' + (i === 3 ? ' price' : '') }, h('span', {}, k), h('b', { class: hot && i !== 3 ? 'hot' : '' }, v));
+  return h('div', { class: 'ft-facts', id: 'ft-facts-' + ft.id }, cells.map(([k, v]) => {
+    const hot = v === 'Yes' || v === 'More' || v === 'Longer';
+    return h('div', { class: 'ft-fact' }, h('span', {}, k), h('b', { class: hot ? 'hot' : '' }, v));
   }));
 }
 

@@ -33,18 +33,6 @@ function rememberSheet(spec) {
   store.set('nwd.prehung.sheet', spec);
 }
 
-function moneyHint(amount) {
-  const n = Number(amount) || 0;
-  if (!n) return '';
-  return n < 0 ? `−${fmt(Math.abs(n))}` : `+${fmt(n)}`;
-}
-
-function optionHint(opt) {
-  if (opt.addByCore) return `solid ${moneyHint(opt.addByCore.solid)} · hollow ${moneyHint(opt.addByCore.hollow)}`;
-  if (opt.addByHeight) return `6'8" ${moneyHint(opt.addByHeight['6-8'])} · 8'0" ${moneyHint(opt.addByHeight['8-0'])}`;
-  return moneyHint(opt.add) || fmt(0);
-}
-
 export function render(root) {
   const cat = catalog();
   if (!cat) {
@@ -108,7 +96,7 @@ export function render(root) {
   menu.append(h('div', { class: 'lbl' }, 'Every door'));
   menu.append(chipRow('Jamb', (cat.jambs || []).map((jamb) => ({
     id: jamb.id,
-    label: jamb.id === 'standard' ? jamb.name : `${jamb.name} · +$${jamb.add['6-8']} / +$${jamb.add['8-0']}`,
+    label: jamb.name,
   })), sheet.jamb, (id) => setSheet({ jamb: id }), 'jamb-'));
 
   const optionBoxes = h('div', { class: 'labor-boxes', id: 'door-options' });
@@ -117,7 +105,7 @@ export function render(root) {
     optionBoxes.append(h('button', {
       type: 'button', class: 'labor-box' + (on ? ' on' : ''), id: 'opt-' + opt.id,
       onclick: () => toggleList('options', opt.id),
-    }, opt.name, h('small', {}, optionHint(opt))));
+    }, opt.name));
   }
   menu.append(h('div', { class: 'lbl' }, 'Options'), optionBoxes);
   menu.append(h('p', { class: 'fine' }, 'A double is priced on top of that door. Cut-down follows the door’s core. The jamb add and the ball-catch credit follow the door’s height.'));
@@ -128,7 +116,7 @@ export function render(root) {
     laborBoxes.append(h('button', {
       type: 'button', class: 'labor-box' + (on ? ' on' : ''), id: 'labor-' + item.id,
       onclick: () => toggleList('labor', item.id),
-    }, item.name, h('small', {}, `${fmt(item.price)} / door`)));
+    }, item.name));
   }
   menu.append(h('div', { class: 'lbl' }, 'Labor'), laborBoxes);
   wrap.append(menu);

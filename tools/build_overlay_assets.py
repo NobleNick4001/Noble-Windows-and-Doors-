@@ -40,7 +40,7 @@ COLOR_META = [
     {'id': 'white', 'name': 'White / White', 'rateId': 'ww', 'swatch': '#f4f4f1'},
     {'id': 'adobe', 'name': 'Adobe', 'rateId': 'adobe', 'swatch': '#C8A27A'},
     {'id': 'black', 'name': 'Black / Black', 'rateId': 'bb', 'swatch': '#111111'},
-    {'id': 'bronze', 'name': 'Bronze Anodized', 'rateId': 'bronze', 'swatch': '#5b4636'},
+    {'id': 'bronze', 'name': 'Bronze', 'rateId': 'bronze', 'swatch': '#5b4636'},
 ]
 SERIES_META = [
     {'id': 'V250', 'name': 'V250'},

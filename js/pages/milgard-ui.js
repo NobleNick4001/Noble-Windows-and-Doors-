@@ -3,9 +3,12 @@ import { isMilgardDoorLine, milgardQuote, DOOR_CONFIG, doorColorChoices, doorCol
 import { ax650Quote, ax650Description, ax650Groups, ax650Model, ax650Install, parseInches, inchField, AX650_SERIES } from '../ax650.js';
 import { drawingEl } from '../drawings.js';
 import { icon } from '../icons.js';
+import { milgardColorHeld, milgardStyleOffered, milgardUpgradesHeld } from '../held-configs.js';
 
 const WINDOW_SERIES = [['V250', 'V250'], ['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum']];
 const DOOR_SERIES = [['V300', 'V300'], ['V400', 'V400'], ['A250', 'A250 aluminum'], [AX650_SERIES, 'AX650']];
+// Equal-leg arch top (archtop) is not offered. Its placeholder rate is $0.
+// Styles and colors with no real price are listed in js/held-configs.js.
 const STYLES = {
   window: [['hslider', 'XO'], ['xox', 'XOX'], ['vslider', 'Single hung'], ['dshung', 'Double Single Hung'], ['picture', 'Picture'], ['casement', 'Casement'], ['dcasement', 'Double casement'], ['awning', 'Awning'], ['arch_xo', 'Arch / eyebrow XO'], ['arch_xox', 'Arch / eyebrow XOX'], ['arch_sh', 'Arch single hung'], ['arch_hr', 'Half-round single hung']],
   door: [['2panel', '2-panel XO'], ['3panel', '3-panel'], ['4panel', '4-panel OXXO']],
@@ -52,7 +55,7 @@ function ensure(calc) {
   if (calc.writeInAmt == null) calc.writeInAmt = '';
   const series = (calc.product === 'door' ? DOOR_SERIES : WINDOW_SERIES).map((x) => x[0]);
   if (!series.includes(calc.series)) calc.series = series[0];
-  const styles = stylesFor(calc).map((x) => x[0]);
+  const styles = stylesFor(calc).map((x) => x[0]).filter((id) => milgardStyleOffered(calc.product, calc.series, id));
   if (!styles.includes(calc.type)) calc.type = styles[0];
   if (ax650On(calc)) {
     const styles = ax650Styles().map((x) => x[0]);
@@ -69,9 +72,15 @@ function ensure(calc) {
     if (!choices.some((c) => c[0] === calc.color)) calc.color = choices[0][0];
     calc.pocket = false;
   } else {
-    const choices = windowColors(calc.series);
+    const choices = windowColors(calc.series).filter(([id]) => !milgardColorHeld(calc.series, calc.type, id));
     if (!choices.some((c) => c[0] === calc.color)) calc.color = choices[0][0];
     trimA250(calc);
+    if (milgardUpgradesHeld(calc.type)) {
+      calc.grids = 'none';
+      calc.obscure = 'none';
+      calc.tempered = false;
+      calc.pureview = false;
+    }
   }
   if (calc.product === 'window' && calc.install.type !== 'custom') {
     calc.install.type = FRAME_LABOR[calc.frame] || 'standard';
@@ -279,7 +288,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       type: 'button', class: 'labor-box' + (m.id === calc.type ? ' on' : ''), id: 'model-' + m.id,
       onclick: () => { calc.type = m.id; calc.pocket = false; persist(); rerender(); },
     }, String(m.panels)))));
-  } else left.append(seg('Style', stylesFor(calc), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
+  } else left.append(seg('Style', stylesFor(calc).filter(([id]) => milgardStyleOffered(calc.product, calc.series, id)), calc.type, (id) => { calc.type = id; persist(); rerender(); }));
   if (calc.product === 'window' && (calc.type === 'arch_xo' || calc.type === 'arch_xox')) {
     left.append(seg('Head', [['arch', 'Arch'], ['eyebrow', 'Eyebrow']], calc.shape === 'eyebrow' ? 'eyebrow' : 'arch', (id) => { calc.shape = id; persist(); rerender(); }));
     left.append(h('p', { class: 'fine', id: 'arch-head-note' }, 'Arch and eyebrow are the same price. Arch uses a semicircle: the leg, and the bottom window, are the height minus half the width. An eyebrow rise is one eighth of the width.'));
@@ -325,9 +334,10 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     left.append(seg('Color', doorColorChoices(calc.series), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
   }
   if (calc.product === 'window') {
-    left.append(seg('Color', windowColors(calc.series), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
-    if (!a250Win) left.append(seg('Grids', GRIDS, calc.grids, (id) => { calc.grids = id; persist(); rerender(); }));
-    if (glass.obscure) left.append(seg('Obscure glass', OBSCURE, calc.obscure, (id) => { calc.obscure = id; persist(); rerender(); }));
+    const holdUp = milgardUpgradesHeld(calc.type);
+    left.append(seg('Color', windowColors(calc.series).filter(([id]) => !milgardColorHeld(calc.series, calc.type, id)), calc.color, (id) => { calc.color = id; persist(); rerender(); }));
+    if (!a250Win && !holdUp) left.append(seg('Grids', GRIDS, calc.grids, (id) => { calc.grids = id; persist(); rerender(); }));
+    if (glass.obscure && !holdUp) left.append(seg('Obscure glass', OBSCURE, calc.obscure, (id) => { calc.obscure = id; persist(); rerender(); }));
     left.append(seg('Frame', FRAMES, calc.frame, (id) => {
       calc.frame = id;
       calc.install.type = FRAME_LABOR[id];
@@ -337,18 +347,18 @@ export function renderMilgard(root, { calc, persist, rerender }) {
   }
 
   const toggles = h('div', {});
-  if (calc.product === 'window' && glass.tempered) {
+  if (calc.product === 'window' && glass.tempered && !milgardUpgradesHeld(calc.type)) {
     toggles.append(h('label', { class: 'check' }, h('input', {
       type: 'checkbox', id: 'opt-tempered', checked: calc.tempered ? 'checked' : null,
       onchange: (e) => { calc.tempered = e.target.checked; persist(); update(); },
     }), h('span', {}, 'Tempered glass')));
   }
-  const showPV = !ax && !(calc.product === 'window' && calc.type === 'picture') && calc.series !== 'A250';
+  const showPV = !ax && !(calc.product === 'window' && calc.type === 'picture') && calc.series !== 'A250' && !milgardUpgradesHeld(calc.type);
   if (showPV) {
     toggles.append(h('label', { class: 'check' }, h('input', {
       type: 'checkbox', id: 'opt-pureview', checked: calc.pureview ? 'checked' : null,
       onchange: (e) => { calc.pureview = e.target.checked; persist(); update(); },
-    }), h('span', {}, 'PureView screen'), h('em', {}, calc.product === 'door' ? ' +$137' : '')));
+    }), h('span', {}, 'PureView screen')));
   }
   if (toggles.childNodes.length) left.append(h('div', { class: 'lbl' }, 'Upgrades'), toggles);
   left.append(h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Qty'), h('input', {
@@ -358,7 +368,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
 
   left.append(h('h3', {}, 'Installation'));
   if (ax) {
-    left.append(h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax650-install' }, 'Installation', h('small', {}, `${fmt(ax650Install(data.ax650, { type: calc.type }))} / door`))));
+    left.append(h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax650-install' }, 'Installation')));
   } else if (calc.product === 'window') left.append(windowLabor(calc, persist, rerender, update));
   else left.append(doorLabor(calc, persist, rerender, update, doorLaborEl));
 
@@ -394,8 +404,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     errEl.textContent = errors.join(' ');
     const locationOk = String(calc.label || '').trim().length > 0;
     roomMsg.hidden = locationOk;
-    addBtn.disabled = unavailable || !sized || errors.length > 0 || !locationOk;
-    addBtn.title = unavailable ? 'Not available' : (locationOk ? '' : 'Enter a location (e.g. Kitchen)');
+    const pending = !!q?.pricePending;
+    addBtn.disabled = unavailable || pending || !sized || errors.length > 0 || !locationOk;
+    addBtn.title = unavailable ? 'Not available' : (pending ? 'Price pending' : (locationOk ? '' : 'Enter a location (e.g. Kitchen)'));
     const qty = line.qty;
     priceEl.classList.remove('pending');
     if (unavailable) {
@@ -426,7 +437,7 @@ export function renderMilgard(root, { calc, persist, rerender }) {
       const base = data.install.doors.panels[calc.type] || 0;
       const tall = line.h > data.install.doors.tallOverInches;
       const who = calc.type === '2panel' ? '2-panel' : calc.type === '3panel' ? '3-panel' : '4-panel';
-      doorLaborEl.innerHTML = `${who} slider install<small>${fmt(base)}${tall ? ` + ${fmt(data.install.doors.tallAdd)} over 7 ft` : ''} / door</small>`;
+      doorLaborEl.textContent = `${who} slider install${tall ? ', over 7 ft' : ''}`;
     }
     drawQuote();
   }
@@ -461,9 +472,9 @@ export function renderMilgard(root, { calc, persist, rerender }) {
     const location = String(calc.label || '').trim();
     const line = draftLine(calc);
     const q = ax ? ax650Quote(data.ax650, line) : milgardQuote(data.milgardOnelink, line);
-    if (!location || !q || q.unavailable || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
+    if (!location || !q || q.unavailable || q.pricePending || q.errors.length || !(line.w > 0) || !(line.h > 0)) return;
     const p = priceWindow(line);
-    if (!p || p.blocked || p.unit == null) return;
+    if (!p || p.blocked || p.pricePending || !(p.unit > 0)) return;
     const e = estimates.current();
     const inst = installFromCalc(calc);
     e.lines.push({
@@ -502,7 +513,7 @@ function windowLabor(calc, persist, rerender, update) {
         else if (t.id === 'block') calc.frame = calc.install.frameType = 'block';
         persist(); rerender();
       },
-    }, t.name, h('small', {}, t.custom ? 'type a price' : `${fmt(t.price)} / window`)));
+    }, t.name, t.custom ? h('small', {}, 'type a price') : null));
   }
   const custom = calc.install.type === 'custom'
     ? h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Custom labor price (each)'), h('input', {
@@ -521,7 +532,7 @@ function windowLabor(calc, persist, rerender, update) {
         calc.install.surcharges = [...cur];
         persist(); rerender();
       },
-    }, `${s.name} · ${fmt(s.amount)}`));
+    }, s.name));
   }
   return h('div', {}, box, custom, h('div', { class: 'lbl' }, 'Add-ons'), adds);
 }
@@ -530,7 +541,6 @@ function doorLabor(calc, persist, rerender, update, doorLaborEl) {
   const adds = h('div', { class: 'labor-boxes', id: 'door-addons' });
   for (const s of data.install.doors.addons) {
     const on = calc.doorAddons.includes(s.id);
-    const price = s.per === 'linearFoot' ? `${fmt(s.amount)} / ft` : fmt(s.amount);
     adds.append(h('button', {
       type: 'button', class: 'chip pick labor-add' + (on ? ' on' : ''), id: 'door-addon-' + s.id,
       onclick: () => {
@@ -539,7 +549,7 @@ function doorLabor(calc, persist, rerender, update, doorLaborEl) {
         calc.doorAddons = [...cur];
         persist(); rerender();
       },
-    }, `${s.name} · ${price}`));
+    }, s.name));
   }
   const feet = h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Header linear feet'), h('input', {
     type: 'text', inputmode: 'decimal', id: 'header-feet', value: calc.headerFeet ?? '', placeholder: '0',
@@ -623,10 +633,17 @@ export function milgardLineEditor(line, onChange, idp = 'mg-') {
       : h('label', { class: 'check' }, h('input', {
         type: 'checkbox', id: idp + 'pureview', checked: line.pureview ? 'checked' : null,
         onchange: (e) => { line.pureview = e.target.checked; change(); },
-      }), h('span', {}, 'PureView screen'), h('em', {}, ' +$137'));
+      }), h('span', {}, 'PureView screen'));
     return h('div', {}, colors, extra);
   }
   const a250 = line.series === 'A250';
+  const holdUp = milgardUpgradesHeld(line.type);
+  if (holdUp) {
+    line.grids = 'none';
+    line.obscure = 'none';
+    line.tempered = false;
+    line.pureview = false;
+  }
   if (a250) {
     const before = [line.grids, line.obscure, line.tempered, line.pureview].join('|');
     trimA250(line);
@@ -643,18 +660,18 @@ export function milgardLineEditor(line, onChange, idp = 'mg-') {
     onchange: (e) => { line[key] = e.target.checked; change(); },
   }), h('span', {}, label));
   return h('div', {},
-    h('div', { class: 'chips' }, windowColors(line.series).map(([id, name]) => color(id, name))),
-    a250 ? null : h('div', { class: 'chips' }, GRIDS.map(([id, name]) => h('button', {
+    h('div', { class: 'chips' }, windowColors(line.series).filter(([id]) => !milgardColorHeld(line.series, line.type, id)).map(([id, name]) => color(id, name))),
+    a250 || holdUp ? null : h('div', { class: 'chips' }, GRIDS.map(([id, name]) => h('button', {
       type: 'button', class: 'chip pick' + ((line.grids || 'none') === id ? ' on' : ''),
       onclick: () => { line.grids = id; change(); },
     }, name + ' grids'))),
-    glass.obscure ? h('div', { class: 'chips' }, OBSCURE.map(([id, name]) => h('button', {
+    glass.obscure && !holdUp ? h('div', { class: 'chips' }, OBSCURE.map(([id, name]) => h('button', {
       type: 'button', class: 'chip pick' + ((line.obscure || 'none') === id ? ' on' : ''),
       onclick: () => { line.obscure = id; change(); },
     }, name))) : null,
-    glass.tempered ? flag('tempered', 'tempered', 'Tempered glass') : null,
+    glass.tempered && !holdUp ? flag('tempered', 'tempered', 'Tempered glass') : null,
     a250 ? h('p', { class: 'fine' }, A250_NOTE) : null,
-    line.type === 'picture' || a250 ? null : flag('pureview', 'pureview', 'PureView screen'));
+    line.type === 'picture' || a250 || holdUp ? null : flag('pureview', 'pureview', 'PureView screen'));
 }
 
 export function doorInstallEditor(line, onChange, idp = 'door-') {
@@ -664,7 +681,6 @@ export function doorInstallEditor(line, onChange, idp = 'door-') {
   inst.writeIn ||= { description: '', amount: '' };
   const adds = data.install.doors.addons.map((s) => {
     const on = inst.surcharges.includes(s.id);
-    const price = s.per === 'linearFoot' ? `${fmt(s.amount)} / ft` : fmt(s.amount);
     return h('button', {
       type: 'button', class: 'chip pick labor-add' + (on ? ' on' : ''), id: idp + s.id,
       onclick: () => {
@@ -673,10 +689,10 @@ export function doorInstallEditor(line, onChange, idp = 'door-') {
         inst.surcharges = [...cur];
         onChange(true);
       },
-    }, `${s.name} · ${price}`);
+    }, s.name);
   });
   return h('div', { class: 'install-ed' },
-    h('p', { class: 'fine' }, installLabel(inst, line) + ' · ' + fmt(installUnit(inst, line))),
+    h('p', { class: 'fine' }, installLabel(inst, line)),
     h('div', { class: 'labor-boxes' }, adds),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Header linear feet'), h('input', {
       type: 'text', inputmode: 'decimal', id: idp + 'header-feet', value: inst.headerFeet ?? '',

@@ -3,10 +3,11 @@ import { mineTabs } from '../mine-tabs.js';
 import { prehungEstimateRow } from './prehung-ui.js';
 import { prehungSizeText, prehungSummary, migratePrehungEstimate } from '../prehung.js';
 import { isMilgardDoorLine, doorColorLabel, PENDING_WINDOW_STYLES } from '../milgard.js';
+import { droppedExtra } from '../held-configs.js';
 import { doorInstallEditor, milgardLineEditor, ax650LineEditor } from './milgard-ui.js';
 import { prlLineEditor } from './prl-ui.js';
-import { prlInstall, prlDescription, PRL_QUOTE_LABEL } from '../prl.js';
-import { ax650Description, ax650Model, ax650Install } from '../ax650.js';
+import { prlDescription, PRL_QUOTE_LABEL } from '../prl.js';
+import { ax650Description, ax650Model } from '../ax650.js';
 import { markPresented, preparePresented, applyHubspotChoice, userId, refreshEstimates, sendEstimateEmail, canSeeAllEstimates, isAdmin, markLost, markWon, reopenEstimate, recordAppointment } from '../cloud.js';
 import { MINE_FILTERS, canDeleteEstimate, inMineFolder, mineCounts, mineSearchMatch } from '../mine-rules.js';
 import { lostConfirm, wonConfirm, deleteConfirm } from './lost.js';
@@ -73,7 +74,6 @@ function lineDesc(l) {
 function optNames(l) { return lineOptionNames(l); }
 function lineFlags(l) {
   const flags = [];
-  if (l.provisional) flags.push(h('div', { class: 'provisional-flag', id: 'provisional-' + (l.id || 'line') }, 'Provisional price'));
   if ((l.addons || []).includes('flush_fin_trim')) flags.push(h('div', { class: 'note flush-fin-note', id: 'flush-fin-' + (l.id || 'line') }, FLUSH_FIN_NOTE));
   return flags;
 }
@@ -413,9 +413,9 @@ export function render(root) {
           : upgradeEditor(l, () => { reprice(l); save(); rerender(); }, 'opt-' + l.id + '-'),
         h('b', {}, 'Installation'),
         isPrlLine(l)
-          ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'prl-install-' + l.id }, 'Installation', h('small', {}, l.quoteRequired || l.unpriced ? 'Not quoted' : `${fmt(prlInstall(data.ax650, l))} / door`)))
+          ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'prl-install-' + l.id }, 'Installation'))
           : isAx650Line(l)
-          ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax-install-' + l.id }, 'Installation', h('small', {}, `${fmt(ax650Install(data.ax650, l))} / door`)))
+          ? h('div', { class: 'labor-boxes' }, h('div', { class: 'labor-box on', id: 'ax-install-' + l.id }, 'Installation'))
           : isMilgardDoorLine(l)
           ? doorInstallEditor(l, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id + '-')
           : installEditor(l.install, (full) => { reprice(l); save(); full ? rerender() : refreshTotals(); }, 'li-' + l.id, l),
@@ -435,42 +435,32 @@ export function render(root) {
     const input = document.getElementById('stucco-qty');
     const next = windowCount(e);
     if (input && document.activeElement !== input) input.value = String(next);
-    const lab = document.getElementById('stucco-line-total');
-    const live = stuccoState(e);
-    if (lab) lab.textContent = fmt(live.total);
-    const qtyLbl = document.getElementById('stucco-qty-lbl');
-    if (qtyLbl) qtyLbl.textContent = `${live.qty} × ${fmt(live.unit)}`;
   }
   const stuccoCard = h('div', { class: 'card', id: 'stucco-card' },
     h('h3', {}, stDef.name),
     h('label', { class: 'check' },
       h('input', { type: 'checkbox', id: 'stucco-on', checked: e.stuccoRepair.on ? 'checked' : null, onchange: (ev) => { e.stuccoRepair.on = ev.target.checked; save(); rerender(); } }),
-      h('span', {}, `Include ${stDef.name}`),
-      h('em', {}, ` ${fmt(stDef.price)} / window`)),
-    e.stuccoRepair.on && h('div', { class: 'grid2' },
-      stepper('Quantity', stNow.qty, (v) => {
-        e.stuccoRepair.qty = v === '' ? 0 : (parseInt(v, 10) || 0);
-        save();
-        const live = stuccoState(e);
-        const lab = document.getElementById('stucco-line-total');
-        if (lab) lab.textContent = fmt(live.total);
-        const qtyLbl = document.getElementById('stucco-qty-lbl');
-        if (qtyLbl) qtyLbl.textContent = `${live.qty} × ${fmt(live.unit)}`;
-        refreshTotals();
-      }, { min: 0, step: 1, id: 'stucco-qty' }),
-      h('div', { class: 'line' }, h('span', { id: 'stucco-qty-lbl' }, `${stNow.qty} × ${fmt(stNow.unit)}`), h('b', { id: 'stucco-line-total' }, fmt(stNow.total)))),
+      h('span', {}, `Include ${stDef.name}`)),
+    e.stuccoRepair.on && stepper('Quantity', stNow.qty, (v) => {
+      e.stuccoRepair.qty = v === '' ? 0 : (parseInt(v, 10) || 0);
+      save();
+      refreshTotals();
+    }, { min: 0, step: 1, id: 'stucco-qty' }),
     h('p', { class: 'fine' }, e.stuccoRepair.on && e.stuccoRepair.qty == null
       ? 'Quantity starts at the window count and follows it until you change it. Promo codes do not apply.'
       : 'Optional. Promo codes do not apply to stucco repair.'));
   wrap.append(stuccoCard);
 
   // job extras
-  const ex = h('div', { class: 'card' }, h('h3', {}, 'Additional job items (permit, haul-away, trim…)'));
-  e.extras.forEach((x, i) => ex.append(h('div', { class: 'row gap nowrap extra' },
-    h('input', { type: 'text', value: x.label, 'aria-label': 'Item', oninput: (ev) => { x.label = ev.target.value; save(); } }),
-    h('input', { type: 'text', inputmode: 'decimal', class: 'amt', value: x.amount, 'aria-label': 'Amount', oninput: (ev) => { x.amount = ev.target.value.replace(/[^0-9.-]/g, ''); save(); refreshTotals(); } }),
-    h('button', { class: 'btn sm danger', 'aria-label': 'Remove item', onclick: () => { e.extras.splice(i, 1); save(); rerender(); } }, icon('x')))));
-  ex.append(h('div', { class: 'chips' }, data.install.jobExtras.map((x) => h('button', { class: 'chip', onclick: () => { e.extras.push({ id: uid(), label: x.name, amount: x.amount }); save(); rerender(); } }, '+ ' + x.name)), h('button', { class: 'chip', id: 'btn-custom-extra', onclick: () => { e.extras.push({ id: uid(), label: 'Custom item', amount: 0 }); save(); rerender(); } }, '+ Custom')));
+  const ex = h('div', { class: 'card' }, h('h3', {}, 'Additional items'));
+  e.extras.forEach((x, i) => {
+    if (droppedExtra(x)) return;
+    ex.append(h('div', { class: 'row gap nowrap extra' },
+      h('input', { type: 'text', value: x.label, 'aria-label': 'Item', oninput: (ev) => { x.label = ev.target.value; save(); } }),
+      h('input', { type: 'text', inputmode: 'decimal', class: 'amt', value: x.amount, 'aria-label': 'Amount', oninput: (ev) => { x.amount = ev.target.value.replace(/[^0-9.-]/g, ''); save(); refreshTotals(); } }),
+      h('button', { class: 'btn sm danger', 'aria-label': 'Remove item', onclick: () => { e.extras.splice(i, 1); save(); rerender(); } }, icon('x'))));
+  });
+  ex.append(h('div', { class: 'chips' }, (data.install.jobExtras || []).filter((x) => Number(x.amount) > 0).map((x) => h('button', { class: 'chip', onclick: () => { e.extras.push({ id: uid(), label: x.name, amount: x.amount }); save(); rerender(); } }, '+ ' + x.name)), h('button', { class: 'chip', id: 'btn-custom-extra', onclick: () => { e.extras.push({ id: uid(), label: 'Custom item', amount: 0 }); save(); rerender(); } }, '+ Custom')));
   wrap.append(ex);
 
   function applyPromo() {
@@ -612,7 +602,7 @@ function estimateSheet(e) {
   const tb = h('tbody'); e.lines.forEach((l) => {
     const door = isPrehungLine(l);
     const detail = door ? prehungSummary(data.prehung, l).detail : '';
-    tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), door && detail ? h('div', { class: 'fine' }, detail) : null, !door && optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.sizeError ? h('div', { class: 'warn' }, l.sizeError) : null, ...lineFlags(l), !door && l.optionsEach ? h('div', { class: 'fine' }, `Glass upcharge ${fmt(l.optionsEach)} each`) : null), h('td', {}, door ? prehungSizeText(data.prehung, l) : (isAx650Line(l) ? ax650Description(data.ax650, l).size : `${l.w}" × ${l.h}"`)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.quoteRequired ? PRL_QUOTE_LABEL : (l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit))))), h('td', { class: 'r' }, linePriceText(l))));
+    tb.append(h('tr', {}, h('td', {}, h('b', {}, l.label)), h('td', {}, drawingEl(l, 'sheet-drawing', { boxW: 150, boxH: 128 }), lineDesc(l), door && detail ? h('div', { class: 'fine' }, detail) : null, !door && optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(', ')) : null, l.pricePending ? h('div', { class: 'fine' }, PRICE_PENDING_LABEL + ' — not a OneLink price') : null, l.sizeError ? h('div', { class: 'warn' }, l.sizeError) : null, ...lineFlags(l)), h('td', {}, door ? prehungSizeText(data.prehung, l) : (isAx650Line(l) ? ax650Description(data.ax650, l).size : `${l.w}" × ${l.h}"`)), h('td', { class: 'r' }, l.qty), h('td', { class: 'r' }, l.quoteRequired ? PRL_QUOTE_LABEL : (l.unavailable ? 'Not available' : (l.pricePending ? PRICE_PENDING_LABEL : (l.unpriced ? 'Not priced' : fmt(l.unit))))), h('td', { class: 'r' }, linePriceText(l))));
   });
   tb.append(h('tr', { class: 'sub' }, h('td', { colspan: 5, class: 'r' }, 'Windows subtotal'), h('td', { class: 'r' }, fmt(t.windows))));
   if (t.promo?.windowAmount) tb.append(h('tr', { class: 'sub discount', id: 'sh-discount' }, h('td', { colspan: 5, class: 'r' }, t.discountLabel), h('td', { class: 'r' }, fmt(-t.promo.windowAmount))));
@@ -628,7 +618,7 @@ function estimateSheet(e) {
   sheet.append(h('h3', {}, e.lines.some(isPrehungLine) ? 'Windows & doors' : 'Windows (materials, including glass)'), tw, compact);
   if (e.lines.some((l) => l.pricePending)) sheet.append(h('p', { class: 'warn', id: 'sh-price-pending' }, 'Price pending is a placeholder. It is not a OneLink price and it is not included in the total.'));
   if (e.extras.length) {
-    const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))));
+    const tx = h('table', { class: 'sh-table' }); e.extras.forEach((x) => { if (droppedExtra(x) || !(Number(x.amount) > 0)) return; tx.append(h('tr', {}, h('td', {}, x.label), h('td', { class: 'r' }, fmt(Number(x.amount) || 0)))); });
     tx.append(h('tr', { class: 'sub' }, h('td', { class: 'r' }, 'Additional items subtotal'), h('td', { class: 'r' }, fmt(t.extras))));
     sheet.append(h('h3', {}, 'Additional items'), tx);
   }

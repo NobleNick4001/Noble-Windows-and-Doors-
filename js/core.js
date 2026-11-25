@@ -1,5 +1,6 @@
 // Core helpers, data loading, settings, estimate store, pricing.
 import { isMilgardDoorLine, milgardQuote, doorColorLabel } from './milgard.js';
+import { droppedExtra, iwcColorHeld } from './held-configs.js';
 import { isPrehungLine, pricePrehung, prehungCompactLine, prehungQuoteLine } from './prehung.js';
 import { isAx650Line, ax650Description, ax650Quote, ax650Install } from './ax650.js';
 import { isPrlLine, prlDescription, prlQuote, prlQuoteMessage, prlInstall, PRL_QUOTE_LABEL } from './prl.js';
@@ -205,7 +206,7 @@ function andersenColorAdder(A, typeId, color) {
 // Colors the iQ sheet actually prices for this type. Patio doors are White, Black/White, and Black/Black.
 export function seriesColorIds(brand, seriesId, type) {
   const series = brandById(brand)?.series?.find((s) => s.id === seriesId);
-  const all = series?.colors || [];
+  const all = (series?.colors || []).filter((id) => brand !== 'iwc' || !iwcColorHeld(id));
   const A = andersenConfig();
   if (brand !== 'andersen' || !A || seriesId !== A.series) return all;
   const table = andersenColorTable(A, andersenTypeId(type));
@@ -368,7 +369,7 @@ export function compactWindowLine(line, { includeBrand = false, ascii = false } 
   const bits = [`${formatInches(line.w, { ascii })} ${times} ${formatInches(line.h, { ascii })}`, isMilgardDoorLine(line) ? (doorColorLabel(line.series, line.color) || colorName(line.color)) : shortColorName(colorName(line.color)), ...lineOptionNames(line)];
   if (Number(line.unitsPerLine) > 1 && !isIntegralType(line)) bits.push(`${line.unitsPerLine} units`);
   if (line.shape === 'eyebrow') bits.push('Eyebrow');
-  if (line.provisional) bits.push('Provisional price');
+  // Provisional stays on the quote screen for the rep. It is not printed for the customer.
   if (hasFlushFin(line)) bits.push(FLUSH_FIN_NOTE);
   bits.push(`Qty ${Number(line.qty) || 1}`);
   return {
@@ -453,7 +454,7 @@ export function quoteLine(line, { ascii = false } = {}) {
   if (ids.has('screen')) details.push('Screen');
   if (line.pureview || ids.has('pureview')) details.push('PureView screen');
   if (line.pricePending) details.push('Price pending — not a OneLink price');
-  if (line.provisional) details.push('Provisional price');
+  // Customer PDF and the print sheet omit the provisional flag. The quote screen still shows it.
   if (line.unavailable) details.push(NOT_AVAILABLE_LABEL);
   if (hasFlushFin(line)) details.push(FLUSH_FIN_NOTE);
   if (Number(line.unitsPerLine) > 1 && !isIntegralType(line)) details.push(`${line.unitsPerLine} units`);
@@ -862,6 +863,9 @@ const doorPanelKey = (line) => (data.install?.doors?.panels?.[line?.type] != nul
 // inst = {type, surcharges[], override, custom, headerFeet, writeIn:{description, amount}}
 // Labor only. Add-ons, including door header footage and the write-in, are addonUnit.
 export function installUnit(inst, line) {
+  // A line with no material price does not get labor. Price pending is stored at $0.
+  if (line && (line.pricePending || line.unavailable || line.unpriced || line.quoteRequired)) return 0;
+  if (line && line.unit != null && line.unit !== '' && Number(line.unit) === 0) return 0;
   if (line && isPrehungLine(line)) return pricePrehung(data.prehung, line.prehung || line).labor;
   if (line && isAx650Line(line)) return ax650Install(data.ax650, line);
   if (line && isPrlLine(line)) {
@@ -1107,7 +1111,7 @@ export function totals(e) {
   const install = r2(lines.reduce((s, l) => s + installUnit(l.install, l) * qtyOf(l), 0));
   const addons = r2(lines.reduce((s, l) => s + addonUnit(l.install, l) * qtyOf(l), 0));
   const stucco = stuccoState(e);
-  const extras = r2((e.extras || []).reduce((s, x) => s + (Number(x.amount) || 0), 0));
+  const extras = r2((e.extras || []).reduce((s, x) => s + (droppedExtra(x) ? 0 : (Number(x.amount) || 0)), 0));
   const promo = promoResult(e, windows, install);
   const discount = promo.amount;
   const labor = r2(install + addons + stucco.total);

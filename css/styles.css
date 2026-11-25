@@ -425,6 +425,7 @@ button.metric,button.sales-box{text-align:left;width:100%}
   #account .sync-word{display:inline}
   .sales-table-wrap{display:none}
   .rep-cards{display:flex;flex-direction:column;gap:.7rem}
+  .page.calc{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
   .price-dock{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom));z-index:35;margin:0;border-radius:0;border-left:0;border-right:0;border-top:3px solid var(--orange);display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:.6rem;padding:.45rem .7rem;box-shadow:0 -4px 16px rgba(11,31,58,.12)}
   .price-dock h3,.price-dock .eyebrow,.price-dock .calc-drawing,.price-dock .calc-drawing-row,.price-dock .fine,.price-dock .note,.price-dock .math,.price-dock .link,.price-dock .line,.price-dock .warn{display:none}
   .price-dock .big{grid-column:1;grid-row:1;margin:0;font-size:1.7rem;text-align:left}
