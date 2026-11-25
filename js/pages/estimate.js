@@ -111,10 +111,10 @@ function reprice(l) {
   const p = priceWindow(l);
   if (p && !p.blocked && p.unit != null) {
     l.unitBase = p.unitBase; l.optionsEach = p.optionsEach; l.unit = p.unit; l.rate = p.rate; l.rateSet = settings.rateSet; l.estimated = p.estimated; l.pricingMode = p.mode; l.pricePending = !!p.pricePending;
-    l.provisional = !!p.provisional; l.unavailable = false; l.quoteRequired = false;
+    l.provisional = !!p.provisional; l.verifyIq = !!p.verifyIq; l.unavailable = false; l.quoteRequired = false;
     l.unpriced = false; l.sizeError = '';
   } else {
-    l.unitBase = 0; l.optionsEach = 0; l.unit = 0; l.pricePending = false; l.provisional = false;
+    l.unitBase = 0; l.optionsEach = 0; l.unit = 0; l.pricePending = false; l.provisional = false; l.verifyIq = false;
     l.unavailable = !!(p && p.unavailable);
     l.quoteRequired = !!(p && p.quoteRequired);
     l.unpriced = !!(p && p.blocked);
@@ -362,12 +362,14 @@ export function render(root) {
       h('div', { class: 'li-main' },
         drawingEl(l, 'line-drawing', { boxW: 168, boxH: 142 }),
         h('div', { class: 'li-text' }, h('b', {}, l.label), h('div', { class: 'muted' }, `${lineDesc(l)} · ${l.w}" × ${l.h}"`), optNames(l).length ? h('div', { class: 'fine' }, optNames(l).join(' · ')) : null,
-          h('div', { class: 'fine', id: 'li-install-' + l.id }, `Install: ${installLabel(l.install, l)}`),
+          h('div', { class: 'fine', id: 'li-install-' + l.id }, `Install: ${installLabel(l.install, l)}${/slider install/.test(installLabel(l.install, l)) ? ` · ${fmt(installUnit(l.install, l))}` : ''}`),
           needsFrameWarning(l) ? h('div', { class: 'warn frame-warn', id: 'frame-warn-' + l.id }, FRAME_TYPE_WARNING) : null,
           l.sizeError ? h('div', { class: 'warn size-err', id: 'size-err-' + l.id }, l.sizeError) : null,
           addonNames(l.install, l).length ? h('div', { class: 'fine' }, `Add-ons: ${addonNames(l.install, l).join(', ')}`) : null,
           ...lineFlags(l)),
-        h('div', { class: 'li-price' }, h('b', { id: 'li-price-' + l.id, class: (l.pricePending || l.unpriced || l.unavailable || l.quoteRequired) ? 'pending-price' : '' }, linePriceText(l)))),
+        h('div', { class: 'li-price' },
+          h('b', { id: 'li-price-' + l.id, class: (l.pricePending || l.unpriced || l.unavailable || l.quoteRequired) ? 'pending-price' : '' }, linePriceText(l)),
+          l.verifyIq ? h('div', { class: 'verify-iq', id: 'verify-iq-' + l.id }, 'Verify this size in iQ') : null)),
       h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm', onclick: () => { isOpen ? open.delete(l.id) : open.add(l.id); rerender(); } }, isOpen ? 'Done' : 'Edit'),
         h('button', { class: 'btn sm', onclick: () => { const c = JSON.parse(JSON.stringify(l)); c.id = uid(); e.lines.splice(idx + 1, 0, c); save(); rerender(); } }, 'Copy'),
         h('button', { class: 'btn sm danger', onclick: () => { e.lines.splice(idx, 1); save(); rerender(); } }, 'Remove')));

@@ -692,7 +692,7 @@ export function doorInstallEditor(line, onChange, idp = 'door-') {
     }, s.name);
   });
   return h('div', { class: 'install-ed' },
-    h('p', { class: 'fine' }, installLabel(inst, line)),
+    h('p', { class: 'fine', id: idp + '-labor' }, installLabel(inst, line)),
     h('div', { class: 'labor-boxes' }, adds),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Header linear feet'), h('input', {
       type: 'text', inputmode: 'decimal', id: idp + 'header-feet', value: inst.headerFeet ?? '',

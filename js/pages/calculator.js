@@ -1,6 +1,6 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE, rowAmountText } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE, rowAmountText, chooseAndersenFrame, chooseAndersenInstall, syncAndersenFlushAddon } from '../core.js';
 import { parseInches, inchField } from '../ax650.js';
-import { renderMilgard, roomLabelProps } from './milgard-ui.js';
+import { renderMilgard, roomLabelProps, doorInstallEditor } from './milgard-ui.js';
 import { renderPrl } from './prl-ui.js';
 import { frameSVG } from '../frames.js';
 import { drawingEl } from '../drawings.js';
@@ -37,6 +37,7 @@ function normalize() {
   if (!colors.includes(calc.color)) calc.color = colors[0] || s.colors[0];
   const defs = lineAddonDefs(calc);
   if (defs) calc.addons = calc.addons.filter((id) => defs[id]);
+  if (calc.brand === 'andersen') syncAndersenFlushAddon(calc);
   return b;
 }
 
@@ -89,7 +90,7 @@ export function upgradeEditor(line, onChange, idp = 'opt-') {
       h('div', {}, h('b', {}, 'Frame / extras'), data.options.frame.map((o) => legacyOptionCheck(line, o, onChange, idp))));
   }
   const autoOn = Object.entries(defs).filter(([, d]) => isAutoAddon(d) && d.auto === `frameType:${line.install?.frameType}`);
-  const entries = Object.entries(defs).filter(([, d]) => !isAutoAddon(d));
+  const entries = Object.entries(defs).filter(([, d]) => !isAutoAddon(d) && d.type !== 'flushFin');
   if (!entries.length) return h('p', { class: 'fine' }, fittedIncludes(line) || 'No extra glass upcharges on this series.');
   const GL = ['tempered', 'tempered_lower', 'laminated', 'obscure'];
   const glass = entries.filter(([id]) => GL.includes(id));
@@ -162,6 +163,25 @@ export function stepper(label, value, onChange, { step = 1, min = 0, unit = '', 
     h('div', { class: 'row nowrap' }, h('button', { type: 'button', class: 'btn sq', 'aria-label': 'Decrease ' + label, onclick: () => bump(-step) }, uiIcon('minus')), input, h('button', { type: 'button', class: 'btn sq', 'aria-label': 'Increase ' + label, onclick: () => bump(step) }, uiIcon('plus'))));
 }
 
+function andersenInstallNote(line, inst, idp) {
+  if (line?.brand !== 'andersen' || line.type === 'patio_door_2p') return null;
+  const frame = inst?.frameType || '';
+  const picked = !!inst?.installPicked;
+  const flush = (line.addons || []).includes('flush_fin_trim');
+  let text = 'Pick a frame type. Retrofit / Z-bar sets Jump Frame labor and adds flush fin on shapes that have one. Nail fin sets Nail Fin labor at the base price. Block frame sets Block labor and is treated as setback, with no flush-fin charge.';
+  if (frame === 'zbar') {
+    text = flush
+      ? 'Retrofit / Z-bar sets Jump Frame labor and includes flush fin + interior trim in the window price.'
+      : 'Retrofit / Z-bar sets Jump Frame labor. This shape has no flush-fin upcharge.';
+  } else if (frame === 'nailfin') {
+    text = 'Nail fin sets Nail Fin RnR Stucco labor. The window price stays the nail-fin base. No flush-fin charge.';
+  } else if (frame === 'block') {
+    text = 'Block frame sets Block labor. It is treated as setback / no flange, so there is no flush-fin charge.';
+  }
+  if (picked) text += ' Labor was switched by hand and stays until the frame type changes.';
+  return h('p', { class: 'fine', id: idp + '-flush-link' }, text);
+}
+
 // Reusable install editor (calculator + estimate line editing). inst is mutated; onChange called after.
 export function installEditor(inst, onChange, idp = 'inst', line = null) {
   const t = installType(inst.type);
@@ -174,19 +194,26 @@ export function installEditor(inst, onChange, idp = 'inst', line = null) {
     frames.length ? h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Frame type'),
       h('select', { id: idp + '-frame', onchange: (e) => {
         const id = e.target.value;
-        inst.frameType = id || null;
-        const ft = frames.find((f) => f.id === id);
-        if (ft?.installType) inst.type = ft.installType;
+        if (line?.brand === 'andersen') chooseAndersenFrame(line, id);
+        else {
+          inst.frameType = id || null;
+          const ft = frames.find((f) => f.id === id);
+          if (ft?.installType) inst.type = ft.installType;
+        }
         onChange(true);
       } }, h('option', { value: '', selected: !inst.frameType ? 'selected' : null }, 'Not set'), frames.map((f) => h('option', { value: f.id, selected: f.id === inst.frameType ? 'selected' : null }, f.name))),
       frameWarn) : frameWarn,
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Install type'),
       h('select', { id: idp + '-type', onchange: (e) => {
-        inst.type = e.target.value;
-        const match = frames.find((f) => f.installType === inst.type);
-        inst.frameType = match ? match.id : null;
+        if (line?.brand === 'andersen') chooseAndersenInstall(line, e.target.value);
+        else {
+          inst.type = e.target.value;
+          const match = frames.find((f) => f.installType === inst.type);
+          inst.frameType = match ? match.id : null;
+        }
         onChange(true);
       } }, data.install.types.map((x) => h('option', { value: x.id, selected: x.id === inst.type ? 'selected' : null }, priceLabel(x))))),
+    andersenInstallNote(line, inst, idp),
     t.custom && h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Custom install price ($ per window)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-custom', value: inst.custom ?? '', oninput: (e) => { inst.custom = e.target.value.replace(/[^0-9.]/g, ''); onChange(); } })),
     h('div', { class: 'checks' }, data.install.surcharges.map((s) => h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + '-sur-' + s.id, checked: (inst.surcharges || []).includes(s.id) ? 'checked' : null, onchange: (e) => { const cur = inst.surcharges || []; inst.surcharges = e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id); onChange(true); } }), h('span', {}, s.name)))),
     h('p', { class: 'fine' }, 'Add-ons are charged per window, times this line’s quantity. Promo codes do not apply.'),
@@ -249,6 +276,7 @@ export function render(root) {
         h('div', { class: 'grid3' }, stepper('Width', calc.w, (v) => { calc.w = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-w' }), stepper('Height', calc.h, (v) => { calc.h = v; persist(); update(); }, { unit: 'in', step: 1, id: 'in-h' }), stepper('Qty', calc.qty, (v) => { calc.qty = v; persist(); update(); }, { step: 1, min: 1, id: 'in-q' }))),
       h('p', { class: 'fine', id: 'size-limit' }, sizeLimitText(args())),
       h('p', { class: 'warn size-err', id: 'size-err', hidden: true }, ''),
+      h('p', { class: 'verify-iq', id: 'verify-iq', hidden: true }, 'Verify this size in iQ'),
       archOver
         ? h('p', { class: 'fine', id: 'arch-over-note' }, 'Arch over the slider is two lines: the equal-leg arch at this width (rise about one quarter of the width) and the slider at this width and height. No mull charge. Andersen has no eyebrow.')
         : integral
@@ -263,7 +291,9 @@ export function render(root) {
       upgradeEditor(calc, () => { persist(); update(); }, 'opt-'),
       calc.series === 'V400' ? h('p', { class: 'fine' }, 'Composite units: choose Custom unit and enter the supplier price.') : null),
     h('details', { class: 'card', open: true }, h('summary', {}, h('h3', { style: 'display:inline' }, 'Installation')),
-      installEditor(calc.install, (rerenderNeeded) => { persist(); rerenderNeeded ? rerender() : update(); }, 'calc-inst', calc)),
+      calc.type === 'patio_door_2p'
+        ? doorInstallEditor(calc, (rerenderNeeded) => { persist(); rerenderNeeded ? rerender() : update(); }, 'calc-door')
+        : installEditor(calc.install, (rerenderNeeded) => { persist(); rerenderNeeded ? rerender() : update(); }, 'calc-inst', calc)),
   );
 
   const priceBox = h('div', { class: 'card price price-dock', id: 'pricebox' });
@@ -282,6 +312,8 @@ export function render(root) {
       errEl.textContent = blocked ? p.errors.join(' ') : '';
       errEl.hidden = !blocked;
     }
+    const verifyEl = document.getElementById('verify-iq');
+    if (verifyEl) verifyEl.hidden = !(p && p.verifyIq && !blocked);
     priceBox.replaceChildren();
     const summary = `${brand.name} ${calc.series} · ${typeName(calc.type)} · ${colorById(calc.color).name}`;
     priceBox.append(h('div', { class: 'eyebrow' }, summary));
@@ -342,7 +374,7 @@ export function render(root) {
       id: uid(), label: location, brand: calc.brand, series: calc.series, color: calc.color,
       qty: a.qty, unitsPerLine: 1, options: [...(calc.options || [])], addons: [...(calc.addons || [])],
       supplierPrice: null, rate: null, rateSet: settings.rateSet, estimated: false, pricingMode: 'variable',
-      pricePending: false, provisional: false, unavailable: false,
+      pricePending: false, provisional: false, verifyIq: !!fields.verifyIq, unavailable: false,
       install: JSON.parse(JSON.stringify(calc.install)),
       ...fields,
     });
@@ -353,6 +385,7 @@ export function render(root) {
           type: part.line.type, w: part.line.w, h: part.line.h,
           customDescription: part.line.customDescription || '',
           unitBase: part.unitBase, optionsEach: part.optionsEach, unit: part.unit,
+          verifyIq: !!part.verifyIq,
           installUnit: installUnit(calc.install, partLine),
         });
       }
@@ -362,6 +395,7 @@ export function render(root) {
         supplierPrice: calc.type === 'custom_supplier' || isCustomLine(calc) ? calc.supplierPrice : null,
         customDescription: calc.customDescription || '',
         unitBase: p.unitBase, optionsEach: p.optionsEach, unit: p.unit, rate: p.rate, estimated: p.estimated, pricingMode: p.mode,
+        verifyIq: !!p.verifyIq,
         installUnit: installUnit(calc.install),
       });
     }

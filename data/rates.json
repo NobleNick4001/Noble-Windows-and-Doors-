@@ -183,20 +183,26 @@
   },
   {
    "id": "sandtone",
-   "name": "Sandtone",
+   "name": "Sandtone / White",
+   "swatch": "linear-gradient(135deg,#CBBBA0 50%,#f4f4f1 50%)",
+   "frame": "sandtone"
+  },
+  {
+   "id": "sandtone_sandtone",
+   "name": "Sandtone / Sandtone",
    "swatch": "#CBBBA0",
    "frame": "sandtone"
   },
   {
    "id": "terratone",
-   "name": "Terratone",
-   "swatch": "#8A6A4F",
+   "name": "Terratone / White",
+   "swatch": "linear-gradient(135deg,#8A6A4F 50%,#f4f4f1 50%)",
    "frame": "terratone"
   },
   {
    "id": "dkbronze",
    "name": "Dark Bronze / White",
-   "swatch": "#4a3b2f",
+   "swatch": "linear-gradient(135deg,#4a3b2f 50%,#f4f4f1 50%)",
    "frame": "dkbronze"
   },
   {
@@ -767,6 +773,7 @@
      "colors": [
       "ww",
       "sandtone",
+      "sandtone_sandtone",
       "terratone",
       "bw",
       "dkbronze",
@@ -1089,6 +1096,55 @@
      "max": 15.8643,
      "estimated": true,
      "n": 1
+    },
+    "100|sandtone_sandtone|awning": {
+     "p75": 13.603,
+     "max": 13.603,
+     "estimated": true,
+     "n": 1,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone_sandtone|arch": {
+     "p75": 14.997,
+     "max": 15.6808,
+     "estimated": false,
+     "n": 3,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone_sandtone|vslider": {
+     "p75": 9.5035,
+     "max": 9.5903,
+     "estimated": true,
+     "n": 2,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone_sandtone|hslider": {
+     "p75": 9.5609,
+     "max": 9.5903,
+     "estimated": false,
+     "n": 3,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone_sandtone|xox": {
+     "p75": 12.2627,
+     "max": 12.2627,
+     "estimated": true,
+     "n": 1,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone_sandtone|picture": {
+     "p75": 6.945,
+     "max": 7.0593,
+     "estimated": true,
+     "n": 2,
+     "basis": "per Nick (= White)"
+    },
+    "100|sandtone_sandtone|casement": {
+     "p75": 13.5529,
+     "max": 13.9021,
+     "estimated": true,
+     "n": 2,
+     "basis": "per Nick (= White)"
     }
    }
   },

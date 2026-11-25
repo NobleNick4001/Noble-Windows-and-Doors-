@@ -2,13 +2,14 @@
 // the CSV customer price. The app price is the iQ formula, rounded up.
 // Usage: node tools/check_andersen100.mjs
 import { readFileSync } from 'fs';
-import { data, materialUnitPrice, priceWindow, installUnit } from '../js/core.js';
+import { data, materialUnitPrice, priceWindow, installUnit, addonUnit, grilleKind, chooseAndersenFrame, chooseAndersenInstall } from '../js/core.js';
 
 const load = (p) => JSON.parse(readFileSync(p, 'utf8'));
 data.rates = load('data/rates.json');
 data.variableRates = load('data/variable-rates.json');
 data.options = load('data/options.json');
 data.install = load('data/install.json');
+data.frameTypes = load('data/frame-types.json');
 data.promos = load('data/promos.json');
 data.milgardOnelink = load('data/milgard-onelink.json');
 
@@ -136,7 +137,10 @@ check(installUnit({ type: 'standard', surcharges: [] }, sh) === 360, 'jump frame
 check(installUnit({ type: 'stucco-fin', surcharges: [] }, sh) === 400, 'nail fin labor stays $400');
 check(installUnit({ type: 'block', surcharges: [] }, sh) === 380, 'block labor stays $380');
 const door = { brand: 'andersen', series: '100', type: 'patio_door_2p', color: 'ww', w: 72, h: 80, addons: [] };
-check(installUnit({ type: 'standard', surcharges: [] }, door) === 360, 'door labor stays a separate install line');
+check(installUnit({ type: 'standard', surcharges: [] }, door) === 850, 'Andersen 2-panel door labor is $850');
+check(installUnit({ type: 'standard', surcharges: [] }, { ...door, h: 84 }) === 850, 'door at 84 in does not take the tall add');
+check(installUnit({ type: 'standard', surcharges: [] }, { ...door, h: 95.5 }) === 950, 'door over 84 in adds $100');
+check(addonUnit({ surcharges: ['door-second-story'], writeIn: { amount: '' } }, door) === 300, 'Andersen door uses the door add-ons');
 check(materialUnitPrice(door) === 3315, 'patio door 72x80 white');
 
 const grille = materialUnitPrice({ ...sh, addons: ['grilles_gbg'] });
@@ -167,11 +171,59 @@ check(over?.parts?.[0]?.line?.w === 71.5 && Math.abs(over.parts[0].line.h - 71.5
 check(over?.parts?.[1]?.line?.w === 71.5 && over.parts[1].line.h === 60, 'XO keeps the entered width and height');
 const overXox = priceWindow({ brand: 'andersen', series: '100', type: 'arch_over_xox', color: 'bw', w: 72, h: 60, addons: [], options: [] });
 check(overXox?.combo && overXox.parts[1].line.type === 'xox', 'arch over XOX is the arch plus the XOX');
-check(overXox?.parts?.[0]?.unit === materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'bw', w: 72, h: 18, addons: [] }), 'black/white adder is on the arch line');
+const riseArch = (color) => materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color, w: 72, h: 18, addons: [], customDescription: 'Equal-leg arch, rise about 1/4 of the width' });
+check(overXox?.parts?.[0]?.unit === riseArch('bw'), 'black/white adder is on the arch line');
 check(overXox?.parts?.[1]?.unit === materialUnitPrice({ brand: 'andersen', series: '100', type: 'xox', color: 'bw', w: 72, h: 60, addons: [] }), 'black/white adder is on the XOX line');
-check(overXox.parts[0].unit > materialUnitPrice({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 72, h: 18, addons: [] }), 'black arch line is above white');
+check(overXox.parts[0].unit > riseArch('ww'), 'black arch line is above white');
 const tooNarrow = priceWindow({ brand: 'andersen', series: '100', type: 'arch_over_xox', color: 'ww', w: 48, h: 60, addons: [] });
 check(tooNarrow?.blocked && /width/i.test(tooNarrow.errors.join(' ')), 'arch over XOX under 59.5 is blocked');
+
+const xo36 = { brand: 'andersen', series: '100', type: 'hslider', color: 'ww', w: 36, h: 60, addons: [], options: [], install: { type: 'standard', surcharges: [], frameType: null } };
+const nail36 = materialUnitPrice({ ...xo36, install: undefined, addons: [] });
+const flush36 = materialUnitPrice({ ...xo36, install: undefined, addons: ['flush_fin_trim'] });
+chooseAndersenFrame(xo36, 'zbar');
+check(xo36.install.type === 'standard' && xo36.install.installPicked === false && xo36.install.frameType === 'zbar', 'retrofit frame sets Jump Frame labor');
+check(xo36.addons.includes('flush_fin_trim') && materialUnitPrice(xo36) === flush36 && flush36 > nail36, `retrofit frame applies flush fin ${materialUnitPrice(xo36)} vs nail ${nail36}`);
+chooseAndersenInstall(xo36, 'stucco-fin');
+check(xo36.install.type === 'stucco-fin' && xo36.install.frameType === 'zbar' && xo36.install.installPicked === true, 'manual install change sticks and leaves the frame');
+check(installUnit(xo36.install, xo36) === 400 && materialUnitPrice(xo36) === flush36, 'manual nail-fin labor sticks while flush fin stays with the retrofit frame');
+chooseAndersenFrame(xo36, 'nailfin');
+check(xo36.install.type === 'stucco-fin' && xo36.install.installPicked === false && !xo36.addons.includes('flush_fin_trim'), 'nail fin frame clears the manual labor and the flush charge');
+check(materialUnitPrice(xo36) === nail36 && installUnit(xo36.install, xo36) === 400, 'nail fin frame is the base price');
+chooseAndersenFrame(xo36, 'block');
+check(xo36.install.type === 'block' && installUnit(xo36.install, xo36) === 380 && materialUnitPrice(xo36) === nail36, 'block frame is setback labor with no flush charge');
+
+const archLine = { brand: 'andersen', series: '100', type: 'arch_sh', color: 'ww', w: 36, h: 48, addons: [], options: [], install: { type: 'standard', surcharges: [], frameType: null } };
+const archBefore = materialUnitPrice({ ...archLine, install: undefined });
+chooseAndersenFrame(archLine, 'zbar');
+check(materialUnitPrice(archLine) === archBefore && !archLine.addons.includes('flush_fin_trim'), 'arch single hung has no flush-fin adder');
+
+const odd = priceWindow({ brand: 'andersen', series: '100', type: 'hslider', color: 'ww', w: 36.1, h: 48, addons: [] });
+check(odd?.blocked && /1\/8/.test(odd.errors.join(' ')), 'sizes off the 1/8 inch step are blocked');
+const widePic = priceWindow({ brand: 'andersen', series: '100', type: 'picture', color: 'ww', w: 71.625, h: 80, addons: [] });
+check(widePic?.blocked && /one side/i.test(widePic.errors.join(' ')), 'picture cannot be over 71.5 on both sides');
+const edgePic = priceWindow({ brand: 'andersen', series: '100', type: 'picture', color: 'ww', w: 71.5, h: 80, addons: [] });
+check(edgePic && !edgePic.blocked && edgePic.unit > 0, 'picture 71.5 x 80 keeps one side inside the limit');
+const shortArch = priceWindow({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 48, h: 20, addons: [] });
+check(shortArch?.blocked && /short side/i.test(shortArch.errors.join(' ')), 'specialty arch short side is enforced');
+const bigArch = priceWindow({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 95.5, h: 90, addons: [] });
+check(bigArch?.blocked && /56 sq ft/i.test(bigArch.errors.join(' ')), 'specialty arch over 56 sq ft is blocked');
+const lowHung = priceWindow({ brand: 'andersen', series: '100', type: 'arch_sh', color: 'ww', w: 36, h: 35, addons: [] });
+check(lowHung?.blocked && /short side/i.test(lowHung.errors.join(' ')), 'arch single hung short leg is enforced');
+const verifyArch = priceWindow({ brand: 'andersen', series: '100', type: 'specialty_arch', color: 'ww', w: 36, h: 36, addons: [] });
+check(verifyArch && !verifyArch.blocked && verifyArch.verifyIq === true && verifyArch.unit > 0, 'specialty arch below the iQ sample still prices and asks to verify');
+const covered = priceWindow({ brand: 'andersen', series: '100', type: 'hslider', color: 'ww', w: 36, h: 48, addons: [] });
+check(covered && !covered.blocked && covered.verifyIq !== true, 'a size inside the iQ sample is not flagged');
+
+const sandBoth = priceWindow({ brand: 'andersen', series: '100', type: 'hslider', color: 'sandtone_sandtone', w: 36, h: 48, addons: [] });
+const sandWhite = priceWindow({ brand: 'andersen', series: '100', type: 'hslider', color: 'sandtone', w: 36, h: 48, addons: [] });
+check(sandBoth && !sandBoth.blocked && sandBoth.unit > sandWhite.unit, `Sandtone/Sandtone ${sandBoth?.unit} should be above Sandtone/White ${sandWhite?.unit}`);
+check(data.variableRates.andersen.colorAdders.window.sandtone_sandtone === 181.13, 'Sandtone/Sandtone keeps the copied dark-interior adder');
+const colorNames = Object.fromEntries(data.rates.colors.map((c) => [c.id, c.name]));
+check(colorNames.sandtone === 'Sandtone / White' && colorNames.terratone === 'Terratone / White' && colorNames.sandtone_sandtone === 'Sandtone / Sandtone', 'color labels name both sides');
+check(!data.rates.brands.find((b) => b.id === 'andersen').series[0].colors.includes('terratone_terratone'), 'no Terratone interior');
+check(grilleKind({ addons: ['grilles_gbg'], options: [] }) === 'colonial', 'Andersen GBG draws like colonial grids');
+check(grilleKind({ addons: [], options: ['grids-prairie'] }) === 'prairie', 'prairie grids stay prairie');
 
 if (errs.length) {
   console.log('FAILED');

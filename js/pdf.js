@@ -1,5 +1,5 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
-import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine, rowAmountText } from './core.js';
+import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine, rowAmountText, grilleKind } from './core.js';
 import { droppedExtra } from './held-configs.js';
 import { currentProfile } from './cloud.js';
 import { windowDrawingSVG } from './drawings.js';
@@ -248,9 +248,7 @@ export function fitElevation(wIn, hIn, box = ELEVATION_BOX) {
 
 function glassFlags(line) {
   const ids = new Set([...(line?.options || []), ...(line?.addons || [])]);
-  const colonial = ids.has('grids') || ids.has('grids-colonial');
-  const prairie = !colonial && ids.has('grids-prairie');
-  return { obscure: ids.has('obscure'), grid: colonial ? 'colonial' : prairie ? 'prairie' : '' };
+  return { obscure: ids.has('obscure'), grid: grilleKind(line) };
 }
 
 function archOutline(w, h, inset) {
