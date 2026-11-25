@@ -1,13 +1,12 @@
-import { h, fmt, data, settings } from '../core.js';
+import { h, data, settings } from '../core.js';
 import { icon } from '../icons.js';
 import { view as obscureView } from './obscure.js';
 import { view as frameTypeView } from './frame-types.js';
+import { iwcColorHeld } from '../held-configs.js';
 function priceLabel(o) {
   const p = o.price || {};
-  if (p.unset) return h('span', { class: 'pill ph' }, 'Price not set');
-  if (p.type === 'included' || !p.amount) return h('span', { class: 'pill ok' }, 'Included');
-  const unit = p.type === 'perWindow' ? ' / window' : p.type === 'percent' ? '%' : ' / sq ft';
-  return h('span', { class: 'pill' }, p.type === 'percent' ? `+${p.amount}%` : `+${fmt(p.amount)}${unit}`);
+  if (p.type === 'included') return h('span', { class: 'pill ok' }, 'Included');
+  return null;
 }
 const badge = (o) => (settings.showPlaceholders && o.placeholder ? h('span', { class: 'pill ph' }, 'placeholder') : null);
 
@@ -33,8 +32,8 @@ export function render(root, sub = 'glass') {
     data.options.seriesNote && wrap.append(h('p', { class: 'fine' }, data.options.seriesNote));
   } else if (sub === 'colors') {
     const active = data.rates.brands.filter((b) => b.status === 'active');
-    const where = (id) => active.flatMap((b) => b.series.filter((s) => s.colors.includes(id)).map((s) => (b.series.length > 1 ? `${b.name} ${s.id}` : `${b.name} ${s.name}`))).join(' · ');
-    wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Frame colors'), h('div', { class: 'swatches wide' }, data.rates.colors.map((c) => h('div', { class: 'swatch static' }, h('i', { style: `background:${c.swatch}` }), h('span', {}, c.name), h('small', {}, where(c.id) || '—'))))));
+    const where = (id) => active.flatMap((b) => b.series.filter((s) => s.colors.includes(id) && !(b.id === 'iwc' && iwcColorHeld(id))).map((s) => (b.series.length > 1 ? `${b.name} ${s.id}` : `${b.name} ${s.name}`))).join(' · ');
+    wrap.append(h('div', { class: 'card' }, h('h3', {}, 'Frame colors'), h('div', { class: 'swatches wide' }, data.rates.colors.filter((c) => where(c.id) || !iwcColorHeld(c.id)).map((c) => h('div', { class: 'swatch static' }, h('i', { style: `background:${c.swatch}` }), h('span', {}, c.name), h('small', {}, where(c.id) || '—'))))));
     wrap.append(h('div', { class: 'cards3' }, data.options.frame.map((o) => h('div', { class: 'card opt-card' }, h('div', { class: 'opt-ico' }, icon(o.icon || 'frame')), h('h2', {}, o.name), h('p', {}, o.desc), h('div', { class: 'row gap' }, priceLabel(o), badge(o))))));
   }
   root.replaceChildren(wrap);

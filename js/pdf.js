@@ -1,5 +1,6 @@
 // Builds the contract PDF and the estimate PDF in the browser (no server).
 import { fmt, totals, summaryLines, settings, data, compactWindowLine, windowSections, quoteLine, rowAmountText, grilleKind } from './core.js';
+import { droppedExtra } from './held-configs.js';
 import { currentProfile } from './cloud.js';
 import { windowDrawingSVG } from './drawings.js';
 import { isPrehungLine, migratePrehungEstimate } from './prehung.js';
@@ -619,6 +620,7 @@ export async function makeEstimatePdf(e, opts = {}) {
   const items = (e.lines || []).map((line, i) => ({ n: i + 1, line, ...quoteLine(line, { ascii: true }) }));
   for (const item of items) item.drawing = await lineDrawingImage(item.line);
   (e.extras || []).forEach((extra) => {
+    if (droppedExtra(extra) || !(Number(extra.amount) > 0)) return;
     items.push({
       n: items.length + 1,
       location: '',

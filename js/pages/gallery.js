@@ -70,7 +70,9 @@ export function startShow(start = 0) {
     void img.offsetWidth;
     img.classList.add('in');
     const meta = metaLine(s);
-    cap.replaceChildren(h('b', {}, labelOf(s)), meta ? h('span', {}, meta) : null);
+    const bits = [h('b', {}, labelOf(s))];
+    if (meta) bits.push(h('span', {}, meta));
+    cap.replaceChildren(...bits);
     if (list.length > 10) dots.replaceChildren(h('span', { class: 'ss-count' }, `${i + 1} / ${list.length}`));
     else dots.replaceChildren(...list.map((_, k) => h('i', { class: k === i ? 'on' : '' })));
   };

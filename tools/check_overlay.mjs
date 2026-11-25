@@ -84,7 +84,7 @@ if (bytes > 6 * 1024 * 1024) fail('overlay webps are ' + bytes + ' bytes');
 else ok('overlay webps ' + (bytes / 1024).toFixed(0) + 'KB');
 
 const colorNames = Object.fromEntries(manifest.colors.map((c) => [c.id, c.name]));
-if (colorNames.white !== 'White / White' || colorNames.adobe !== 'Adobe' || colorNames.black !== 'Black / Black' || colorNames.bronze !== 'Bronze Anodized') {
+if (colorNames.white !== 'White / White' || colorNames.adobe !== 'Adobe' || colorNames.black !== 'Black / Black' || colorNames.bronze !== 'Bronze') {
   fail('overlay colors should use the app color names');
 } else ok('color names match the app');
 

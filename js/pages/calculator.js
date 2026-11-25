@@ -1,4 +1,4 @@
-import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, addonPriceHint, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE, rowAmountText, chooseAndersenFrame, chooseAndersenInstall, syncAndersenFlushAddon } from '../core.js';
+import { h, fmt, data, settings, brandById, typeName, colorById, priceWindow, installUnit, addonUnit, addonNames, installLabel, installType, defaultInstall, estimates, toast, store, uid, totals, quoteTotalRows, lineAddonDefs, isAutoAddon, addonName, setLineAddon, fittedIncludes, isCustomLine, needsFrameWarning, FRAME_TYPE_WARNING, captureView, restoreView, seriesColorIds, sizeLimitText, isIntegralType, ARCH_OVER, FLUSH_FIN_NOTE, rowAmountText, chooseAndersenFrame, chooseAndersenInstall, syncAndersenFlushAddon } from '../core.js';
 import { parseInches, inchField } from '../ax650.js';
 import { renderMilgard, roomLabelProps, doorInstallEditor } from './milgard-ui.js';
 import { renderPrl } from './prl-ui.js';
@@ -77,7 +77,7 @@ function legacyOptionCheck(line, o, onChange, idp) {
       line.options = line.options.filter((id) => !ids.has(id));
     }
     onChange();
-  } }), h('span', {}, o.name), o.price?.type !== 'included' && o.price?.amount ? h('em', {}, ' +' + (o.price.type === 'percent' ? o.price.amount + '%' : fmt(o.price.amount))) : null);
+  } }), h('span', {}, o.name));
 }
 export function upgradeEditor(line, onChange, idp = 'opt-') {
   if (line.type === 'custom_supplier' || (isCustomLine(line) && !lineAddonDefs(line))) {
@@ -97,11 +97,11 @@ export function upgradeEditor(line, onChange, idp = 'opt-') {
   const extra = entries.filter(([id]) => !GL.includes(id));
   const mk = ([id, def]) => {
     const on = (line.addons || []).includes(id) || (line.options || []).includes(id) || (id === 'grids' && (line.options || []).includes('grids-colonial'));
-    return h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + id, checked: on ? 'checked' : null, onchange: (e) => { setLineAddon(line, id, e.target.checked); onChange(); } }), h('span', {}, addonName(id, def)), h('em', {}, ' ' + addonPriceHint(def)));
+    return h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + id, checked: on ? 'checked' : null, onchange: (e) => { setLineAddon(line, id, e.target.checked); onChange(); } }), h('span', {}, addonName(id, def)));
   };
   return h('div', {},
     h('div', { class: 'cols2' }, h('div', {}, h('b', {}, 'Glass'), glass.map(mk)), h('div', {}, h('b', {}, 'Upgrades'), extra.map(mk))),
-    autoOn.length ? h('p', { class: 'fine', id: idp + '-auto-addons' }, 'Added for the frame type: ' + autoOn.map(([id, d]) => `${addonName(id, d)} ${addonPriceHint(d)}`).join(', ') + '.') : null,
+    autoOn.length ? h('p', { class: 'fine', id: idp + '-auto-addons' }, 'Added for the frame type: ' + autoOn.map(([id, d]) => addonName(id, d)).join(', ') + '.') : null,
     fittedIncludes(line) ? h('p', { class: 'fine' }, fittedIncludes(line)) : null);
 }
 export function customPriceFields(line, onChange, idp = 'in') {
@@ -186,7 +186,7 @@ function andersenInstallNote(line, inst, idp) {
 export function installEditor(inst, onChange, idp = 'inst', line = null) {
   const t = installType(inst.type);
   const frames = data.frameTypes?.types || [];
-  const priceLabel = (x) => x.custom ? x.name : `${x.name} — ${fmt(x.price)}${x.placeholder ? ' (placeholder)' : ''}`;
+  const priceLabel = (x) => x.name;
   const frameWarn = line && needsFrameWarning({ brand: line.brand, series: line.series, install: inst, frameType: line.frameType })
     ? h('p', { class: 'warn frame-warn', id: idp + '-frame-warn' }, FRAME_TYPE_WARNING)
     : null;
@@ -215,7 +215,7 @@ export function installEditor(inst, onChange, idp = 'inst', line = null) {
       } }, data.install.types.map((x) => h('option', { value: x.id, selected: x.id === inst.type ? 'selected' : null }, priceLabel(x))))),
     andersenInstallNote(line, inst, idp),
     t.custom && h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Custom install price ($ per window)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-custom', value: inst.custom ?? '', oninput: (e) => { inst.custom = e.target.value.replace(/[^0-9.]/g, ''); onChange(); } })),
-    h('div', { class: 'checks' }, data.install.surcharges.map((s) => h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + '-sur-' + s.id, checked: (inst.surcharges || []).includes(s.id) ? 'checked' : null, onchange: (e) => { const cur = inst.surcharges || []; inst.surcharges = e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id); onChange(true); } }), h('span', {}, s.name), s.amount ? h('em', {}, ' +' + fmt(s.amount) + ' / window') : null))),
+    h('div', { class: 'checks' }, data.install.surcharges.map((s) => h('label', { class: 'check' }, h('input', { type: 'checkbox', id: idp + '-sur-' + s.id, checked: (inst.surcharges || []).includes(s.id) ? 'checked' : null, onchange: (e) => { const cur = inst.surcharges || []; inst.surcharges = e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id); onChange(true); } }), h('span', {}, s.name)))),
     h('p', { class: 'fine' }, 'Add-ons are charged per window, times this line’s quantity. Promo codes do not apply.'),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Override install price ($ per window, optional)'), h('input', { type: 'text', inputmode: 'decimal', id: idp + '-override', value: inst.override ?? '', placeholder: 'leave blank to use the price above', oninput: (e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); inst.override = v === '' ? null : v; onChange(); } })));
 }
@@ -346,7 +346,6 @@ export function render(root) {
       priceBox.append(...[
         h('div', { class: 'big muted', id: 'price-window' }, '—'),
         h('p', { class: blocked ? 'warn' : 'muted', id: 'price-block' }, msg),
-        blocked ? h('p', { class: 'muted' }, 'Andersen 100 is not priced outside these limits. Some formulas start from a negative base, so a size past the limit is left blank.') : null,
         frameWarn,
         h('button', { class: 'btn primary xl', id: 'btn-add', disabled: true, title: blocked ? 'Size is outside the Andersen 100 limit' : '' }, uiIcon('plus'), 'Add to estimate'),
       ].filter(Boolean));

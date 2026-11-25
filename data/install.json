@@ -26,9 +26,5 @@
       {"id": "door-cutdown", "name": "Cut down", "amount": 1500}
     ]
   },
-  "jobExtras": [
-    {"id": "permit", "name": "Permit", "amount": 0, "placeholder": true},
-    {"id": "haul-away", "name": "Haul-away / disposal", "amount": 0, "placeholder": true},
-    {"id": "trim", "name": "Interior / exterior trim", "amount": 0, "placeholder": true}
-  ]
+  "jobExtras": []
 }

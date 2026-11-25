@@ -1,5 +1,5 @@
 import { h, fmt, data, settings, estimates, toast, uid, totals, priceWindow, installUnit, quoteTotalRows, captureView, restoreView, linePriceText, rowAmountText, compactWindowLine } from '../core.js';
-import { prlQuote, prlInstall, prlLimits, prlQuoteMessage, PRL_QUOTE_LABEL } from '../prl.js';
+import { prlQuote, prlLimits, prlQuoteMessage, PRL_QUOTE_LABEL } from '../prl.js';
 import { drawingEl } from '../drawings.js';
 import { icon } from '../icons.js';
 import { roomLabelProps } from './milgard-ui.js';
@@ -10,21 +10,28 @@ const decimal = (raw) => {
   return i < 0 ? cleaned : cleaned.slice(0, i + 1) + cleaned.slice(i + 1).replace(/\./g, '');
 };
 
+function cleanPrlChoices(p) {
+  const bifold = p.product === 'bifold';
+  const panels = Number(p.panels);
+  // 6+ panels, other finishes, pocket, corners, bifold screens, thermal
+  // bifolds, and Energy Advantage on a bifold have no price. See held-configs.js.
+  return {
+    product: bifold ? 'bifold' : 'multislide',
+    panels: panels === 4 || panels === 5 ? panels : 3,
+    thermal: !bifold && !!p.thermal,
+    nailOn: !bifold && !!p.nailOn,
+    glass: !bifold && p.glass === 'ea' ? 'ea' : 'sb70',
+    rolling: bifold && p.rolling === 'bottom' ? 'bottom' : 'top',
+    finish: 'bronze',
+    layout: 'standard',
+    screen: false,
+    bifoldThermal: false,
+  };
+}
+
 export function prlChoices(calc) {
   const p = calc?.prl && typeof calc.prl === 'object' ? calc.prl : {};
-  const panels = Number(p.panels);
-  return {
-    product: p.product === 'bifold' ? 'bifold' : 'multislide',
-    panels: panels === 4 || panels === 5 || panels === 6 ? panels : 3,
-    thermal: !!p.thermal,
-    nailOn: !!p.nailOn,
-    glass: p.glass === 'ea' ? 'ea' : 'sb70',
-    rolling: p.rolling === 'bottom' ? 'bottom' : 'top',
-    finish: p.finish === 'other' ? 'other' : 'bronze',
-    layout: p.layout === 'pocket' || p.layout === 'corner' ? p.layout : 'standard',
-    screen: !!p.screen,
-    bifoldThermal: !!p.bifoldThermal,
-  };
+  return cleanPrlChoices(p);
 }
 
 export function prlLineFrom(calc) {
@@ -56,19 +63,14 @@ export function prlLineFrom(calc) {
 
 function choicesFromLine(line) {
   const bifold = line?.type === 'bifold' || line?.series === 'bifold';
-  const panels = Number(line?.panels);
-  return {
+  return cleanPrlChoices({
     product: bifold ? 'bifold' : 'multislide',
-    panels: panels === 4 || panels === 5 || panels === 6 ? panels : 3,
-    thermal: !!line?.thermal,
-    nailOn: !!line?.nailOn,
-    glass: line?.glass === 'ea' ? 'ea' : 'sb70',
-    rolling: line?.rolling === 'bottom' ? 'bottom' : 'top',
-    finish: line?.finish === 'other' ? 'other' : 'bronze',
-    layout: line?.layout === 'pocket' || line?.layout === 'corner' ? line.layout : 'standard',
-    screen: !!line?.screen,
-    bifoldThermal: !!line?.bifoldThermal,
-  };
+    panels: line?.panels,
+    thermal: line?.thermal,
+    nailOn: line?.nailOn,
+    glass: line?.glass,
+    rolling: line?.rolling,
+  });
 }
 
 function applyChoices(target, s) {
@@ -101,7 +103,6 @@ export function prlOptionEditor(state, onPick, idp = 'prl-') {
   const bifold = state.product === 'bifold';
   const set = (patch) => onPick({ ...state, ...patch });
   const panels = [3, 4, 5].map((n) => box(idp + 'panels-' + n, String(n), state.panels === n, false, () => set({ panels: n })));
-  panels.push(box(idp + 'panels-6', '6+', state.panels === 6, true, () => set({ panels: 6 })));
   const root = h('div', { id: idp + 'options' },
     h('div', { class: 'lbl' }, 'Product'),
     h('div', { class: 'labor-boxes', id: idp + 'product' },
@@ -109,27 +110,16 @@ export function prlOptionEditor(state, onPick, idp = 'prl-') {
       box(idp + 'product-bifold', 'Bifold', bifold, false, () => set({ product: 'bifold' }))),
     h('div', { class: 'lbl' }, 'Panels'),
     h('div', { class: 'labor-boxes', id: idp + 'panels' }, panels),
-    h('div', { class: 'lbl' }, 'Finish'),
-    h('div', { class: 'labor-boxes', id: idp + 'finish' },
-      box(idp + 'finish-bronze', 'Bronze anodized', state.finish !== 'other', false, () => set({ finish: 'bronze' })),
-      box(idp + 'finish-other', 'Other finish', state.finish === 'other', true, () => set({ finish: 'other' }))),
-    h('div', { class: 'lbl' }, 'Layout'),
-    h('div', { class: 'labor-boxes', id: idp + 'layout' },
-      box(idp + 'layout-standard', 'Straight', state.layout === 'standard', false, () => set({ layout: 'standard' })),
-      box(idp + 'layout-pocket', 'Pocket', state.layout === 'pocket', true, () => set({ layout: 'pocket' })),
-      box(idp + 'layout-corner', '90° corner', state.layout === 'corner', true, () => set({ layout: 'corner' }))));
+    h('p', { class: 'fine' }, 'Bronze anodized, straight run. Other finishes, pockets, and corners are not priced yet.'));
   if (bifold) {
     root.append(
       h('div', { class: 'lbl' }, 'Bifold'),
       h('div', { class: 'labor-boxes', id: idp + 'rolling' },
         box(idp + 'rolling-top', 'Top-hung', state.rolling !== 'bottom', false, () => set({ rolling: 'top' })),
-        box(idp + 'rolling-bottom', 'Bottom-rolling', state.rolling === 'bottom', false, () => set({ rolling: 'bottom' })),
-        box(idp + 'screen', 'Screen', state.screen, true, () => set({ screen: !state.screen })),
-        box(idp + 'bifold-thermal', 'Thermal', state.bifoldThermal, true, () => set({ bifoldThermal: !state.bifoldThermal }))),
+        box(idp + 'rolling-bottom', 'Bottom-rolling', state.rolling === 'bottom', false, () => set({ rolling: 'bottom' }))),
       h('div', { class: 'lbl' }, 'Glass'),
       h('div', { class: 'labor-boxes', id: idp + 'glass' },
-        box(idp + 'glass-sb70', 'Solarban 70', state.glass !== 'ea', false, () => set({ glass: 'sb70' })),
-        box(idp + 'glass-ea', 'Energy Advantage', state.glass === 'ea', true, () => set({ glass: 'ea' }))));
+        box(idp + 'glass-sb70', 'Solarban 70', true, false, () => set({ glass: 'sb70' }))));
   } else {
     root.append(
       h('div', { class: 'lbl' }, 'Multi-slide'),
@@ -254,8 +244,7 @@ export function renderPrl(root, { calc, persist, rerender }) {
       unitEl.textContent = qty > 1 ? `${qty} × ${fmt(p.unit)}` : 'this door';
     }
     const showInstall = line.panels >= 3 && line.panels <= 5 && !q.quoteRequired && !q.errors.length;
-    const labor = showInstall ? prlInstall(data.ax650, line) : 0;
-    installEl.replaceChildren('Installation', h('small', {}, showInstall ? `${fmt(labor)} / door` : 'Not quoted'));
+    installEl.textContent = showInstall ? 'Installation' : 'Installation not quoted';
     const noteNodes = (priced ? q.notes : []).map((n) => h('p', { class: 'fine', id: 'prl-note' }, n));
     notesEl.replaceChildren(...noteNodes);
     drawHost.replaceChildren(...(sized ? [drawingEl(line, 'calc-drawing', { boxW: 240, boxH: 200 })] : []));
