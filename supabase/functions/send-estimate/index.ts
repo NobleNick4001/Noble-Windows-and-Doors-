@@ -4,7 +4,7 @@
 // Otherwise Resend (RESEND_API_KEY). Does not mark the estimate presented.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  SENDER_FROM, providerFor, buildHtml, buildRawMessage, safeFilename, toBase64Url,
+  SENDER_FROM, providerFor, gmailTokenDead, buildHtml, buildRawMessage, safeFilename, toBase64Url,
 } from './mail.js';
 
 const cors = {
@@ -128,17 +128,29 @@ Deno.serve(async (req) => {
   const filename = safeFilename(number);
 
   try {
+    let used = provider;
     let providerId = null;
+    const resendArgs = { to, subject, html, pdfBase64, filename };
     if (provider === 'gmail') {
-      const raw = buildRawMessage({ from: SENDER_FROM, to, subject, html, pdfBase64, filename });
-      providerId = await sendGmail(secrets, raw);
+      try {
+        const raw = buildRawMessage({ from: SENDER_FROM, to, subject, html, pdfBase64, filename });
+        providerId = await sendGmail(secrets, raw);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        if (!gmailTokenDead(message)) throw err;
+        if (!secrets.RESEND_API_KEY.trim()) {
+          throw new Error('Company Gmail needs to be reconnected. Signing in again on this iPad will not fix it.');
+        }
+        used = 'resend';
+        providerId = await sendResend(secrets.RESEND_API_KEY, resendArgs);
+      }
     } else {
-      providerId = await sendResend(secrets.RESEND_API_KEY, { to, subject, html, pdfBase64, filename });
+      providerId = await sendResend(secrets.RESEND_API_KEY, resendArgs);
     }
     const sentAt = new Date().toISOString();
     const { error: saveErr } = await admin.from('estimates').update({ sent_at: sentAt, sent_to: to }).eq('id', estimateId);
     if (saveErr) return json(500, { ok: false, error: saveErr.message });
-    return json(200, { ok: true, provider, sent_at: sentAt, sent_to: to, provider_id: providerId });
+    return json(200, { ok: true, provider: used, sent_at: sentAt, sent_to: to, provider_id: providerId });
   } catch (err) {
     return json(502, { ok: false, error: err instanceof Error ? err.message : 'Email failed' });
   }
